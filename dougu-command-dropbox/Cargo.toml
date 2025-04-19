@@ -11,3 +11,8 @@ dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+log = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+dougu-foundation-ui = { path = "../dougu-foundation-ui" }

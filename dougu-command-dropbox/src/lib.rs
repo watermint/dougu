@@ -117,8 +117,12 @@ pub async fn execute_file_list(args: &ListFileArgs, token: &str) -> Result<()> {
     
     let result = client.list_files(path).await?;
     
+    // Create UI manager for output
+    let ui = dougu_foundation_ui::UIManager::default();
+    
     for file in &result.files {
-        println!("{} ({})", file.name, file.size);
+        let formatted = format!("{} ({})", file.name, file.size);
+        ui.print(&formatted);
     }
     
     Ok(())

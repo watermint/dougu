@@ -250,13 +250,19 @@ pub async fn execute_test(args: &TestArgs) -> Result<()> {
     // Execute cargo test command
     let output = cmd.output().await?;
     
+    // Create UI manager for output
+    let ui = dougu_foundation_ui::UIManager::default();
+    
     // Print output
     if !output.stdout.is_empty() {
-        println!("{}", String::from_utf8_lossy(&output.stdout));
+        ui.print(&String::from_utf8_lossy(&output.stdout));
     }
     
     if !output.stderr.is_empty() {
-        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        // For stderr, we still want to use the error stream
+        // but format it using UI manager
+        let error_text = ui.error(&String::from_utf8_lossy(&output.stderr));
+        eprintln!("{}", error_text);
     }
     
     if !output.status.success() {
@@ -296,13 +302,19 @@ pub async fn execute_compile(args: &CompileArgs) -> Result<()> {
     // Execute cargo build command
     let output = cmd.output().await?;
     
+    // Create UI manager for output
+    let ui = dougu_foundation_ui::UIManager::default();
+    
     // Print output
     if !output.stdout.is_empty() {
-        println!("{}", String::from_utf8_lossy(&output.stdout));
+        ui.print(&String::from_utf8_lossy(&output.stdout));
     }
     
     if !output.stderr.is_empty() {
-        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        // For stderr, we still want to use the error stream
+        // but format it using UI manager
+        let error_text = ui.error(&String::from_utf8_lossy(&output.stderr));
+        eprintln!("{}", error_text);
     }
     
     if !output.status.success() {

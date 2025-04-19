@@ -11,8 +11,10 @@ members = [
     "dougu-essentials-fs",
     "dougu-essentials-kvs",
     "dougu-essentials-sql",
-    "dougu-foundation-run"
-, "dougu-command-build"]
+    "dougu-foundation-run",
+    "dougu-command-build",
+    "dougu-foundation-ui"
+]
 resolver = "2"
 
 [workspace.dependencies]

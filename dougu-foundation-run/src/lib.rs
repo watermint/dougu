@@ -5,7 +5,7 @@ use resources::log_messages;
 use log::{debug, info, error};
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
+use dougu_foundation_ui::{UIManager, format_commandlet_result};
 
 /// Commandlet represents a command implementation that takes serializable parameters and returns serializable results
 #[async_trait]
@@ -139,11 +139,22 @@ impl CommandLauncher {
 /// CommandRunner handles parsing command line arguments into params and formatting results
 pub struct CommandRunner<C: Commandlet> {
     commandlet: C,
+    ui: UIManager,
 }
 
 impl<C: Commandlet> CommandRunner<C> {
     pub fn new(commandlet: C) -> Self {
-        Self { commandlet }
+        Self { 
+            commandlet,
+            ui: UIManager::default(),
+        }
+    }
+    
+    pub fn with_ui(commandlet: C, ui: UIManager) -> Self {
+        Self { 
+            commandlet,
+            ui,
+        }
     }
     
     /// Run the commandlet with the given serialized parameters
@@ -172,9 +183,20 @@ impl<C: Commandlet> CommandRunner<C> {
     
     /// Format the serialized results for display
     pub fn format_results(&self, serialized_results: &str) -> Result<String, CommandletError> {
-        // For now, just return the JSON as is
-        // In a real implementation, this could format results based on output preferences
-        Ok(serialized_results.to_string())
+        // Parse the serialized JSON to any value
+        let parsed_value: serde_json::Value = serde_json::from_str(serialized_results)
+            .map_err(|e| CommandletError::with_details(
+                "RESULT_PARSE_ERROR", 
+                "Failed to parse results for formatting", 
+                &e.to_string()
+            ))?;
+        
+        Ok(format_commandlet_result(&self.ui, &parsed_value))
+    }
+    
+    /// Get UI manager reference
+    pub fn ui(&self) -> &UIManager {
+        &self.ui
     }
 }
 
