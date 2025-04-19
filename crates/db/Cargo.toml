@@ -1,0 +1,15 @@
+[package]
+name = "db"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+essentials.workspace = true
+db-file = { path = "../commands/file" }
+db-dropbox = { path = "../commands/dropbox" } 
