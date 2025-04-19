@@ -19,4 +19,5 @@ quick-xml = { workspace = true }
 jaq-parse = { workspace = true }
 jaq-interpret = { workspace = true }
 jaq-syn = { workspace = true }
-dougu-foundation-ui = { path = "../dougu-foundation-ui" } 
+dougu-foundation-ui = { path = "../dougu-foundation-ui" }
+base64 = "0.21" 

@@ -8,11 +8,10 @@ use dougu_command_file::{FileArgs, FileCommandlet};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
-use dougu_command_root::VersionCommandLayer;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer};
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
-use dougu_foundation_ui::UIManager;
+use dougu_foundation_ui::{UIManager, OutputFormat};
 
 // Keep the i18n module for potential future use
 mod i18n;
@@ -27,6 +26,10 @@ struct Cli {
     /// Set locale for internationalization (e.g., 'en', 'es')
     #[arg(short, long, default_value = "en")]
     locale: String,
+
+    /// Set output format (default, json, markdown)
+    #[arg(long, value_parser = ["default", "json", "markdown"], default_value = "default", global = true)]
+    format: String,
 
     #[command(subcommand)]
     command: Commands,
@@ -63,9 +66,14 @@ impl LauncherLayer for FileCommandletLayer {
         if let Some(args_str) = ctx.get_data("file_args") {
             info!("{}", log_messages::COMMAND_START.replace("{}", "File"));
             
+            // Get output format from context
+            let default_format = "default".to_string();
+            let format_str = ctx.get_data("output_format").unwrap_or(&default_format);
+            let output_format = OutputFormat::from_str(format_str).unwrap_or(OutputFormat::Default);
+            
             // Create the commandlet with UI manager
             let commandlet = FileCommandlet;
-            let ui = UIManager::default();
+            let ui = UIManager::with_format(output_format);
             let runner = CommandRunner::with_ui(commandlet, ui);
             
             // Add locale to the args if it's a JSON object
@@ -104,14 +112,20 @@ impl LauncherLayer for FileCommandletLayer {
             let result = runner.run(&args_with_locale).await
                 .map_err(|e| format!("File command execution failed: {}", e))?;
             
-            // Format and display the result using UI manager
-            let formatted_result = runner.format_results(&result)
-                .map_err(|e| format!("Failed to format results: {}", e))?;
-            
-            // Display with appropriate UI formatting
-            let heading = runner.ui().heading(1, "File Operation Result");
-            runner.ui().print(&heading);
-            runner.ui().print(&formatted_result);
+            // Handle output based on format
+            if output_format == OutputFormat::Json {
+                // Direct JSON output
+                println!("{}", result);
+            } else {
+                // Formatted output
+                let formatted_result = runner.format_results(&result)
+                    .map_err(|e| format!("Failed to format results: {}", e))?;
+                
+                // Display with appropriate UI formatting
+                let heading = runner.ui().heading(1, "File Operation Result");
+                runner.ui().print(&heading);
+                runner.ui().print(&formatted_result);
+            }
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
         }
@@ -324,9 +338,60 @@ impl LauncherLayer for BuildCommandLayer {
     }
 }
 
+// Replace VersionCommandLayerWithJson with VersionCommandLayerWithFormat
+struct VersionCommandLayerWithFormat(OutputFormat);
+
+#[async_trait]
+impl LauncherLayer for VersionCommandLayerWithFormat {
+    fn name(&self) -> &str {
+        "VersionCommandLayerWithFormat"
+    }
+
+    async fn run(&self, _ctx: &mut LauncherContext) -> Result<(), String> {
+        let commandlet = dougu_command_root::VersionCommandlet;
+        let ui = UIManager::with_format(self.0);
+        let runner = CommandRunner::with_ui(commandlet, ui);
+        let params = dougu_command_root::VersionParams {};
+        let serialized_params = serde_json::to_string(&params)
+            .map_err(|e| format!("Failed to serialize version params: {}", e))?;
+        let result = runner.run(&serialized_params).await
+            .map_err(|e| format!("Version command execution failed: {}", e))?;
+        
+        match self.0 {
+            OutputFormat::Json => {
+                // Print raw JSON result
+                println!("{}", result);
+            },
+            OutputFormat::Markdown | OutputFormat::Default => {
+                let parsed_result: dougu_command_root::VersionResults = serde_json::from_str(&result)
+                    .map_err(|e| format!("Failed to parse version results: {}", e))?;
+                let ui = runner.ui();
+                let heading = ui.heading(1, "Dougu Version Information");
+                ui.print(&heading);
+                let headers = &["Property", "Value"];
+                let rows = vec![
+                    vec!["Version".to_string(), parsed_result.version],
+                    vec!["Rust Version".to_string(), parsed_result.rust_version],
+                    vec!["Build Target".to_string(), parsed_result.target],
+                    vec!["Build Profile".to_string(), parsed_result.profile],
+                    vec!["Build Timestamp".to_string(), parsed_result.timestamp],
+                ];
+                let table = ui.table(headers, &rows);
+                ui.print(&table);
+            }
+        }
+        
+        Ok(())
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    
+    // Parse the output format
+    let output_format = OutputFormat::from_str(&cli.format)
+        .unwrap_or(OutputFormat::Default);
     
     // Set up logging based on verbosity
     let level = match cli.verbose {
@@ -391,6 +456,8 @@ async fn main() -> Result<()> {
     
     // Create context with command name, verbosity, and locale
     let mut context = LauncherContext::with_locale(command_name.to_string(), cli.verbose, locale.clone());
+    // Propagate format option to context
+    context.set_data("output_format", cli.format.clone());
     
     // Add the I18nInitializerLayer as the first layer
     launcher.add_layer(I18nInitializerLayer::with_locale(locale));
@@ -398,35 +465,31 @@ async fn main() -> Result<()> {
     // Add appropriate command layers based on the command
     match &cli.command {
         Commands::File(args) => {
-            // Serialize args to string to pass through context
             let args_json = serde_json::to_string(args)
                 .map_err(|e| anyhow::anyhow!("Failed to serialize file args: {}", e))?;
             context.set_data("file_args", args_json);
             launcher.add_layer(FileCommandletLayer);
         }
         Commands::Dropbox(args) => {
-            // Serialize args to string to pass through context
             let args_json = serde_json::to_string(args)
                 .map_err(|e| anyhow::anyhow!("Failed to serialize dropbox args: {}", e))?;
             context.set_data("dropbox_args", args_json);
             launcher.add_layer(DropboxCommandLayer);
         }
         Commands::Obj(cmd) => {
-            // Serialize args to string to pass through context
             let args_json = serde_json::to_string(cmd)
                 .map_err(|e| anyhow::anyhow!("Failed to serialize obj args: {}", e))?;
             context.set_data("obj_args", args_json);
             launcher.add_layer(ObjCommandLayer);
         }
         Commands::Build(args) => {
-            // Serialize args to string to pass through context
             let args_json = serde_json::to_string(args)
                 .map_err(|e| anyhow::anyhow!("Failed to serialize build args: {}", e))?;
             context.set_data("build_args", args_json);
             launcher.add_layer(BuildCommandLayer);
         }
         Commands::Version => {
-            launcher.add_layer(VersionCommandLayer);
+            launcher.add_layer(VersionCommandLayerWithFormat(output_format));
         }
     }
     

@@ -1,12 +1,15 @@
 use anyhow::{Context, Result};
+use base64::Engine;
 use clap::{Parser, Subcommand};
 use dougu_essentials_obj::{Decoder, Encoder, Format, Query};
-use dougu_foundation_ui::UIManager;
+use dougu_foundation_ui::{UIManager, OutputFormat};
+use dougu_foundation_ui::resources::ui_messages::FORMAT_OPTION_DESCRIPTION;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod resources;
 use resources::messages::*;
@@ -15,6 +18,9 @@ use resources::messages::*;
 #[command(name = "obj")]
 #[command(about = CMD_OBJ_DESCRIPTION)]
 pub struct ObjCommand {
+    /// Output format (default, json, markdown)
+    #[arg(long = "format", help = FORMAT_OPTION_DESCRIPTION, value_parser = ["default", "json", "markdown"], default_value = "default")]
+    pub format: String,
     #[command(subcommand)]
     command: ObjCommands,
 }
@@ -56,119 +62,120 @@ enum ObjCommands {
 
 impl ObjCommand {
     pub async fn execute(self) -> Result<()> {
-        // Create UI manager for formatted output
-        let ui = UIManager::default();
+        let output_format = OutputFormat::from_str(&self.format).unwrap_or(OutputFormat::Default);
+        let ui = UIManager::with_format(output_format);
+        let use_json_output = output_format == OutputFormat::Json;
         
         match self.command {
             ObjCommands::Query {
                 ref format,
                 ref file,
                 ref query,
-            } => self.execute_query(format, file, query, &ui).await,
+            } => self.execute_query(format, file, query, &ui, use_json_output).await,
             ObjCommands::Convert {
                 ref input_format,
                 ref input_file,
                 ref output_format,
-            } => self.execute_convert(input_format, input_file, output_format, &ui).await,
+            } => self.execute_convert(input_format, input_file, output_format, &ui, use_json_output).await,
         }
     }
 
-    async fn execute_query(&self, format_str: &str, file_path: &PathBuf, query_str: &str, ui: &UIManager) -> Result<()> {
-        let format = Format::from_str(format_str)
-            .with_context(|| ERROR_INVALID_FORMAT)?;
-        
-        let input = self.get_input(file_path)
-            .with_context(|| ERROR_FILE_NOT_FOUND)?;
-        
-        // Display operation heading
-        ui.print(&ui.heading(1, "Query Result"));
-        
-        // Decode the input data
-        let value: Value = Decoder::decode(&input, format)
-            .with_context(|| ERROR_DECODE_FAILED)?;
-        
-        // Create and execute the query
-        let query = Query::compile(query_str)
-            .with_context(|| ERROR_QUERY_FAILED)?;
-        
-        let result = query.execute(&value)
-            .with_context(|| ERROR_QUERY_FAILED)?;
-        
-        // Print the formatted result using the UI manager
-        // Convert jaq_interpret::val::Val to a string first, then parse to serde_json::Value
-        let result_str = result.to_string();
-        match serde_json::from_str::<serde_json::Value>(&result_str) {
-            Ok(json_value) => {
-                match ui.format_json(&json_value) {
-                    Ok(formatted) => {
-                        ui.print(&ui.heading(2, "Query Output"));
-                        ui.print(&ui.code(&formatted, Some("json")));
-                    },
-                    Err(_) => {
-                        // Fallback to direct printing if JSON formatting fails
-                        ui.print(&ui.heading(2, "Query Output (Raw)"));
-                        ui.print(&result_str);
-                    }
+    async fn execute_query(&self, format_str: &str, file_path: &PathBuf, query_str: &str, ui: &UIManager, json_mode: bool) -> Result<()> {
+        let result: Result<serde_json::Value, anyhow::Error> = (|| {
+            let format = Format::from_str(format_str)
+                .with_context(|| ERROR_INVALID_FORMAT)?;
+            let input = self.get_input(file_path)
+                .with_context(|| ERROR_FILE_NOT_FOUND)?;
+            let value: Value = Decoder::decode(&input, format)
+                .with_context(|| ERROR_DECODE_FAILED)?;
+            let query = Query::compile(query_str)
+                .with_context(|| ERROR_QUERY_FAILED)?;
+            let result = query.execute(&value)
+                .with_context(|| ERROR_QUERY_FAILED)?;
+            let result_str = result.to_string();
+            let output = match serde_json::from_str::<serde_json::Value>(&result_str) {
+                Ok(json_value) => json_value,
+                Err(_) => serde_json::json!({"raw": result_str}),
+            };
+            Ok(output)
+        })();
+        if json_mode {
+            match result {
+                Ok(val) => println!("{}", serde_json::to_string_pretty(&val).unwrap()),
+                Err(e) => println!("{}", serde_json::json!({"error": e.to_string()})),
+            }
+        } else {
+            match result {
+                Ok(val) => {
+                    ui.print(&ui.heading(1, "Query Result"));
+                    let formatted = ui.format_json(&val).unwrap_or_else(|_| format!("{}", serde_json::to_string_pretty(&val).unwrap_or_default()));
+                    ui.print(&ui.heading(2, "Query Output"));
+                    ui.print(&ui.code(&formatted, Some("json")));
+                },
+                Err(e) => {
+                    ui.print(&ui.error(&e.to_string()));
                 }
-            },
-            Err(_) => {
-                // If the result cannot be parsed as JSON, display as raw string
-                ui.print(&ui.heading(2, "Query Output (Raw)"));
-                ui.print(&result_str);
             }
         }
-        
         Ok(())
     }
 
-    async fn execute_convert(&self, input_format_str: &str, input_file: &PathBuf, output_format_str: &str, ui: &UIManager) -> Result<()> {
-        let input_format = Format::from_str(input_format_str)
-            .with_context(|| ERROR_INVALID_FORMAT)?;
-        
-        let output_format = Format::from_str(output_format_str)
-            .with_context(|| ERROR_INVALID_FORMAT)?;
-        
-        let input = self.get_input(input_file)
-            .with_context(|| ERROR_FILE_NOT_FOUND)?;
-        
-        // Display operation heading
-        ui.print(&ui.heading(1, "Format Conversion"));
-        ui.print(&ui.key_value_list(&[
-            ("From", input_format_str),
-            ("To", output_format_str),
-            ("File", &input_file.to_string_lossy()),
-        ]));
-        
-        // Convert between formats
-        let value: Value = Decoder::decode(&input, input_format)
-            .with_context(|| ERROR_DECODE_FAILED)?;
-        
-        ui.print(&ui.heading(2, "Conversion Result"));
-        
-        match output_format {
-            Format::Json | Format::Xml => {
-                let output = Encoder::encode_to_string(&value, output_format)
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                
-                // For text formats, use code block with syntax highlighting
-                let language = match output_format {
-                    Format::Json => "json",
-                    Format::Xml => "xml",
-                    _ => "", // Should never happen based on the match condition
-                };
-                
-                ui.print(&ui.code(&output, Some(language)));
-            },
-            _ => {
-                let output = Encoder::encode(&value, output_format)
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                
-                // For binary formats, just write to stdout directly
-                ui.print(&ui.info("Binary data written to stdout"));
-                io::stdout().write_all(&output)?;
+    async fn execute_convert(&self, input_format_str: &str, input_file: &PathBuf, output_format_str: &str, ui: &UIManager, json_mode: bool) -> Result<()> {
+        let result: Result<serde_json::Value, anyhow::Error> = (|| {
+            let input_format = Format::from_str(input_format_str)
+                .with_context(|| ERROR_INVALID_FORMAT)?;
+            let output_format = Format::from_str(output_format_str)
+                .with_context(|| ERROR_INVALID_FORMAT)?;
+            let input = self.get_input(input_file)
+                .with_context(|| ERROR_FILE_NOT_FOUND)?;
+            let value: Value = Decoder::decode(&input, input_format)
+                .with_context(|| ERROR_DECODE_FAILED)?;
+            let output = match output_format {
+                Format::Json | Format::Xml => {
+                    let output = Encoder::encode_to_string(&value, output_format)
+                        .with_context(|| ERROR_DECODE_FAILED)?;
+                    serde_json::json!({"result": output})
+                },
+                _ => {
+                    let output = Encoder::encode(&value, output_format)
+                        .with_context(|| ERROR_DECODE_FAILED)?;
+                    serde_json::json!({"info": "Binary data written to stdout", "bytes": base64::engine::general_purpose::STANDARD.encode(&output)})
+                }
+            };
+            Ok(output)
+        })();
+        if json_mode {
+            match result {
+                Ok(val) => println!("{}", serde_json::to_string_pretty(&val).unwrap()),
+                Err(e) => println!("{}", serde_json::json!({"error": e.to_string()})),
+            }
+        } else {
+            match result {
+                Ok(val) => {
+                    ui.print(&ui.heading(1, "Format Conversion"));
+                    ui.print(&ui.key_value_list(&[
+                        ("From", input_format_str),
+                        ("To", output_format_str),
+                        ("File", &input_file.to_string_lossy()),
+                    ]));
+                    ui.print(&ui.heading(2, "Conversion Result"));
+                    if let Some(result) = val.get("result") {
+                        let formatted = ui.format_json(result).unwrap_or_else(|_| format!("{}", result));
+                        let language = match output_format_str.to_lowercase().as_str() {
+                            "json" => "json",
+                            "xml" => "xml",
+                            _ => "",
+                        };
+                        ui.print(&ui.code(&formatted, Some(language)));
+                    } else if let Some(info) = val.get("info") {
+                        ui.print(&ui.info(info.as_str().unwrap_or("Binary data written to stdout")));
+                    }
+                },
+                Err(e) => {
+                    ui.print(&ui.error(&e.to_string()));
+                }
             }
         }
-        
         Ok(())
     }
 

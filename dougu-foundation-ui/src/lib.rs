@@ -6,7 +6,35 @@ use prettytable::{Table, Row, Cell, format};
 use resources::ui_messages;
 use serde::Serialize;
 use std::fmt::Display;
+use std::str::FromStr;
 use textwrap::wrap;
+
+// Define a format enum to represent the available output formats
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    Default,
+    Json,
+    Markdown,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        Self::Default
+    }
+}
+
+impl FromStr for OutputFormat {
+    type Err = String;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "default" => Ok(OutputFormat::Default),
+            "json" => Ok(OutputFormat::Json),
+            "markdown" => Ok(OutputFormat::Markdown),
+            _ => Err(format!("Invalid output format: {}", s)),
+        }
+    }
+}
 
 // Theme settings (can be expanded to allow different themes)
 pub struct UITheme {
@@ -36,12 +64,14 @@ impl Default for UITheme {
 /// UI Manager for standardized output rendering
 pub struct UIManager {
     theme: UITheme,
+    format: OutputFormat,
 }
 
 impl Default for UIManager {
     fn default() -> Self {
         Self {
             theme: UITheme::default(),
+            format: OutputFormat::Default,
         }
     }
 }
@@ -49,7 +79,39 @@ impl Default for UIManager {
 impl UIManager {
     /// Create a new UI Manager with custom theme
     pub fn new(theme: UITheme) -> Self {
-        Self { theme }
+        Self { 
+            theme,
+            format: OutputFormat::Default,
+        }
+    }
+    
+    /// Create a UIManager with a specific output format
+    pub fn with_format(format: OutputFormat) -> Self {
+        Self {
+            theme: UITheme::default(),
+            format,
+        }
+    }
+    
+    /// Create a UIManager that outputs only JSON (no formatting)
+    pub fn json_mode() -> Self {
+        Self { 
+            theme: UITheme::default(),
+            format: OutputFormat::Json,
+        }
+    }
+    
+    /// Create a UIManager that outputs markdown
+    pub fn markdown_mode() -> Self {
+        Self {
+            theme: UITheme::default(),
+            format: OutputFormat::Markdown,
+        }
+    }
+    
+    /// Get the current output format
+    pub fn format(&self) -> OutputFormat {
+        self.format
     }
     
     /// Create a heading (Markdown-like # Heading)

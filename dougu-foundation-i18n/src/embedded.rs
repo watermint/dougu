@@ -1,5 +1,6 @@
 // This module embeds translation resources into the binary
 // Each resource is included at compile time as a static string
+use dougu_essentials_i18n::Locale;
 
 /// Foundation English resources
 pub const FOUNDATION_EN: &str = include_str!("../../dougu-foundation-run/src/resources/i18n-en.json");
@@ -21,7 +22,20 @@ pub const ROOT_COMMAND_JA: &str = include_str!("../../dougu-command-root/src/res
 
 /// Get embedded resource content by module and locale
 pub fn get_resource(module: &str, locale: &str) -> Option<&'static str> {
-    match (module, locale) {
+    // Extract the language code from the locale string
+    let locale_parts: Vec<&str> = locale.split(|c| c == '-' || c == '_').collect();
+    let base_language = locale_parts.first()?;
+    
+    match (module, *base_language) {
+        (m, "en") => get_resource_by_language(m, "en"),
+        (m, "ja") => get_resource_by_language(m, "ja"),
+        _ => None,
+    }
+}
+
+/// Helper function to get resource by module and language
+fn get_resource_by_language(module: &str, language: &str) -> Option<&'static str> {
+    match (module, language) {
         ("foundation", "en") => Some(FOUNDATION_EN),
         ("foundation", "ja") => Some(FOUNDATION_JA),
         ("file", "en") => Some(FILE_COMMAND_EN),

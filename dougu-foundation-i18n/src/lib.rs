@@ -1,5 +1,6 @@
 // Import only what we need directly
 use std::path::Path;
+use std::str::FromStr;
 
 // New module for embedded resources
 pub mod embedded;
@@ -142,31 +143,82 @@ impl I18nInitializer {
     }
     
     /// Load translations from embedded resources
-    fn load_embedded_translations(&self, locale: &str) -> Result<(), String> {
-        // Load foundation translations from embedded resources
-        let foundation_content = embedded::get_resource("foundation", locale)
-            .ok_or_else(|| format!("Foundation resource not found for locale: {}", locale))?;
+    fn load_embedded_translations(&self, locale_str: &str) -> Result<(), String> {
+        // Parse the requested locale using Locale's constructors
+        let locale_parts: Vec<&str> = locale_str.split(|c| c == '-' || c == '_').collect();
         
-        if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale, foundation_content) {
-            return Err(format!("Failed to load embedded foundation translations: {}", e));
+        let locale_obj = match locale_parts.len() {
+            1 => Locale::new(locale_parts[0]),
+            2 => Locale::with_region(locale_parts[0], locale_parts[1]),
+            3 => Locale::with_script_region(locale_parts[0], locale_parts[1], locale_parts[2]),
+            _ => {
+                log::warn!("Invalid locale format: '{}'", locale_str);
+                return Err(format!("Invalid locale format: {}", locale_str));
+            }
+        };
+        
+        // Get the base language for fallback
+        let base_language = locale_obj.language();
+        
+        // Foundation resources
+        self.load_module_resource("foundation", locale_str, base_language)?;
+        
+        // File command resources (non-critical, so we don't propagate errors)
+        if let Err(e) = self.load_module_resource("file", locale_str, base_language) {
+            log::warn!("Failed to load file resources: {}", e);
         }
         
-        // Load file command translations from embedded resources
-        let file_content = embedded::get_resource("file", locale)
-            .ok_or_else(|| format!("File command resource not found for locale: {}", locale))?;
-        
-        if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale, file_content) {
-            return Err(format!("Failed to load embedded file command translations: {}", e));
+        // Root command resources (non-critical, so we don't propagate errors)
+        if let Err(e) = self.load_module_resource("root", locale_str, base_language) {
+            log::warn!("Failed to load root resources: {}", e);
         }
         
-        // Load root command translations from embedded resources
-        let root_content = embedded::get_resource("root", locale)
-            .ok_or_else(|| format!("Root command resource not found for locale: {}", locale))?;
-        
-        if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale, root_content) {
-            return Err(format!("Failed to load embedded root command translations: {}", e));
+        Ok(())
+    }
+    
+    /// Helper to load a specific module resource with proper fallback
+    fn load_module_resource(&self, module: &str, locale_str: &str, base_language: &str) -> Result<(), String> {
+        // Try with exact locale first
+        if let Some(content) = embedded::get_resource(module, locale_str) {
+            if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale_str, content) {
+                log::warn!("Failed to load {} translations for {}: {}", module, locale_str, e);
+                // Continue with fallbacks even if this fails
+            } else {
+                return Ok(());
+            }
         }
         
+        // If exact locale failed, try with base language
+        if locale_str != base_language {
+            if let Some(content) = embedded::get_resource(module, base_language) {
+                if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale_str, content) {
+                    log::warn!("Failed to load {} translations for base language {}: {}", 
+                               module, base_language, e);
+                    // Continue with English fallback
+                } else {
+                    return Ok(());
+                }
+            }
+        }
+        
+        // Try English as last resort
+        if base_language != "en" {
+            if let Some(content) = embedded::get_resource(module, "en") {
+                if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale_str, content) {
+                    log::warn!("Failed to load {} translations for fallback 'en': {}", module, e);
+                    return Err(format!("{} resource not available for locale: {}", module, locale_str));
+                }
+                return Ok(());
+            }
+        }
+        
+        // If foundation module and we got here, we have a real problem
+        if module == "foundation" {
+            return Err(format!("Foundation resource not found for locale: {}", locale_str));
+        }
+        
+        // For other modules, just log a warning and continue
+        log::warn!("{} resource not found for locale: {}", module, locale_str);
         Ok(())
     }
 }

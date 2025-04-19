@@ -17,4 +17,7 @@ pub const TRACE_FORMATTING_RESULT: &str = "Formatting command result";
 // Generic UI elements
 pub const TABLE_NO_DATA: &str = "No data available";
 pub const LIST_EMPTY: &str = "Empty list";
-pub const BLOCK_PLACEHOLDER: &str = "No content provided"; 
+pub const BLOCK_PLACEHOLDER: &str = "No content provided";
+
+// Format options
+pub const FORMAT_OPTION_DESCRIPTION: &str = "Output format (json, markdown, default)"; 
