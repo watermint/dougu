@@ -1,0 +1,12 @@
+pub const PROVIDER_NOT_FOUND: &str = "Archive provider not found";
+pub const ARCHIVE_NOT_FOUND: &str = "Archive not found";
+pub const ENTRY_NOT_FOUND: &str = "Archive entry not found";
+pub const OPERATION_NOT_SUPPORTED: &str = "Operation not supported by this provider";
+pub const PERMISSION_DENIED: &str = "Permission denied";
+pub const ARCHIVE_ALREADY_EXISTS: &str = "Archive already exists";
+pub const INVALID_ARCHIVE_FORMAT: &str = "Invalid archive format";
+pub const INVALID_ENTRY_PATH: &str = "Invalid entry path";
+pub const COMPRESSION_ERROR: &str = "Compression error";
+pub const DECOMPRESSION_ERROR: &str = "Decompression error";
+pub const IO_ERROR: &str = "I/O error";
+pub const UNKNOWN_ERROR: &str = "Unknown error"; 

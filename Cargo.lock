@@ -724,6 +724,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dougu-essentials-archive"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "log",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "zip",
+]
+
+[[package]]
 name = "dougu-essentials-build"
 version = "1.0.0"
 dependencies = [

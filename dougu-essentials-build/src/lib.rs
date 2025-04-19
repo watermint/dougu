@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use chrono::{Utc, Datelike, TimeZone};
+use chrono::{Utc, Datelike};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildInfo {
@@ -8,6 +8,8 @@ pub struct BuildInfo {
     pub build_type: String,
     pub repository_name: String,
     pub repository_owner: String,
+    pub copyright_owner: String,
+    pub copyright_year: u32,
 }
 
 impl BuildInfo {
@@ -94,18 +96,44 @@ impl BuildInfo {
             build_timestamp,
             repository_owner,
             repository_name,
+            copyright_owner: "Takayuki Okazaki".to_string(),
+            copyright_year: Utc::now().year() as u32,
         }
     }
 
     /// Create a new BuildInfo for CI builds
-    pub fn new_ci(run_number: &str, build_release: u32) -> Self {
+    pub fn new_ci(_run_number: &str, build_release: u32) -> Self {
         let (repository_owner, repository_name) = detect_repository();
+        
+        // Use environment variables for copyright information if available
+        let copyright_owner = {
+            if let Some(owner) = option_env!("DOUGU_COPYRIGHT_OWNER") {
+                owner.to_string()
+            } else if let Ok(owner) = std::env::var("DOUGU_COPYRIGHT_OWNER") {
+                owner
+            } else {
+                "Takayuki Okazaki".to_string()
+            }
+        };
+        
+        let copyright_year = {
+            if let Some(year) = option_env!("DOUGU_COPYRIGHT_YEAR").and_then(|y| y.parse::<u32>().ok()) {
+                year
+            } else if let Ok(year_str) = std::env::var("DOUGU_COPYRIGHT_YEAR") {
+                year_str.parse::<u32>().unwrap_or_else(|_| Utc::now().year() as u32)
+            } else {
+                Utc::now().year() as u32
+            }
+        };
+        
         Self {
             build_release,
             build_type: "github".to_string(),
             build_timestamp: Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
             repository_owner,
             repository_name,
+            copyright_owner,
+            copyright_year,
         }
     }
 }
@@ -149,11 +177,19 @@ pub fn get_build_info() -> BuildInfo {
     // Check if we're in a CI environment
     if is_ci_environment() {
         // CI environment detected
-        let build_release = option_env!("DOUGU_RELEASE")
-            .or_else(|| option_env!("RELEASE"))
-            .unwrap_or("0")
-            .parse::<u32>()
-            .unwrap_or(0);
+        let build_release = {
+            if let Some(release) = option_env!("DOUGU_RELEASE") {
+                release.parse::<u32>().unwrap_or(0)
+            } else if let Some(release) = option_env!("RELEASE") {
+                release.parse::<u32>().unwrap_or(0)
+            } else if let Ok(release) = std::env::var("DOUGU_RELEASE") {
+                release.parse::<u32>().unwrap_or(0)
+            } else if let Ok(release) = std::env::var("RELEASE") {
+                release.parse::<u32>().unwrap_or(0)
+            } else {
+                0
+            }
+        };
 
         let run_number = if let Some(number) = option_env!("GITHUB_RUN_NUMBER") {
             number.to_string()
@@ -174,12 +210,24 @@ pub fn get_build_info() -> BuildInfo {
         ) {
             if let Ok(build_release) = release_str.parse::<u32>() {
                 let (repository_owner, repository_name) = detect_repository();
+                
+                // Use environment variables for copyright information if available
+                let copyright_owner = option_env!("DOUGU_COPYRIGHT_OWNER")
+                    .map(String::from)
+                    .unwrap_or_else(|| "Takayuki Okazaki".to_string());
+                
+                let copyright_year = option_env!("DOUGU_COPYRIGHT_YEAR")
+                    .and_then(|y| y.parse::<u32>().ok())
+                    .unwrap_or_else(|| Utc::now().year() as u32);
+                
                 return BuildInfo {
                     build_release,
                     build_type: build_type.to_string(),
                     build_timestamp: timestamp.to_string(),
                     repository_owner,
                     repository_name,
+                    copyright_owner,
+                    copyright_year,
                 };
             }
         }
