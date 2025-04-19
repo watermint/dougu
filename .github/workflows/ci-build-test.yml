@@ -48,7 +48,7 @@ jobs:
           # Build the artifact using the build pack command
           mkdir -p target/dist
           PACK_OUTPUT=$(./target/debug/dougu build pack \
-            --executable ${{ steps.build.outputs.executable }} \
+            --input-dir target/debug \
             --output-dir target/dist)
           
           # Extract information from JSON output
