@@ -52,4 +52,11 @@ cargo test
 
 ## License
 
-MIT 
+Apache License 2.0
+
+# Resources Directory
+
+A new `resources` directory is used to store resource files such as workflow templates for CI/CD and other reusable configuration. If a resource cannot be found, related processes will abort as per project policy.
+
+- `.github/workflows/` contains active workflow files for GitHub Actions.
+- `resources/` contains workflow templates and other resource files. 
