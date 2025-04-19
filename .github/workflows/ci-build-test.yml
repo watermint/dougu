@@ -51,9 +51,16 @@ jobs:
             --input-dir target/debug \
             --output-dir target/dist)
           
+          # Debug output
+          echo "PACK_OUTPUT: $PACK_OUTPUT"
+          
           # Extract information from JSON output
           ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json - '.path')
           ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json - '.name')
+          
+          # Debug output for extracted values
+          echo "ARCHIVE_PATH: $ARCHIVE_PATH"
+          echo "ARTIFACT_NAME: $ARTIFACT_NAME"
           
           # Save information for use in upload step
           echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
