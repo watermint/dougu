@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
+use serde::{Serialize, Deserialize};
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
@@ -16,13 +17,13 @@ mod tests {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct FileArgs {
     #[command(subcommand)]
     pub command: FileCommands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Serialize, Deserialize)]
 pub enum FileCommands {
     /// Copy files from source to destination
     Copy(CopyArgs),
@@ -34,7 +35,7 @@ pub enum FileCommands {
     List(ListArgs),
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct CopyArgs {
     /// Source file path
     pub source: String,
@@ -47,7 +48,7 @@ pub struct CopyArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct MoveArgs {
     /// Source file path
     pub source: String,
@@ -60,7 +61,7 @@ pub struct MoveArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct ListArgs {
     /// Directory to list
     pub directory: Option<String>,

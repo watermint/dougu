@@ -10,3 +10,4 @@ dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
 clap = { workspace = true }
 anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }

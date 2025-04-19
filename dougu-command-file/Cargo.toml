@@ -9,3 +9,4 @@ dougu-essentials-logger = { path = "../dougu-essentials-logger" }
 dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 clap = { workspace = true }
 anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }

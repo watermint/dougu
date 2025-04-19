@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use dougu_essentials_obj::{Decoder, Encoder, Format, Query};
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -9,7 +10,7 @@ use std::path::PathBuf;
 mod resources;
 use resources::messages::*;
 
-#[derive(Parser)]
+#[derive(Parser, Serialize, Deserialize)]
 #[command(name = "obj")]
 #[command(about = CMD_OBJ_DESCRIPTION)]
 pub struct ObjCommand {
@@ -17,7 +18,7 @@ pub struct ObjCommand {
     command: ObjCommands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Serialize, Deserialize)]
 enum ObjCommands {
     /// Execute a query on an object notation file
     #[command(about = CMD_QUERY_DESCRIPTION)]

@@ -16,7 +16,10 @@ dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 dougu-command-file = { path = "../dougu-command-file" }
 dougu-command-dropbox = { path = "../dougu-command-dropbox" }
 dougu-command-obj = { path = "../dougu-command-obj" }
+dougu-foundation-run = { path = "../dougu-foundation-run" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 tokio = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }

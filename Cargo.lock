@@ -465,13 +465,16 @@ name = "dougu"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "dougu-command-dropbox",
  "dougu-command-file",
  "dougu-command-obj",
  "dougu-essentials-i18n",
  "dougu-essentials-logger",
+ "dougu-foundation-run",
  "log",
+ "serde_json",
  "tokio",
 ]
 
@@ -484,6 +487,7 @@ dependencies = [
  "dougu-domain-dropbox",
  "dougu-essentials-i18n",
  "dougu-essentials-logger",
+ "serde",
 ]
 
 [[package]]
@@ -494,6 +498,7 @@ dependencies = [
  "clap",
  "dougu-essentials-i18n",
  "dougu-essentials-logger",
+ "serde",
 ]
 
 [[package]]
@@ -595,6 +600,14 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "dougu-foundation-run"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
 ]
 
 [[package]]

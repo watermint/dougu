@@ -10,7 +10,8 @@ members = [
     "dougu-domain-dropbox",
     "dougu-essentials-fs",
     "dougu-essentials-kvs",
-    "dougu-essentials-sql"
+    "dougu-essentials-sql",
+    "dougu-foundation-run"
 ]
 resolver = "2"
 

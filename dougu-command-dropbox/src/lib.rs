@@ -1,14 +1,15 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use dougu_domain_dropbox::DropboxClient;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct DropboxArgs {
     #[command(subcommand)]
     pub command: DropboxCommands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Serialize, Deserialize)]
 pub enum DropboxCommands {
     /// File operations for Dropbox
     File(FileArgs),
@@ -17,13 +18,13 @@ pub enum DropboxCommands {
     Folder(FolderArgs),
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct FileArgs {
     #[command(subcommand)]
     pub command: FileCommands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Serialize, Deserialize)]
 pub enum FileCommands {
     /// List files in Dropbox path
     List(ListFileArgs),
@@ -35,13 +36,13 @@ pub enum FileCommands {
     Upload(UploadFileArgs),
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct FolderArgs {
     #[command(subcommand)]
     pub command: FolderCommands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Serialize, Deserialize)]
 pub enum FolderCommands {
     /// Create a new folder in Dropbox
     Create(CreateFolderArgs),
@@ -50,7 +51,7 @@ pub enum FolderCommands {
     Delete(DeleteFolderArgs),
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct ListFileArgs {
     /// Dropbox path to list files from
     pub path: Option<String>,
@@ -64,7 +65,7 @@ pub struct ListFileArgs {
     pub long: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct DownloadFileArgs {
     /// Dropbox file path to download
     pub path: String,
@@ -74,7 +75,7 @@ pub struct DownloadFileArgs {
     pub output: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct UploadFileArgs {
     /// Local file path to upload
     pub local_path: String,
@@ -87,13 +88,13 @@ pub struct UploadFileArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct CreateFolderArgs {
     /// Dropbox path to create folder at
     pub path: String,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Serialize, Deserialize)]
 pub struct DeleteFolderArgs {
     /// Dropbox path to delete
     pub path: String,
@@ -125,7 +126,7 @@ pub async fn execute_file_list(args: &ListFileArgs, token: &str) -> Result<()> {
 
 /// Execute the Dropbox file download command
 pub async fn execute_file_download(args: &DownloadFileArgs, token: &str) -> Result<()> {
-    let client = DropboxClient::new(token.to_string());
+    let _client = DropboxClient::new(token.to_string());
     
     dougu_essentials_logger::log_info(format!("Downloading file from Dropbox: {}", args.path));
     
@@ -137,7 +138,7 @@ pub async fn execute_file_download(args: &DownloadFileArgs, token: &str) -> Resu
 
 /// Execute the Dropbox file upload command
 pub async fn execute_file_upload(args: &UploadFileArgs, token: &str) -> Result<()> {
-    let client = DropboxClient::new(token.to_string());
+    let _client = DropboxClient::new(token.to_string());
     
     dougu_essentials_logger::log_info(format!("Uploading file to Dropbox: {}", args.dropbox_path));
     
@@ -149,7 +150,7 @@ pub async fn execute_file_upload(args: &UploadFileArgs, token: &str) -> Result<(
 
 /// Execute the Dropbox folder create command
 pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Result<()> {
-    let client = DropboxClient::new(token.to_string());
+    let _client = DropboxClient::new(token.to_string());
     
     dougu_essentials_logger::log_info(format!("Creating Dropbox folder: {}", args.path));
     
@@ -161,7 +162,7 @@ pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Resu
 
 /// Execute the Dropbox folder delete command
 pub async fn execute_folder_delete(args: &DeleteFolderArgs, token: &str) -> Result<()> {
-    let client = DropboxClient::new(token.to_string());
+    let _client = DropboxClient::new(token.to_string());
     
     dougu_essentials_logger::log_info(format!("Deleting Dropbox folder: {}", args.path));
     
