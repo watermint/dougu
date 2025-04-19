@@ -2,6 +2,7 @@
 name = "dougu-command-file"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
 dougu-essentials-logger = { path = "../dougu-essentials-logger" }
