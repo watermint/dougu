@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use dougu_command_file::{FileArgs, FileCommands};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
 use dougu_command_obj::ObjCommand;
+use dougu_command_build::BuildArgs;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer};
 use dougu_foundation_run::resources::log_messages;
 
@@ -30,6 +31,9 @@ enum Commands {
     
     /// Object notation operations (JSON, BSON, XML, CBOR)
     Obj(ObjCommand),
+    
+    /// Build operations
+    Build(BuildArgs),
 }
 
 // File command layer
@@ -172,6 +176,51 @@ impl LauncherLayer for ObjCommandLayer {
     }
 }
 
+// Build command layer
+struct BuildCommandLayer;
+
+#[async_trait]
+impl LauncherLayer for BuildCommandLayer {
+    fn name(&self) -> &str {
+        "BuildCommandLayer"
+    }
+
+    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
+        if let Some(args_str) = ctx.get_data("build_args") {
+            // Parse the serialized args
+            let args: BuildArgs = serde_json::from_str(args_str)
+                .map_err(|e| format!("Failed to parse build args: {}", e))?;
+                
+            info!("{}", log_messages::COMMAND_START.replace("{}", "Build"));
+            
+            match &args.command {
+                dougu_command_build::BuildCommands::Package(package_args) => {
+                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Package"));
+                    dougu_command_build::execute_package(package_args).await
+                        .map_err(|e| format!("Build package failed: {}", e))?;
+                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Package"));
+                }
+                dougu_command_build::BuildCommands::Test(test_args) => {
+                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Test"));
+                    dougu_command_build::execute_test(test_args).await
+                        .map_err(|e| format!("Build test failed: {}", e))?;
+                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Test"));
+                }
+                dougu_command_build::BuildCommands::Compile(compile_args) => {
+                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Compile"));
+                    dougu_command_build::execute_compile(compile_args).await
+                        .map_err(|e| format!("Build compile failed: {}", e))?;
+                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
+                }
+            }
+            
+            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Build"));
+        }
+        
+        Ok(())
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -197,6 +246,7 @@ async fn main() -> Result<()> {
         Commands::File(_) => "File",
         Commands::Dropbox(_) => "Dropbox",
         Commands::Obj(_) => "Obj",
+        Commands::Build(_) => "Build",
     };
     
     let mut context = LauncherContext::new(command_name.to_string(), cli.verbose);
@@ -223,6 +273,13 @@ async fn main() -> Result<()> {
                 .map_err(|e| anyhow::anyhow!("Failed to serialize obj args: {}", e))?;
             context.set_data("obj_args", args_json);
             launcher.add_layer(ObjCommandLayer);
+        }
+        Commands::Build(args) => {
+            // Serialize args to string to pass through context
+            let args_json = serde_json::to_string(args)
+                .map_err(|e| anyhow::anyhow!("Failed to serialize build args: {}", e))?;
+            context.set_data("build_args", args_json);
+            launcher.add_layer(BuildCommandLayer);
         }
     }
     

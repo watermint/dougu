@@ -19,6 +19,10 @@ jobs:
             echo "README.md not found. Aborting." >&2
             exit 1
           fi
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build project
+        run: cargo build
       - name: Find executables
         id: find_execs
         run: |
