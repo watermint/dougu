@@ -49,25 +49,25 @@ pub trait FileSystemProvider: Send + Sync {
     fn name(&self) -> &str;
     
     /// List directory contents
-    async fn list_directory<P: AsRef<Path> + Send + Sync>(&self, path: P) -> Result<Vec<FileSystemEntry>>;
+    async fn list_directory(&self, path: &Path) -> Result<Vec<FileSystemEntry>>;
     
     /// Read file content as bytes
-    async fn read_file<P: AsRef<Path> + Send + Sync>(&self, path: P, options: ReadOptions) -> Result<Vec<u8>>;
+    async fn read_file(&self, path: &Path, options: ReadOptions) -> Result<Vec<u8>>;
     
     /// Write file content from bytes
-    async fn write_file<P: AsRef<Path> + Send + Sync>(&self, path: P, content: Vec<u8>, options: WriteOptions) -> Result<()>;
+    async fn write_file(&self, path: &Path, content: Vec<u8>, options: WriteOptions) -> Result<()>;
     
     /// Delete a file or directory
-    async fn delete<P: AsRef<Path> + Send + Sync>(&self, path: P, recursive: bool) -> Result<()>;
+    async fn delete(&self, path: &Path, recursive: bool) -> Result<()>;
     
     /// Create a directory
-    async fn create_directory<P: AsRef<Path> + Send + Sync>(&self, path: P, create_parents: bool) -> Result<()>;
+    async fn create_directory(&self, path: &Path, create_parents: bool) -> Result<()>;
     
     /// Get file or directory metadata
-    async fn get_metadata<P: AsRef<Path> + Send + Sync>(&self, path: P) -> Result<FileMetadata>;
+    async fn get_metadata(&self, path: &Path) -> Result<FileMetadata>;
     
     /// Check if a file or directory exists
-    async fn exists<P: AsRef<Path> + Send + Sync>(&self, path: P) -> Result<bool>;
+    async fn exists(&self, path: &Path) -> Result<bool>;
 }
 
 /// FileSystem is the main entry point for interacting with file systems
@@ -87,11 +87,11 @@ impl FileSystem {
     pub fn register_provider(&mut self, provider: Box<dyn FileSystemProvider>) {
         let provider_name = provider.name();
         if self.get_provider(provider_name).is_some() {
-            debug!(log_messages::PROVIDER_ALREADY_REGISTERED, provider_name);
+            debug!("{}: {}", log_messages::PROVIDER_ALREADY_REGISTERED, provider_name);
             return;
         }
         
-        info!(log_messages::PROVIDER_REGISTERED, provider_name);
+        info!("{}: {}", log_messages::PROVIDER_REGISTERED, provider_name);
         self.providers.push(provider);
     }
     
@@ -103,13 +103,13 @@ impl FileSystem {
     }
     
     /// List directory contents using the specified provider
-    pub async fn list_directory<P: AsRef<Path> + Send + Sync>(
+    pub async fn list_directory(
         &self, 
         provider_name: &str, 
-        path: P
+        path: &Path
     ) -> Result<Vec<FileSystemEntry>> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::LISTING_DIRECTORY, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::LISTING_DIRECTORY, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;
@@ -118,14 +118,14 @@ impl FileSystem {
     }
     
     /// Read file content as bytes using the specified provider
-    pub async fn read_file<P: AsRef<Path> + Send + Sync>(
+    pub async fn read_file(
         &self, 
         provider_name: &str, 
-        path: P, 
+        path: &Path, 
         options: ReadOptions
     ) -> Result<Vec<u8>> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::READING_FILE, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::READING_FILE, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;
@@ -134,15 +134,15 @@ impl FileSystem {
     }
     
     /// Write file content from bytes using the specified provider
-    pub async fn write_file<P: AsRef<Path> + Send + Sync>(
+    pub async fn write_file(
         &self, 
         provider_name: &str, 
-        path: P, 
+        path: &Path, 
         content: Vec<u8>, 
         options: WriteOptions
     ) -> Result<()> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::WRITING_FILE, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::WRITING_FILE, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;
@@ -151,14 +151,14 @@ impl FileSystem {
     }
     
     /// Delete a file or directory using the specified provider
-    pub async fn delete<P: AsRef<Path> + Send + Sync>(
+    pub async fn delete(
         &self, 
         provider_name: &str, 
-        path: P, 
+        path: &Path, 
         recursive: bool
     ) -> Result<()> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::DELETING_RESOURCE, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::DELETING_RESOURCE, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;
@@ -167,14 +167,14 @@ impl FileSystem {
     }
     
     /// Create a directory using the specified provider
-    pub async fn create_directory<P: AsRef<Path> + Send + Sync>(
+    pub async fn create_directory(
         &self, 
         provider_name: &str, 
-        path: P, 
+        path: &Path, 
         create_parents: bool
     ) -> Result<()> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::CREATING_DIRECTORY, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::CREATING_DIRECTORY, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;
@@ -183,13 +183,13 @@ impl FileSystem {
     }
     
     /// Get file or directory metadata using the specified provider
-    pub async fn get_metadata<P: AsRef<Path> + Send + Sync>(
+    pub async fn get_metadata(
         &self, 
         provider_name: &str, 
-        path: P
+        path: &Path
     ) -> Result<FileMetadata> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::GETTING_METADATA, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::GETTING_METADATA, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;
@@ -198,13 +198,13 @@ impl FileSystem {
     }
     
     /// Check if a file or directory exists using the specified provider
-    pub async fn exists<P: AsRef<Path> + Send + Sync>(
+    pub async fn exists(
         &self, 
         provider_name: &str, 
-        path: P
+        path: &Path
     ) -> Result<bool> {
-        let path_str = path.as_ref().to_string_lossy();
-        debug!(log_messages::CHECKING_EXISTS, path_str);
+        let path_str = path.to_string_lossy();
+        debug!("{}: {}", log_messages::CHECKING_EXISTS, path_str);
         
         let provider = self.get_provider(provider_name)
             .ok_or_else(|| anyhow!(error_messages::PROVIDER_NOT_FOUND))?;

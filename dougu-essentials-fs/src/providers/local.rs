@@ -23,10 +23,10 @@ impl LocalFileSystemProvider {
         }
     }
 
-    fn resolve_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+    fn resolve_path(&self, path: &Path) -> PathBuf {
         match &self.root_dir {
             Some(root) => root.join(path),
-            None => PathBuf::from(path.as_ref()),
+            None => PathBuf::from(path),
         }
     }
 }
@@ -37,7 +37,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         "local"
     }
 
-    async fn list_directory<P: AsRef<Path> + Send + Sync>(&self, path: P) -> Result<Vec<FileSystemEntry>> {
+    async fn list_directory(&self, path: &Path) -> Result<Vec<FileSystemEntry>> {
         let full_path = self.resolve_path(path);
         
         if !full_path.is_dir() {
@@ -72,7 +72,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         Ok(entries)
     }
 
-    async fn read_file<P: AsRef<Path> + Send + Sync>(&self, path: P, options: ReadOptions) -> Result<Vec<u8>> {
+    async fn read_file(&self, path: &Path, options: ReadOptions) -> Result<Vec<u8>> {
         let full_path = self.resolve_path(path);
         
         if !full_path.is_file() {
@@ -99,7 +99,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         Ok(content)
     }
 
-    async fn write_file<P: AsRef<Path> + Send + Sync>(&self, path: P, content: Vec<u8>, options: WriteOptions) -> Result<()> {
+    async fn write_file(&self, path: &Path, content: Vec<u8>, options: WriteOptions) -> Result<()> {
         let full_path = self.resolve_path(path);
         
         // Check if file exists and whether we should overwrite
@@ -120,7 +120,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         Ok(())
     }
 
-    async fn delete<P: AsRef<Path> + Send + Sync>(&self, path: P, recursive: bool) -> Result<()> {
+    async fn delete(&self, path: &Path, recursive: bool) -> Result<()> {
         let full_path = self.resolve_path(path);
         
         if !full_path.exists() {
@@ -140,7 +140,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         Ok(())
     }
 
-    async fn create_directory<P: AsRef<Path> + Send + Sync>(&self, path: P, create_parents: bool) -> Result<()> {
+    async fn create_directory(&self, path: &Path, create_parents: bool) -> Result<()> {
         let full_path = self.resolve_path(path);
         
         if full_path.exists() {
@@ -160,7 +160,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         Ok(())
     }
 
-    async fn get_metadata<P: AsRef<Path> + Send + Sync>(&self, path: P) -> Result<FileMetadata> {
+    async fn get_metadata(&self, path: &Path) -> Result<FileMetadata> {
         let full_path = self.resolve_path(path);
         
         if !full_path.exists() {
@@ -186,7 +186,7 @@ impl FileSystemProvider for LocalFileSystemProvider {
         })
     }
 
-    async fn exists<P: AsRef<Path> + Send + Sync>(&self, path: P) -> Result<bool> {
+    async fn exists(&self, path: &Path) -> Result<bool> {
         let full_path = self.resolve_path(path);
         Ok(full_path.exists())
     }

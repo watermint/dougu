@@ -4,6 +4,8 @@ use rusqlite::{Connection, params, TransactionBehavior};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
 use tokio::task;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 mod resources;
 use resources::Messages;
@@ -42,13 +44,14 @@ pub trait SqlProvider {
     /// Begin a transaction.
     async fn transaction<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&dyn SqlProvider) -> Result<T> + Send + 'static,
+        F: FnOnce(&Self) -> Result<T> + Send + 'static,
         T: Send + 'static;
 }
 
 /// SQLite implementation of the SqlProvider trait.
 pub struct SqliteProvider {
     path: String,
+    memory_conn: Option<Mutex<Connection>>,
 }
 
 impl SqliteProvider {
@@ -58,21 +61,16 @@ impl SqliteProvider {
             .to_str()
             .ok_or_else(|| anyhow!("Invalid path"))?
             .to_string();
-        
-        // Test connection to ensure the database is accessible
         let _ = Connection::open(&path_str)
             .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-        
-        Ok(Self { path: path_str })
+        Ok(Self { path: path_str, memory_conn: None })
     }
     
     /// Create or open an in-memory SQLite database.
     pub fn memory() -> Result<Self> {
-        // Test connection to ensure in-memory database works
-        let _ = Connection::open_in_memory()
+        let conn = Connection::open_in_memory()
             .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-        
-        Ok(Self { path: ":memory:".to_string() })
+        Ok(Self { path: ":memory:".to_string(), memory_conn: Some(Mutex::new(conn)) })
     }
     
     /// Convert Rust types to SqlValues.
@@ -119,50 +117,45 @@ impl SqliteProvider {
 #[async_trait]
 impl SqlProvider for SqliteProvider {
     async fn execute(&self, query: &str, params: &[SqlValue]) -> Result<usize> {
-        let query = query.to_string();
-        let params: Vec<SqlValue> = params.to_vec();
-        let path = self.path.clone();
-        
-        task::spawn_blocking(move || {
-            let conn = Connection::open(&path)
-                .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-            
+        if let Some(conn_mutex) = &self.memory_conn {
+            let mut conn = conn_mutex.lock().unwrap();
             let params: Vec<rusqlite::types::Value> = params.iter()
-                .map(Self::to_rusqlite_param)
+                .map(SqliteProvider::to_rusqlite_param)
                 .collect();
-            
-            let result = conn.execute(&query, rusqlite::params_from_iter(params.iter()))
+            let result = conn.execute(query, rusqlite::params_from_iter(params.iter()))
                 .map_err(|e| anyhow!(format!("{}: {}", Messages::QUERY_EXECUTION_ERROR, e)))?;
-            
             Ok(result)
-        }).await?
+        } else {
+            let query = query.to_string();
+            let params: Vec<SqlValue> = params.to_vec();
+            let path = self.path.clone();
+            tokio::task::spawn_blocking(move || {
+                let conn = Connection::open(&path)
+                    .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
+                let params: Vec<rusqlite::types::Value> = params.iter()
+                    .map(SqliteProvider::to_rusqlite_param)
+                    .collect();
+                let result = conn.execute(&query, rusqlite::params_from_iter(params.iter()))
+                    .map_err(|e| anyhow!(format!("{}: {}", Messages::QUERY_EXECUTION_ERROR, e)))?;
+                Ok(result)
+            }).await?
+        }
     }
     
     async fn query(&self, query: &str, params: &[SqlValue]) -> Result<Vec<SqlRow>> {
-        let query = query.to_string();
-        let params: Vec<SqlValue> = params.to_vec();
-        let path = self.path.clone();
-        
-        task::spawn_blocking(move || {
-            let conn = Connection::open(&path)
-                .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-            
-            let params: Vec<rusqlite::types::Value> = params.iter()
-                .map(Self::to_rusqlite_param)
-                .collect();
-            
-            let mut stmt = conn.prepare(&query)
+        if let Some(conn_mutex) = &self.memory_conn {
+            let mut conn = conn_mutex.lock().unwrap();
+            let mut stmt = conn.prepare(query)
                 .map_err(|e| anyhow!(format!("{}: {}", Messages::QUERY_EXECUTION_ERROR, e)))?;
-            
             let column_count = stmt.column_count();
-            
+            let params: Vec<rusqlite::types::Value> = params.iter()
+                .map(SqliteProvider::to_rusqlite_param)
+                .collect();
             let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 let mut values = Vec::with_capacity(column_count);
-                
                 for i in 0..column_count {
                     let value = row.get_ref(i)
-                        .map_err(|e| anyhow!(format!("{}: {}", Messages::COLUMN_FETCH_ERROR, e)))?;
-                    
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
                     let sql_value = match value {
                         rusqlite::types::ValueRef::Null => SqlValue::Null,
                         rusqlite::types::ValueRef::Integer(i) => SqlValue::Integer(i),
@@ -170,21 +163,53 @@ impl SqlProvider for SqliteProvider {
                         rusqlite::types::ValueRef::Text(t) => SqlValue::Text(String::from_utf8_lossy(t).to_string()),
                         rusqlite::types::ValueRef::Blob(b) => SqlValue::Blob(b.to_vec()),
                     };
-                    
                     values.push(sql_value);
                 }
-                
                 Ok(SqlRow { values })
             })
             .map_err(|e| anyhow!(format!("{}: {}", Messages::QUERY_EXECUTION_ERROR, e)))?;
-            
             let mut result = Vec::new();
             for row in rows {
                 result.push(row.map_err(|e| anyhow!(format!("{}: {}", Messages::ROW_FETCH_ERROR, e)))?);
             }
-            
             Ok(result)
-        }).await?
+        } else {
+            let query = query.to_string();
+            let params: Vec<SqlValue> = params.to_vec();
+            let path = self.path.clone();
+            tokio::task::spawn_blocking(move || {
+                let conn = Connection::open(&path)
+                    .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
+                let mut stmt = conn.prepare(&query)
+                    .map_err(|e| anyhow!(format!("{}: {}", Messages::QUERY_EXECUTION_ERROR, e)))?;
+                let column_count = stmt.column_count();
+                let params: Vec<rusqlite::types::Value> = params.iter()
+                    .map(SqliteProvider::to_rusqlite_param)
+                    .collect();
+                let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+                    let mut values = Vec::with_capacity(column_count);
+                    for i in 0..column_count {
+                        let value = row.get_ref(i)
+                            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                        let sql_value = match value {
+                            rusqlite::types::ValueRef::Null => SqlValue::Null,
+                            rusqlite::types::ValueRef::Integer(i) => SqlValue::Integer(i),
+                            rusqlite::types::ValueRef::Real(r) => SqlValue::Real(r),
+                            rusqlite::types::ValueRef::Text(t) => SqlValue::Text(String::from_utf8_lossy(t).to_string()),
+                            rusqlite::types::ValueRef::Blob(b) => SqlValue::Blob(b.to_vec()),
+                        };
+                        values.push(sql_value);
+                    }
+                    Ok(SqlRow { values })
+                })
+                .map_err(|e| anyhow!(format!("{}: {}", Messages::QUERY_EXECUTION_ERROR, e)))?;
+                let mut result = Vec::new();
+                for row in rows {
+                    result.push(row.map_err(|e| anyhow!(format!("{}: {}", Messages::ROW_FETCH_ERROR, e)))?);
+                }
+                Ok(result)
+            }).await?
+        }
     }
     
     async fn query_row(&self, query: &str, params: &[SqlValue]) -> Result<SqlRow> {
@@ -194,22 +219,14 @@ impl SqlProvider for SqliteProvider {
     
     async fn transaction<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&dyn SqlProvider) -> Result<T> + Send + 'static,
+        F: FnOnce(&Self) -> Result<T> + Send + 'static,
         T: Send + 'static,
     {
-        let path = self.path.clone();
-        
-        task::spawn_blocking(move || {
-            let conn = Connection::open(&path)
-                .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-            
-            let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
+        if let Some(conn_mutex) = &self.memory_conn {
+            let mut conn = conn_mutex.lock().unwrap();
+            let tx = conn.unchecked_transaction()
                 .map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_BEGIN_ERROR, e)))?;
-            
-            // Create a temporary provider for the transaction
-            let provider = SqliteProvider { path: path.clone() };
-            
-            let result = match f(&provider) {
+            let result = match f(self) {
                 Ok(result) => {
                     tx.commit()
                         .map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_COMMIT_ERROR, e)))?;
@@ -220,8 +237,60 @@ impl SqlProvider for SqliteProvider {
                     Err(e)
                 }
             };
-            
             result
-        }).await?
+        } else {
+            let path = self.path.clone();
+            tokio::task::spawn_blocking(move || {
+                let conn = Connection::open(&path)
+                    .map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
+                let tx = conn.unchecked_transaction()
+                    .map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_BEGIN_ERROR, e)))?;
+                let provider = SqliteProvider { path: path.clone(), memory_conn: None };
+                let result = match f(&provider) {
+                    Ok(result) => {
+                        tx.commit()
+                            .map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_COMMIT_ERROR, e)))?;
+                        Ok(result)
+                    },
+                    Err(e) => {
+                        let _ = tx.rollback();
+                        Err(e)
+                    }
+                };
+                result
+            }).await?
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::runtime::Runtime;
+
+    #[test]
+    fn test_sqlite_provider_basic() {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async {
+            let db = SqliteProvider::memory().expect("Failed to create in-memory DB");
+            db.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)", &[])
+                .await
+                .expect("Failed to create table");
+            db.execute(
+                "INSERT INTO test (value) VALUES (?)",
+                &[SqlValue::Text("abc".to_string())],
+            )
+            .await
+            .expect("Failed to insert");
+            let rows = db
+                .query("SELECT value FROM test WHERE id = ?", &[SqlValue::Integer(1)])
+                .await
+                .expect("Failed to query");
+            assert_eq!(rows.len(), 1);
+            match &rows[0].values[0] {
+                SqlValue::Text(val) => assert_eq!(val, "abc"),
+                _ => panic!("Unexpected value type"),
+            }
+        });
     }
 } 

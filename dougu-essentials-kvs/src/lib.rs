@@ -5,6 +5,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 use std::path::Path;
 use tokio::task;
+use std::sync::Arc;
 
 mod resources;
 use resources::Messages;
@@ -47,23 +48,23 @@ pub trait KvsProvider {
 
 /// An implementation of the KvsProvider trait using the redb embedded database.
 pub struct RedbKvsProvider {
-    db: Database,
+    db: Arc<Database>,
 }
 
 impl RedbKvsProvider {
     /// Define the table used for storing key-value pairs.
-    const KV_TABLE: TableDefinition<&[u8], &[u8]> = TableDefinition::new("kv_store");
+    const KV_TABLE: TableDefinition<'static, &'static [u8], &'static [u8]> = TableDefinition::new("kv_store");
 
     /// Create a new RedbKvsProvider with the database at the given path.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let db = Database::create(path).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-        Ok(Self { db })
+        Ok(Self { db: Arc::new(db) })
     }
 
     /// Open an existing RedbKvsProvider with the database at the given path.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let db = Database::open(path).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_OPEN_ERROR, e)))?;
-        Ok(Self { db })
+        Ok(Self { db: Arc::new(db) })
     }
 }
 
@@ -81,11 +82,12 @@ impl KvsProvider for RedbKvsProvider {
         .await??;
 
         task::spawn_blocking({
-            let db = self.db.clone();
+            let db = Arc::clone(&self.db);
             move || {
                 let write_txn = db.begin_write().map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_ERROR, e)))?;
                 let mut table = write_txn.open_table(Self::KV_TABLE).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_WRITE_ERROR, e)))?;
                 table.insert(key_bytes.as_slice(), value_bytes.as_slice()).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_WRITE_ERROR, e)))?;
+                drop(table);
                 write_txn.commit().map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_ERROR, e)))?;
                 Ok::<_, anyhow::Error>(())
             }
@@ -101,7 +103,7 @@ impl KvsProvider for RedbKvsProvider {
         let key_bytes = key.as_ref().to_vec();
 
         let value_bytes = task::spawn_blocking({
-            let db = self.db.clone();
+            let db = Arc::clone(&self.db);
             move || {
                 let read_txn = db.begin_read().map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_ERROR, e)))?;
                 let table = read_txn.open_table(Self::KV_TABLE).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_READ_ERROR, e)))?;
@@ -128,12 +130,13 @@ impl KvsProvider for RedbKvsProvider {
         let key_bytes = key.as_ref().to_vec();
 
         task::spawn_blocking({
-            let db = self.db.clone();
+            let db = Arc::clone(&self.db);
             move || {
                 let write_txn = db.begin_write().map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_ERROR, e)))?;
                 let mut table = write_txn.open_table(Self::KV_TABLE).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_DELETE_ERROR, e)))?;
                 
                 table.remove(key_bytes.as_slice()).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_DELETE_ERROR, e)))?;
+                drop(table);
                 write_txn.commit().map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_ERROR, e)))?;
                 Ok::<_, anyhow::Error>(())
             }
@@ -148,7 +151,7 @@ impl KvsProvider for RedbKvsProvider {
         let key_bytes = key.as_ref().to_vec();
 
         task::spawn_blocking({
-            let db = self.db.clone();
+            let db = Arc::clone(&self.db);
             move || {
                 let read_txn = db.begin_read().map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_ERROR, e)))?;
                 let table = read_txn.open_table(Self::KV_TABLE).map_err(|e| anyhow!(format!("{}: {}", Messages::DATABASE_READ_ERROR, e)))?;
