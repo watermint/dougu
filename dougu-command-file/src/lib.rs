@@ -3,6 +3,9 @@ use clap::{Args, Subcommand};
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 use dougu_foundation_run::{Commandlet, CommandletError};
+use dougu_essentials_i18n_foundation::{t, tf, vars, I18nCommandletError};
+
+pub mod resources;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
@@ -98,14 +101,21 @@ impl Commandlet for FileCopyCommandlet {
     }
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
-        dougu_essentials_logger::log_info(format!("Copying {} to {}", params.source, params.destination));
+        // Use the i18n system for the log message
+        dougu_essentials_logger::log_info(tf("FILE_COPY_START", vars!(
+            "source" => &params.source,
+            "destination" => &params.destination
+        )));
         
         // Pseudo implementation
         // In a real app, this would perform the actual file copy
         
         Ok(FileCommandResult {
             success: true,
-            message: format!("Successfully copied {} to {}", params.source, params.destination),
+            message: tf("FILE_COPY_SUCCESS", vars!(
+                "source" => &params.source,
+                "destination" => &params.destination
+            )),
             details: None,
         })
     }
@@ -124,14 +134,21 @@ impl Commandlet for FileMoveCommandlet {
     }
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
-        dougu_essentials_logger::log_info(format!("Moving {} to {}", params.source, params.destination));
+        // Use the i18n system for the log message
+        dougu_essentials_logger::log_info(tf("FILE_MOVE_START", vars!(
+            "source" => &params.source,
+            "destination" => &params.destination
+        )));
         
         // Pseudo implementation
         // In a real app, this would perform the actual file move
         
         Ok(FileCommandResult {
             success: true,
-            message: format!("Successfully moved {} to {}", params.source, params.destination),
+            message: tf("FILE_MOVE_SUCCESS", vars!(
+                "source" => &params.source,
+                "destination" => &params.destination
+            )),
             details: None,
         })
     }
@@ -151,14 +168,20 @@ impl Commandlet for FileListCommandlet {
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
         let dir = params.directory.as_deref().unwrap_or(".");
-        dougu_essentials_logger::log_info(format!("Listing directory: {}", dir));
+        
+        // Use the i18n system for the log message
+        dougu_essentials_logger::log_info(tf("FILE_LIST_START", vars!(
+            "directory" => dir
+        )));
         
         // Pseudo implementation
         // In a real app, this would list the directory contents
         
         Ok(FileCommandResult {
             success: true,
-            message: format!("Successfully listed directory: {}", dir),
+            message: tf("FILE_LIST_SUCCESS", vars!(
+                "directory" => dir
+            )),
             details: None,
         })
     }
@@ -199,8 +222,7 @@ pub fn execute_copy(args: &CopyArgs) -> Result<()> {
     let commandlet = FileCopyCommandlet;
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
             commandlet.execute(args.clone()).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
             Ok(())
@@ -211,8 +233,7 @@ pub fn execute_move(args: &MoveArgs) -> Result<()> {
     let commandlet = FileMoveCommandlet;
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
             commandlet.execute(args.clone()).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
             Ok(())
@@ -223,8 +244,7 @@ pub fn execute_list(args: &ListArgs) -> Result<()> {
     let commandlet = FileListCommandlet;
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
             commandlet.execute(args.clone()).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
             Ok(())

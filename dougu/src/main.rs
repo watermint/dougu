@@ -11,6 +11,10 @@ use dougu_command_root::VersionCommandLayer;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner};
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::UIManager;
+use dougu_essentials_i18n_foundation::I18nInitializerLayer;
+
+// Keep the i18n module for potential future use
+mod i18n;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -18,6 +22,10 @@ struct Cli {
     /// Set verbosity level (0-5)
     #[arg(short, long, default_value_t = 2)]
     verbose: u8,
+
+    /// Set locale for internationalization (e.g., 'en', 'es')
+    #[arg(short, long, default_value = "en")]
+    locale: String,
 
     #[command(subcommand)]
     command: Commands,
@@ -313,6 +321,12 @@ async fn main() -> Result<()> {
     };
     
     let mut context = LauncherContext::new(command_name.to_string(), cli.verbose);
+    
+    // Store the locale in the context for I18nInitializerLayer to use
+    context.set_data("locale", cli.locale.clone());
+    
+    // Add the I18nInitializerLayer as the first layer
+    launcher.add_layer(I18nInitializerLayer::new(&cli.locale));
     
     // Add appropriate command layers based on the command
     match &cli.command {

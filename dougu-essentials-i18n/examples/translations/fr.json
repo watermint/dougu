@@ -1,0 +1,29 @@
+{
+  "welcome": {
+    "source": "Welcome to our application",
+    "context": "Homepage header",
+    "text": "Bienvenue dans notre application"
+  },
+  "greeting": {
+    "source": "Hello, {name}!",
+    "context": "Personalized greeting",
+    "comments": "Variable {name} is the user's name",
+    "text": "Bonjour, {name}!"
+  },
+  "submit_button": {
+    "source": "Submit",
+    "context": "Form button",
+    "text": "Soumettre"
+  },
+  "cancel_button": {
+    "source": "Cancel",
+    "context": "Form button",
+    "text": "Annuler"
+  },
+  "items_count": {
+    "source": "You have {count} item(s)",
+    "context": "Shopping cart",
+    "comments": "Variable {count} is the number of items",
+    "text": "Vous avez {count} article(s)"
+  }
+} 

@@ -1,0 +1,63 @@
+{
+  "PARAM_PARSE_ERROR": {
+    "source": "Failed to parse parameters",
+    "context": "Error message",
+    "text": "パラメータの解析に失敗しました"
+  },
+  "RESULT_SERIALIZE_ERROR": {
+    "source": "Failed to serialize results",
+    "context": "Error message",
+    "text": "結果のシリアル化に失敗しました"
+  },
+  "RESULT_PARSE_ERROR": {
+    "source": "Failed to parse results for formatting",
+    "context": "Error message",
+    "text": "フォーマット用の結果の解析に失敗しました"
+  },
+  "UNKNOWN_ERROR": {
+    "source": "Unknown error occurred",
+    "context": "Error message",
+    "text": "不明なエラーが発生しました"
+  },
+  "RESOURCE_NOT_FOUND": {
+    "source": "Resource not found",
+    "context": "Error message",
+    "text": "リソースが見つかりません"
+  },
+  "BOOTSTRAP_FAILED": {
+    "source": "Bootstrap process failed",
+    "context": "Error message",
+    "text": "ブートストラッププロセスが失敗しました"
+  },
+  "COMMAND_EXECUTION_FAILED": {
+    "source": "Command execution failed",
+    "context": "Error message",
+    "text": "コマンド実行に失敗しました"
+  },
+  "INVALID_ARGUMENTS": {
+    "source": "Invalid command arguments",
+    "context": "Error message",
+    "text": "無効なコマンド引数です"
+  },
+  "INITIALIZATION_FAILED": {
+    "source": "Initialization failed",
+    "context": "Error message",
+    "text": "初期化に失敗しました"
+  },
+  "LAUNCHER_START": {
+    "source": "Starting command launcher",
+    "context": "Log message",
+    "text": "コマンドランチャーを開始します"
+  },
+  "LAYER_EXECUTION": {
+    "source": "Executing layer: {}",
+    "context": "Log message with layer name",
+    "comments": "Variable {} is the layer name",
+    "text": "レイヤーを実行中: {}"
+  },
+  "LAUNCHER_COMPLETE": {
+    "source": "Command launcher completed",
+    "context": "Log message",
+    "text": "コマンドランチャーが完了しました"
+  }
+} 
