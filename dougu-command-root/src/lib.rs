@@ -18,13 +18,13 @@ pub struct VersionParams {
 
 #[derive(Serialize, Deserialize)]
 pub struct VersionResults {
-    pub version: String,
+    pub build_release: u32,
+    pub build_timestamp: String,
     pub build_type: String,
-    pub release: u32,
-    pub rust_version: String,
-    pub timestamp: String,
-    pub repository_owner: String,
     pub repository_name: String,
+    pub repository_owner: String,
+    pub rust_version: String,
+    pub version: String,
 }
 
 #[async_trait]
@@ -43,19 +43,19 @@ impl Commandlet for VersionCommandlet {
         // Generate semantic version from build info instead of using CARGO_PKG_VERSION
         let version = build_info.semantic_version();
         
-        // Extract timestamp before moving build_info
-        let timestamp = build_info.timestamp.clone();
+        // Extract fields from build_info
+        let build_timestamp = build_info.build_timestamp.clone();
         let build_type = build_info.build_type.clone();
-        let release = build_info.release;
+        let build_release = build_info.build_release;
         let repository_owner = build_info.repository_owner.clone();
         let repository_name = build_info.repository_name.clone();
         
         Ok(VersionResults {
             version,
             build_type,
-            release,
+            build_release,
             rust_version: std::env::var("RUSTC_VERSION").unwrap_or_else(|_| "unknown".to_string()),
-            timestamp,
+            build_timestamp,
             repository_owner,
             repository_name,
         })
@@ -72,26 +72,25 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
     let mut table_data = Vec::<Vec<String>>::new();
     
     // Create all the strings we need to avoid temporary value issues
-    let prop_version = t(VERSION_PROPERTY_VERSION);
-    let prop_release = t(VERSION_PROPERTY_BUILD_RELEASE);
-    let prop_build_type = t(VERSION_PROPERTY_BUILD_TYPE);
-    let prop_rust_version = t(VERSION_PROPERTY_RUST_VERSION);
+    let prop_build_release = t(VERSION_PROPERTY_BUILD_RELEASE);
     let prop_build_timestamp = t(VERSION_PROPERTY_BUILD_TIMESTAMP);
-    let prop_repository_owner = "Repository Owner".to_string();
+    let prop_build_type = t(VERSION_PROPERTY_BUILD_TYPE);
     let prop_repository_name = "Repository Name".to_string();
+    let prop_repository_owner = "Repository Owner".to_string();
+    let prop_rust_version = t(VERSION_PROPERTY_RUST_VERSION);
+    let prop_version = t(VERSION_PROPERTY_VERSION);
     let prop_header = t(VERSION_PROPERTY);
     let value_header = t(VERSION_VALUE);
     
-    // Add semantic version as main version (now derived from build_info)
+    // Add table data in alphabetical order by property
     table_data.push(vec![
-        prop_version.clone(),
-        results.version.clone()
+        prop_build_release.clone(),
+        results.build_release.to_string()
     ]);
     
-    // Add build info details
     table_data.push(vec![
-        prop_release.clone(),
-        results.release.to_string()
+        prop_build_timestamp.clone(),
+        results.build_timestamp.clone()
     ]);
     
     table_data.push(vec![
@@ -99,26 +98,24 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
         results.build_type.clone()
     ]);
     
-    // Add repository info
+    table_data.push(vec![
+        prop_repository_name.clone(),
+        results.repository_name.clone()
+    ]);
+    
     table_data.push(vec![
         prop_repository_owner.clone(),
         results.repository_owner.clone()
     ]);
     
     table_data.push(vec![
-        prop_repository_name.clone(),
-        results.repository_name.clone()
-    ]);
-    
-    // Add other details
-    table_data.push(vec![
         prop_rust_version.clone(),
         results.rust_version.clone()
     ]);
     
     table_data.push(vec![
-        prop_build_timestamp.clone(),
-        results.timestamp.clone()
+        prop_version.clone(),
+        results.version.clone()
     ]);
     
     // Convert table data to the format expected by ui.table
