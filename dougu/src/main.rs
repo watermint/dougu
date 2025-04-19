@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use log::{info, LevelFilter};
 use async_trait::async_trait;
+use std::str::FromStr;
 
 use dougu_command_file::{FileArgs, FileCommandlet};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
@@ -9,6 +10,7 @@ use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
 use dougu_command_root::VersionCommandLayer;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer};
+use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::UIManager;
 
@@ -66,20 +68,20 @@ impl LauncherLayer for FileCommandletLayer {
             let ui = UIManager::default();
             let runner = CommandRunner::with_ui(commandlet, ui);
             
-            // Add language to the args if it's a JSON object
-            let args_with_language = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
-                // Parse the JSON, add language, and reserialize
+            // Add locale to the args if it's a JSON object
+            let args_with_locale = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
+                // Parse the JSON, add locale, and reserialize
                 if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(args_str) {
                     if let Some(obj) = json.as_object_mut() {
-                        // Add context object with language if it doesn't exist
+                        // Add context object with locale if it doesn't exist
                         if !obj.contains_key("context") {
                             let mut context = serde_json::Map::new();
-                            context.insert("language".to_string(), serde_json::Value::String(ctx.get_language().to_string()));
+                            context.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
                             obj.insert("context".to_string(), serde_json::Value::Object(context));
                         } else if let Some(context) = obj.get_mut("context") {
-                            // Add language to existing context
+                            // Add locale to existing context
                             if let Some(context_obj) = context.as_object_mut() {
-                                context_obj.insert("language".to_string(), serde_json::Value::String(ctx.get_language().to_string()));
+                                context_obj.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
                             }
                         }
                         
@@ -99,7 +101,7 @@ impl LauncherLayer for FileCommandletLayer {
             };
             
             // Run the commandlet with the serialized arguments
-            let result = runner.run(&args_with_language).await
+            let result = runner.run(&args_with_locale).await
                 .map_err(|e| format!("File command execution failed: {}", e))?;
             
             // Format and display the result using UI manager
@@ -342,31 +344,35 @@ async fn main() -> Result<()> {
     // Determine locale from command-line or environment variable
     let locale = if cli.locale != "en" {
         // If explicitly set on command-line, use that
-        info!("Using locale from command-line: {}", cli.locale);
-        cli.locale.clone()
+        info!("{}", log_messages::SETTING_LANGUAGE.replace("{}", &cli.locale));
+        Locale::from_str(&cli.locale).unwrap_or_else(|_| Locale::default())
     } else {
         // Otherwise check LANG environment variable
         match std::env::var("LANG") {
             Ok(lang) => {
                 info!("LANG environment variable: {}", lang);
-                // Extract language code from LANG (e.g., "en" from "en_US.UTF-8")
-                let lang_code = lang.split('_').next().unwrap_or("en");
-                info!("Extracted language code: {}", lang_code);
+                // Extract language tag from LANG (e.g., "en" from "en_US.UTF-8")
+                let lang_tag = lang.split('.').next().unwrap_or("en").replace('_', "-");
+                info!("Extracted language tag: {}", lang_tag);
+                
+                // Parse the language tag as a Locale
+                let extracted_locale = Locale::from_str(&lang_tag).unwrap_or_else(|_| Locale::default());
+                
                 // Only use if we have translations for this language
-                match lang_code {
-                    "ja" | "en" => {
-                        info!("Using locale from LANG: {}", lang_code);
-                        lang_code.to_string()
-                    },
-                    _ => {
-                        info!("Unsupported language in LANG: {}, defaulting to English", lang_code);
-                        "en".to_string() // Default to English for unsupported languages
-                    }
+                if dougu_foundation_i18n::is_supported_language(&extracted_locale) {
+                    info!("{}", log_messages::SETTING_LANGUAGE.replace("{}", extracted_locale.as_str()));
+                    extracted_locale
+                } else {
+                    let msg = log_messages::LANGUAGE_UNSUPPORTED
+                        .replace("{}", extracted_locale.language())
+                        .replace("{}", "en");
+                    info!("{}", msg);
+                    Locale::default() // Default to English for unsupported languages
                 }
             },
             Err(_) => {
-                info!("LANG environment variable not set, defaulting to English");
-                "en".to_string() // Default to English if LANG is not set
+                info!("{}", log_messages::USING_DEFAULT_LANGUAGE.replace("{}", "en"));
+                Locale::default() // Default to English if LANG is not set
             }
         }
     };
@@ -383,11 +389,11 @@ async fn main() -> Result<()> {
         Commands::Version => "Version",
     };
     
-    // Create context with command name, verbosity, and language
-    let mut context = LauncherContext::with_language(command_name.to_string(), cli.verbose, &locale);
+    // Create context with command name, verbosity, and locale
+    let mut context = LauncherContext::with_locale(command_name.to_string(), cli.verbose, locale.clone());
     
     // Add the I18nInitializerLayer as the first layer
-    launcher.add_layer(I18nInitializerLayer::new(&locale));
+    launcher.add_layer(I18nInitializerLayer::with_locale(locale));
     
     // Add appropriate command layers based on the command
     match &cli.command {

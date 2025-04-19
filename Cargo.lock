@@ -816,6 +816,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "dougu-essentials-i18n",
  "dougu-foundation-i18n",
  "dougu-foundation-ui",
  "log",

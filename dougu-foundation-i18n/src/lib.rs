@@ -5,8 +5,10 @@ use std::path::Path;
 pub mod embedded;
 
 // Re-export the integration functions from dougu-essentials-i18n
-pub use dougu_essentials_i18n::integration::{init, load_translations, set_locale, t, tf};
+pub use dougu_essentials_i18n::integration::{init, load_translations, set_locale, t, tf, init_with_locale, set_locale_object};
 pub use dougu_essentials_i18n::vars;
+pub use dougu_essentials_i18n::{Locale, LocaleError};
+pub use dougu_essentials_i18n::locale::is_supported_language;
 
 // Generic error trait for compatibility with CommandletError without direct dependency
 pub trait ErrorWithDetails {

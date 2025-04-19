@@ -7,9 +7,12 @@ use log::{debug, info, error};
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use dougu_foundation_ui::{UIManager, format_commandlet_result};
+use std::str::FromStr;
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
+// Re-export locale from essentials
+pub use dougu_essentials_i18n::{Locale, LocaleError};
 
 /// Commandlet represents a command implementation that takes serializable parameters and returns serializable results
 #[async_trait]
@@ -93,37 +96,63 @@ pub struct LauncherContext {
     // Store contextual information for command execution
     pub command_name: String,
     pub verbosity: u8,
-    pub language: String, // Store current language/locale
+    pub locale: Locale, // Use Locale struct instead of raw string
     pub data: std::collections::HashMap<String, String>,
 }
 
 impl LauncherContext {
     pub fn new(command_name: String, verbosity: u8) -> Self {
-        Self {
+        let locale = Locale::default();
+        let mut ctx = Self {
             command_name,
             verbosity,
-            language: "en".to_string(), // Default to English
+            locale: locale.clone(),
             data: std::collections::HashMap::new(),
-        }
+        };
+        // Ensure active_locale is set in the data map for I18nContext implementation
+        ctx.set_data("active_locale", locale.as_str().to_string());
+        ctx
+    }
+
+    pub fn with_locale(command_name: String, verbosity: u8, locale: Locale) -> Self {
+        let mut ctx = Self {
+            command_name,
+            verbosity,
+            locale: locale.clone(),
+            data: std::collections::HashMap::new(),
+        };
+        // Ensure active_locale is set in the data map for I18nContext implementation
+        ctx.set_data("active_locale", locale.as_str().to_string());
+        ctx
     }
 
     pub fn with_language(command_name: String, verbosity: u8, language: &str) -> Self {
-        Self {
-            command_name,
-            verbosity,
-            language: language.to_string(),
-            data: std::collections::HashMap::new(),
-        }
+        // For backward compatibility
+        let locale = Locale::from_str(language).unwrap_or_else(|_| Locale::default());
+        Self::with_locale(command_name, verbosity, locale)
+    }
+
+    pub fn set_locale(&mut self, locale: Locale) {
+        // Clone locale before moving it to self.locale
+        let locale_str = locale.as_str().to_string();
+        self.locale = locale;
+        // Also update in data map for backwards compatibility
+        self.set_data("active_locale", locale_str);
     }
 
     pub fn set_language(&mut self, language: &str) {
-        self.language = language.to_string();
-        // Also update in data map for backwards compatibility
-        self.set_data("active_locale", language.to_string());
+        // For backward compatibility
+        if let Ok(locale) = Locale::from_str(language) {
+            self.set_locale(locale);
+        }
+    }
+
+    pub fn get_locale(&self) -> &Locale {
+        &self.locale
     }
 
     pub fn get_language(&self) -> &str {
-        &self.language
+        self.locale.language()
     }
 
     pub fn set_data(&mut self, key: &str, value: String) {
@@ -224,37 +253,68 @@ impl<C: Commandlet> CommandRunner<C> {
         &self.ui
     }
 
+    /// Get the current locale from a context
+    pub fn get_locale(ctx: &LauncherContext) -> &Locale {
+        ctx.get_locale()
+    }
+
     /// Get the current language from a context
     pub fn get_language(ctx: &LauncherContext) -> &str {
         ctx.get_language()
     }
 
-    /// Get the current language from a context parameter string
-    pub fn get_context_language(params_json: &str) -> Option<String> {
+    /// Get the current locale from a context parameter string
+    pub fn get_context_locale(params_json: &str) -> Option<Locale> {
         // Attempt to parse the context portion of the parameters
         if let Ok(value) = serde_json::from_str::<serde_json::Value>(params_json) {
             if let Some(obj) = value.as_object() {
-                // Check for "context" object with "language" field
+                // Check for "context" object with "locale" field
                 if let Some(context) = obj.get("context") {
                     if let Some(context_obj) = context.as_object() {
+                        if let Some(locale) = context_obj.get("locale") {
+                            if let Some(locale_str) = locale.as_str() {
+                                if let Ok(locale) = Locale::from_str(locale_str) {
+                                    return Some(locale);
+                                }
+                            }
+                        }
+                        // Also check for "language" field for backward compatibility
                         if let Some(language) = context_obj.get("language") {
                             if let Some(language_str) = language.as_str() {
-                                return Some(language_str.to_string());
+                                if let Ok(locale) = Locale::from_str(language_str) {
+                                    return Some(locale);
+                                }
                             }
                         }
                     }
                 }
                 
-                // Also check for "language" field directly
+                // Also check for "locale" field directly
+                if let Some(locale) = obj.get("locale") {
+                    if let Some(locale_str) = locale.as_str() {
+                        if let Ok(locale) = Locale::from_str(locale_str) {
+                            return Some(locale);
+                        }
+                    }
+                }
+                
+                // Also check for "language" field directly for backward compatibility
                 if let Some(language) = obj.get("language") {
                     if let Some(language_str) = language.as_str() {
-                        return Some(language_str.to_string());
+                        if let Ok(locale) = Locale::from_str(language_str) {
+                            return Some(locale);
+                        }
                     }
                 }
             }
         }
         
         None
+    }
+
+    /// Get the current language from a context parameter string (for backward compatibility)
+    pub fn get_context_language(params_json: &str) -> Option<String> {
+        Self::get_context_locale(params_json).map(|locale| locale.language().to_string())
     }
 }
 

@@ -6,6 +6,9 @@ use std::fs::File;
 use std::io::Read;
 
 pub mod integration;
+pub mod locale;
+
+pub use locale::{Locale, LocaleError};
 
 /// Translation message container with metadata
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
