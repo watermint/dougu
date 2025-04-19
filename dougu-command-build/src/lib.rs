@@ -104,12 +104,12 @@ pub struct PackArgs {
     pub output_dir: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-struct PackOutput {
-    name: String,
-    path: String,
-    version: String,
-    platform: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PackOutput {
+    pub name: String,
+    pub path: String,
+    pub version: String,
+    pub platform: String,
 }
 
 /// Execute the package command
@@ -514,7 +514,7 @@ pub async fn execute_pack(args: &PackArgs) -> Result<String> {
         path: archive_path
             .map(|p| p.to_string_lossy().into_owned())
             .ok_or_else(|| anyhow!("No archive was created"))?,
-        version: build_info.build_release.to_string(),
+        version: args.version.as_deref().unwrap_or(&build_info.build_release.to_string()).to_string(),
         platform: platform,
     };
     

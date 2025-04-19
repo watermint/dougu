@@ -17,3 +17,6 @@ dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 uuid = { version = "1.4", features = ["v4"] }
 walkdir = "2.3"
 zip = "0.6"
+
+[dev-dependencies]
+tempfile = "3.10.0"
