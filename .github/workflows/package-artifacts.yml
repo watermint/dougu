@@ -1,0 +1,44 @@
+name: Package Artifacts (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      build-id:
+        required: true
+        type: string
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check README exists
+        run: |
+          if [ ! -f README.md ]; then
+            echo "README.md not found. Aborting." >&2
+            exit 1
+          fi
+      - name: Find executables
+        id: find_execs
+        run: |
+          EXECUTABLES=$(find target/debug -maxdepth 1 -type f -executable -not -name "*.d" -not -name "*.rlib" -not -name "*.o" -not -name "*.json" -not -name "*.lock" -not -name "*.so" -not -name "*.dll" -not -name "*.dylib")
+          if [ -z "$EXECUTABLES" ]; then
+            echo "No executables found. Aborting." >&2
+            exit 1
+          fi
+          echo "executables=$EXECUTABLES" >> $GITHUB_OUTPUT
+      - name: Prepare package directory
+        run: |
+          mkdir -p package
+          cp ${{ steps.find_execs.outputs.executables }} package/
+          cp README.md package/
+      - name: Create zip archive
+        run: |
+          cd package
+          zip -r ../artifacts-${{ inputs.build-id }}.zip .
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ inputs.build-id }}
+          path: artifacts-${{ inputs.build-id }}.zip 
