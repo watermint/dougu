@@ -5,21 +5,22 @@ use chrono::{Utc, Datelike, TimeZone};
 pub struct BuildInfo {
     pub release: u32,
     pub build_type: String,
-    pub build_id: String,
     pub timestamp: String,
+    pub repository_owner: String,
+    pub repository_name: String,
 }
 
 impl BuildInfo {
-    /// Returns the build information in the format: RELEASE.BUILD_TYPE.BUILD_ID
+    /// Returns the build information in the format: RELEASE.BUILD_TYPE
     pub fn version_string(&self) -> String {
-        format!("{}.{}.{}", self.release, self.build_type, self.build_id)
+        format!("{}.{}", self.release, self.build_type)
     }
     
     /// Returns a semantic version string in the format: MAJOR.MINOR.PATCH+BUILD_INFO
     /// Where:
     /// - MAJOR: is the release number
     /// - MINOR: is 0 for stable or 1+ for dev (incremented per build_type)
-    /// - PATCH: is derived from build_id for local builds, or 0 for CI builds
+    /// - PATCH: is derived from timestamp for local builds, or 0 for CI builds
     /// - BUILD_INFO: includes build_type and timestamp
     pub fn semantic_version(&self) -> String {
         // Convert build_type to a numeric minor version
@@ -50,38 +51,13 @@ impl BuildInfo {
             _ => 1,        // Other channels
         };
         
-        // For patch version: use 0 for CI, extract from build_id for local
+        // For patch version: use 0 for CI, derive from timestamp for local
         let patch = if self.build_type == "github" {
             0
-        } else if self.build_id.contains("+") {
-            // For local builds with timestamp format like "0-dev+20250419T153700Z"
-            // Just use a sequential counter based on day of year
-            let date_str = self.build_id.split("+").nth(1).unwrap_or("").split("T").next().unwrap_or("");
-            if !date_str.is_empty() && date_str.len() >= 8 {
-                // Extract day of year from the date string (YYYYMMDD)
-                if let Ok(year) = date_str[0..4].parse::<i32>() {
-                    if let Ok(month) = date_str[4..6].parse::<u32>() {
-                        if let Ok(day) = date_str[6..8].parse::<u32>() {
-                            if let Some(dt) = Utc.with_ymd_and_hms(year, month, day, 0, 0, 0).single() {
-                                dt.ordinal() as u32 % 1000 // Day of year mod 1000
-                            } else {
-                                0
-                            }
-                        } else {
-                            0
-                        }
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                }
-            } else {
-                0
-            }
         } else {
-            // Try to parse build_id as a number, fallback to 0
-            self.build_id.parse::<u32>().unwrap_or(0)
+            // Use day of year as patch for local builds
+            let now = Utc::now();
+            now.ordinal() as u32 % 1000 // Day of year mod 1000
         };
         
         // Create build metadata from build_type and timestamp
@@ -96,34 +72,68 @@ impl BuildInfo {
     /// Returns a formatted version string for display purposes
     pub fn display_string(&self) -> String {
         format!(
-            "Version {}.{}.{} (built on {})",
+            "Version {}.{} (built on {})",
             self.release,
             self.build_type,
-            self.build_id,
             self.timestamp
         )
     }
 
     /// Create a new BuildInfo with default values for local development
     pub fn new_local() -> Self {
-        let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+        let timestamp = Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
+        let (repository_owner, repository_name) = detect_repository();
+        // Use the major version from Cargo.toml as release
+        let version_str = env!("CARGO_PKG_VERSION");
+        let release = version_str.split('.').next()
+            .and_then(|s| s.parse::<u32>().ok())
+            .expect("Failed to parse major version from CARGO_PKG_VERSION");
         Self {
-            release: 0,
+            release,
             build_type: "local".to_string(),
-            build_id: format!("0-dev+{}", timestamp),
-            timestamp: Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+            timestamp,
+            repository_owner,
+            repository_name,
         }
     }
 
     /// Create a new BuildInfo for CI builds
     pub fn new_ci(run_number: &str, release: u32) -> Self {
+        let (repository_owner, repository_name) = detect_repository();
         Self {
             release,
             build_type: "github".to_string(),
-            build_id: run_number.to_string(),
             timestamp: Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+            repository_owner,
+            repository_name,
         }
     }
+}
+
+fn detect_repository() -> (String, String) {
+    // Try GitHub Actions environment variables
+    if let (Ok(repo), Ok(_)) = (std::env::var("GITHUB_REPOSITORY"), std::env::var("GITHUB_ACTIONS")) {
+        let mut parts = repo.splitn(2, '/');
+        let owner = parts.next().unwrap_or("").to_string();
+        let name = parts.next().unwrap_or("").to_string();
+        if !owner.is_empty() && !name.is_empty() {
+            return (owner, name);
+        }
+    }
+    // Try GitLab CI environment variables
+    if let (Ok(owner), Ok(name)) = (std::env::var("CI_PROJECT_NAMESPACE"), std::env::var("CI_PROJECT_NAME")) {
+        if !owner.is_empty() && !name.is_empty() {
+            return (owner, name);
+        }
+    }
+    // Try Bitbucket Pipelines environment variables
+    if let (Ok(owner), Ok(name)) = (std::env::var("BITBUCKET_REPO_OWNER"), std::env::var("BITBUCKET_REPO_SLUG")) {
+        if !owner.is_empty() && !name.is_empty() {
+            return (owner, name);
+        }
+    }
+    // Default fallback
+    ("watermint".to_string(), "dougu".to_string())
 }
 
 /// Detect if running in a CI environment
@@ -163,19 +173,16 @@ pub fn get_build_info() -> BuildInfo {
             option_env!("DOUGU_BUILD_TIMESTAMP")
         ) {
             if let Ok(release) = release_str.parse::<u32>() {
-                // Build ID from timestamp if not in CI
-                let build_id = format!("0-dev+{}", timestamp);
-                
+                let (repository_owner, repository_name) = detect_repository();
                 return BuildInfo {
                     release,
                     build_type: build_type.to_string(),
-                    build_id,
                     timestamp: timestamp.to_string(),
+                    repository_owner,
+                    repository_name,
                 };
             }
         }
-        
-        // Fallback to local development defaults
         BuildInfo::new_local()
     }
 } 

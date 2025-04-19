@@ -20,12 +20,11 @@ pub struct VersionParams {
 pub struct VersionResults {
     pub version: String,
     pub build_type: String,
-    pub build_id: String,
     pub release: u32,
     pub rust_version: String,
-    pub target: String,
-    pub profile: String,
     pub timestamp: String,
+    pub repository_owner: String,
+    pub repository_name: String,
 }
 
 #[async_trait]
@@ -47,18 +46,18 @@ impl Commandlet for VersionCommandlet {
         // Extract timestamp before moving build_info
         let timestamp = build_info.timestamp.clone();
         let build_type = build_info.build_type.clone();
-        let build_id = build_info.build_id.clone();
         let release = build_info.release;
+        let repository_owner = build_info.repository_owner.clone();
+        let repository_name = build_info.repository_name.clone();
         
         Ok(VersionResults {
             version,
             build_type,
-            build_id,
             release,
             rust_version: std::env::var("RUSTC_VERSION").unwrap_or_else(|_| "unknown".to_string()),
-            target: std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string()),
-            profile: std::env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string()),
             timestamp,
+            repository_owner,
+            repository_name,
         })
     }
 }
@@ -76,11 +75,10 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
     let prop_version = t(VERSION_PROPERTY_VERSION);
     let prop_release = t(VERSION_PROPERTY_BUILD_RELEASE);
     let prop_build_type = t(VERSION_PROPERTY_BUILD_TYPE);
-    let prop_build_id = t(VERSION_PROPERTY_BUILD_ID);
     let prop_rust_version = t(VERSION_PROPERTY_RUST_VERSION);
-    let prop_build_target = t(VERSION_PROPERTY_BUILD_TARGET);
-    let prop_build_profile = t(VERSION_PROPERTY_BUILD_PROFILE);
     let prop_build_timestamp = t(VERSION_PROPERTY_BUILD_TIMESTAMP);
+    let prop_repository_owner = "Repository Owner".to_string();
+    let prop_repository_name = "Repository Name".to_string();
     let prop_header = t(VERSION_PROPERTY);
     let value_header = t(VERSION_VALUE);
     
@@ -101,25 +99,21 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
         results.build_type.clone()
     ]);
     
+    // Add repository info
     table_data.push(vec![
-        prop_build_id.clone(),
-        results.build_id.clone()
+        prop_repository_owner.clone(),
+        results.repository_owner.clone()
+    ]);
+    
+    table_data.push(vec![
+        prop_repository_name.clone(),
+        results.repository_name.clone()
     ]);
     
     // Add other details
     table_data.push(vec![
         prop_rust_version.clone(),
         results.rust_version.clone()
-    ]);
-    
-    table_data.push(vec![
-        prop_build_target.clone(),
-        results.target.clone()
-    ]);
-    
-    table_data.push(vec![
-        prop_build_profile.clone(),
-        results.profile.clone()
     ]);
     
     table_data.push(vec![
