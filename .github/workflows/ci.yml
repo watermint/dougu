@@ -8,4 +8,4 @@ on:
 
 jobs:
   build-test:
-    uses: ./.github/workflows/ci-build-test.yml@current 
+    uses: ./.github/workflows/ci-build-test.yml 
