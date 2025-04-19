@@ -1,0 +1,38 @@
+{
+  "FILE_COPY_SUCCESS": {
+    "source": "Successfully copied {source} to {destination}",
+    "context": "Success message after copying a file",
+    "comments": "Variables: {source} - source file path, {destination} - destination file path",
+    "text": "Successfully copied {source} to {destination}"
+  },
+  "FILE_MOVE_SUCCESS": {
+    "source": "Successfully moved {source} to {destination}",
+    "context": "Success message after moving a file",
+    "comments": "Variables: {source} - source file path, {destination} - destination file path",
+    "text": "Successfully moved {source} to {destination}"
+  },
+  "FILE_LIST_SUCCESS": {
+    "source": "Successfully listed directory: {directory}",
+    "context": "Success message after listing a directory",
+    "comments": "Variables: {directory} - directory path",
+    "text": "Successfully listed directory: {directory}"
+  },
+  "FILE_COPY_START": {
+    "source": "Copying {source} to {destination}",
+    "context": "Log message when starting to copy a file",
+    "comments": "Variables: {source} - source file path, {destination} - destination file path",
+    "text": "Copying {source} to {destination}"
+  },
+  "FILE_MOVE_START": {
+    "source": "Moving {source} to {destination}",
+    "context": "Log message when starting to move a file",
+    "comments": "Variables: {source} - source file path, {destination} - destination file path",
+    "text": "Moving {source} to {destination}"
+  },
+  "FILE_LIST_START": {
+    "source": "Listing directory: {directory}",
+    "context": "Log message when starting to list a directory",
+    "comments": "Variables: {directory} - directory path",
+    "text": "Listing directory: {directory}"
+  }
+} 

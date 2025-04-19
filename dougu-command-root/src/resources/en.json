@@ -1,0 +1,57 @@
+{
+  "VERSION_HEADING": {
+    "source": "Dougu Version Information",
+    "context": "Title for version command output",
+    "text": "Dougu Version Information"
+  },
+  "VERSION_ERROR_SERIALIZE": {
+    "source": "Failed to serialize version params",
+    "context": "Error message",
+    "text": "Failed to serialize version params"
+  },
+  "VERSION_ERROR_PARSE": {
+    "source": "Failed to parse version results",
+    "context": "Error message",
+    "text": "Failed to parse version results"
+  },
+  "VERSION_ERROR_EXECUTION": {
+    "source": "Version command execution failed",
+    "context": "Error message",
+    "text": "Version command execution failed"
+  },
+  "VERSION_PROPERTY_VERSION": {
+    "source": "Version",
+    "context": "Property label in version command output",
+    "text": "Version"
+  },
+  "VERSION_PROPERTY_RUST_VERSION": {
+    "source": "Rust Version",
+    "context": "Property label in version command output",
+    "text": "Rust Version"
+  },
+  "VERSION_PROPERTY_BUILD_TARGET": {
+    "source": "Build Target",
+    "context": "Property label in version command output",
+    "text": "Build Target"
+  },
+  "VERSION_PROPERTY_BUILD_PROFILE": {
+    "source": "Build Profile",
+    "context": "Property label in version command output",
+    "text": "Build Profile"
+  },
+  "VERSION_PROPERTY_BUILD_TIMESTAMP": {
+    "source": "Build Timestamp",
+    "context": "Property label in version command output",
+    "text": "Build Timestamp"
+  },
+  "VERSION_PROPERTY": {
+    "source": "Property",
+    "context": "Table header in version command output",
+    "text": "Property"
+  },
+  "VERSION_VALUE": {
+    "source": "Value",
+    "context": "Table header in version command output",
+    "text": "Value"
+  }
+} 

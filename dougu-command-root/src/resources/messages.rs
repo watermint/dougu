@@ -1,4 +1,15 @@
-pub const VERSION_HEADING: &str = "Dougu Version Information";
-pub const VERSION_ERROR_SERIALIZE: &str = "Failed to serialize version params";
-pub const VERSION_ERROR_PARSE: &str = "Failed to parse version results";
-pub const VERSION_ERROR_EXECUTION: &str = "Version command execution failed"; 
+use dougu_foundation_i18n::t;
+
+pub const VERSION_HEADING: &str = "VERSION_HEADING";
+pub const VERSION_ERROR_SERIALIZE: &str = "VERSION_ERROR_SERIALIZE";
+pub const VERSION_ERROR_PARSE: &str = "VERSION_ERROR_PARSE";
+pub const VERSION_ERROR_EXECUTION: &str = "VERSION_ERROR_EXECUTION";
+
+// Property labels for the table
+pub const VERSION_PROPERTY_VERSION: &str = "VERSION_PROPERTY_VERSION";
+pub const VERSION_PROPERTY_RUST_VERSION: &str = "VERSION_PROPERTY_RUST_VERSION";
+pub const VERSION_PROPERTY_BUILD_TARGET: &str = "VERSION_PROPERTY_BUILD_TARGET";
+pub const VERSION_PROPERTY_BUILD_PROFILE: &str = "VERSION_PROPERTY_BUILD_PROFILE";
+pub const VERSION_PROPERTY_BUILD_TIMESTAMP: &str = "VERSION_PROPERTY_BUILD_TIMESTAMP";
+pub const VERSION_PROPERTY: &str = "VERSION_PROPERTY";
+pub const VERSION_VALUE: &str = "VERSION_VALUE"; 

@@ -12,4 +12,5 @@ async-trait = { workspace = true }
 log = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true } 
+tokio = { workspace = true }
+dougu-foundation-run = { path = "../dougu-foundation-run", features = ["i18n"] } 

@@ -102,7 +102,7 @@ impl I18nInitializer {
     fn load_filesystem_translations(&self, locale: &str) -> Result<(), String> {
         // Load foundation translations
         let foundation_path = Path::new("dougu-foundation-run").join("src").join("resources");
-        let foundation_file = foundation_path.join(format!("{}.json", locale));
+        let foundation_file = foundation_path.join(format!("i18n-{}.json", locale));
         
         if let Some(file_path) = foundation_file.to_str() {
             if let Err(e) = load_translations(locale, file_path) {
@@ -114,7 +114,7 @@ impl I18nInitializer {
         
         // Load file command translations
         let file_path = Path::new("dougu-command-file").join("src").join("resources");
-        let file_file = file_path.join(format!("{}.json", locale));
+        let file_file = file_path.join(format!("i18n-{}.json", locale));
         
         if let Some(file_path) = file_file.to_str() {
             if let Err(e) = load_translations(locale, file_path) {
@@ -122,6 +122,18 @@ impl I18nInitializer {
             }
         } else {
             return Err("Invalid file command path".to_string());
+        }
+        
+        // Load root command translations
+        let root_path = Path::new("dougu-command-root").join("src").join("resources");
+        let root_file = root_path.join(format!("i18n-{}.json", locale));
+        
+        if let Some(file_path) = root_file.to_str() {
+            if let Err(e) = load_translations(locale, file_path) {
+                return Err(format!("Failed to load root command translations: {}", e));
+            }
+        } else {
+            return Err("Invalid root command path".to_string());
         }
         
         Ok(())
@@ -143,6 +155,14 @@ impl I18nInitializer {
         
         if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale, file_content) {
             return Err(format!("Failed to load embedded file command translations: {}", e));
+        }
+        
+        // Load root command translations from embedded resources
+        let root_content = embedded::get_resource("root", locale)
+            .ok_or_else(|| format!("Root command resource not found for locale: {}", locale))?;
+        
+        if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale, root_content) {
+            return Err(format!("Failed to load embedded root command translations: {}", e));
         }
         
         Ok(())

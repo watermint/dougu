@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use dougu_foundation_run::{Commandlet, CommandletError, CommandRunner, LauncherContext, LauncherLayer};
 use dougu_foundation_ui::UIManager;
+use dougu_foundation_i18n::t;
 use serde::{Deserialize, Serialize};
 
 mod resources;
@@ -61,29 +62,33 @@ impl LauncherLayer for VersionCommandLayer {
         // Create empty parameters
         let params = VersionParams {};
         let serialized_params = serde_json::to_string(&params)
-            .map_err(|e| format!("{}: {}", VERSION_ERROR_SERIALIZE, e))?;
+            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_SERIALIZE), e))?;
         
         // Run the commandlet
         let result = runner.run(&serialized_params).await
-            .map_err(|e| format!("{}: {}", VERSION_ERROR_EXECUTION, e))?;
+            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_EXECUTION), e))?;
             
         // Parse the result
         let parsed_result: VersionResults = serde_json::from_str(&result)
-            .map_err(|e| format!("{}: {}", VERSION_ERROR_PARSE, e))?;
+            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_PARSE), e))?;
         
         // Format output using the UI manager
         let ui = runner.ui();
-        let heading = ui.heading(1, VERSION_HEADING);
+        let heading = ui.heading(1, &t(VERSION_HEADING));
         ui.print(&heading);
         
-        // Format as a table
-        let headers = &["Property", "Value"];
+        // Convert i18n strings to static strings for table headers
+        let property_text = t(VERSION_PROPERTY);
+        let value_text = t(VERSION_VALUE);
+        let headers = &[property_text.as_str(), value_text.as_str()];
+        
+        // Create rows with property labels
         let rows = vec![
-            vec!["Version", &parsed_result.version],
-            vec!["Rust Version", &parsed_result.rust_version],
-            vec!["Build Target", &parsed_result.target],
-            vec!["Build Profile", &parsed_result.profile],
-            vec!["Build Timestamp", &parsed_result.timestamp],
+            vec![t(VERSION_PROPERTY_VERSION), parsed_result.version],
+            vec![t(VERSION_PROPERTY_RUST_VERSION), parsed_result.rust_version],
+            vec![t(VERSION_PROPERTY_BUILD_TARGET), parsed_result.target],
+            vec![t(VERSION_PROPERTY_BUILD_PROFILE), parsed_result.profile],
+            vec![t(VERSION_PROPERTY_BUILD_TIMESTAMP), parsed_result.timestamp],
         ];
         
         let table = ui.table(headers, &rows);

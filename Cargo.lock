@@ -700,6 +700,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
  "log",
@@ -801,6 +802,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dougu-essentials-i18n",
+ "dougu-foundation-run",
  "log",
  "once_cell",
  "serde",

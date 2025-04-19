@@ -7,8 +7,8 @@ fn test_i18n_commandlet_integration() {
     init("en").unwrap();
     
     // Load translations
-    load_translations("en", "../dougu-foundation-run/src/resources/en.json").unwrap();
-    load_translations("es", "../dougu-foundation-run/src/resources/es.json").unwrap();
+    load_translations("en", "../dougu-foundation-run/src/resources/i18n-en.json").unwrap();
+    load_translations("es", "../dougu-foundation-run/src/resources/i18n-es.json").unwrap();
     
     // Test basic translation in English (default)
     let error_msg = t("RESOURCE_NOT_FOUND");
@@ -46,8 +46,8 @@ fn test_file_commandlet_translations() {
     init("en").unwrap();
     
     // Load translations
-    load_translations("en", "../dougu-command-file/src/resources/en.json").unwrap();
-    load_translations("es", "../dougu-command-file/src/resources/es.json").unwrap();
+    load_translations("en", "../dougu-command-file/src/resources/i18n-en.json").unwrap();
+    load_translations("es", "../dougu-command-file/src/resources/i18n-es.json").unwrap();
     
     // Test file copy success message in English
     let msg = tf("FILE_COPY_SUCCESS", vars!(
