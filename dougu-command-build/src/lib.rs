@@ -351,12 +351,15 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
 }
 
 /// Execute the pack command
-pub async fn execute_pack(args: &PackArgs) -> Result<String> {
+pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) -> Result<String> {
     let input_dir = args.input_dir.as_deref().unwrap_or("./target/package");
     let output_dir = args.output_dir.as_deref().unwrap_or("./target/dist");
     
     // Get build information
     let build_info = get_build_info();
+    
+    // Get the semantic version from BuildInfo to match the version command
+    let package_version = build_info.semantic_version();
     
     // Determine platform if not specified
     let platform = match args.platform.as_deref() {
@@ -439,8 +442,8 @@ pub async fn execute_pack(args: &PackArgs) -> Result<String> {
             exec_name.clone()
         };
         
-        // Use build_info for version detection
-        let detected_version = build_info.build_release.to_string();
+        // Use the semantic version from BuildInfo to match the version command
+        let detected_version = package_version.clone();
         
         // Use provided name or detected name
         let name = args.name.as_deref().unwrap_or(&detected_name);
@@ -514,11 +517,11 @@ pub async fn execute_pack(args: &PackArgs) -> Result<String> {
         path: archive_path
             .map(|p| p.to_string_lossy().into_owned())
             .ok_or_else(|| anyhow!("No archive was created"))?,
-        version: args.version.as_deref().unwrap_or(&build_info.build_release.to_string()).to_string(),
+        version: args.version.as_deref().unwrap_or(&package_version).to_string(),
         platform: platform,
     };
     
-    Ok(serde_json::to_string(&output)?)
+    Ok(dougu_foundation_ui::format_commandlet_result(ui, &output))
 }
 
 pub fn add(left: u64, right: u64) -> u64 {

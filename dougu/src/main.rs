@@ -282,64 +282,94 @@ impl LauncherLayer for BuildCommandLayer {
             info!("{}", log_messages::COMMAND_START.replace("{}", "Build"));
             
             // Use UI manager from context directly
-            ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
+            // Only show UI messages for non-JSON output
+            if ctx.ui.format() != OutputFormat::Json {
+                ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
+            }
             
             match &args.command {
                 dougu_command_build::BuildCommands::Package(package_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Package"));
-                    ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
-                    
-                    // Get the output directory as a placeholder for package name
-                    let package_name = package_args.output_dir.clone().unwrap_or_else(|| "default".to_string());
-                    let msg = format!("Creating package in: {}", package_name);
-                    ctx.ui.print(&ctx.ui.info(&msg));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
+                        
+                        // Get the output directory as a placeholder for package name
+                        let package_name = package_args.output_dir.clone().unwrap_or_else(|| "default".to_string());
+                        let msg = format!("Creating package in: {}", package_name);
+                        ctx.ui.print(&ctx.ui.info(&msg));
+                    }
                     
                     dougu_command_build::execute_package(package_args).await
                         .map_err(|e| format!("Build package failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Package created successfully"));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.success("Package created successfully"));
+                    }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Package"));
                 }
                 dougu_command_build::BuildCommands::Test(test_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Test"));
-                    ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
-                    
-                    let test_filter = test_args.filter.clone().unwrap_or_else(|| "all tests".to_string());
-                    let msg = format!("Running test suite with filter: {}", test_filter);
-                    ctx.ui.print(&ctx.ui.info(&msg));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
+                        
+                        let test_filter = test_args.filter.clone().unwrap_or_else(|| "all tests".to_string());
+                        let msg = format!("Running test suite with filter: {}", test_filter);
+                        ctx.ui.print(&ctx.ui.info(&msg));
+                    }
                     
                     dougu_command_build::execute_test(test_args, &ctx.ui).await
                         .map_err(|e| format!("Build test failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
+                    }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Test"));
                 }
                 dougu_command_build::BuildCommands::Compile(compile_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Compile"));
-                    ctx.ui.print(&ctx.ui.heading(2, "Compiling Project"));
-                    
-                    let build_type = if compile_args.release { "release" } else { "debug" };
-                    let msg = format!("Compiling with build type: {}", build_type);
-                    ctx.ui.print(&ctx.ui.info(&msg));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.heading(2, "Compiling Project"));
+                        
+                        let build_type = if compile_args.release { "release" } else { "debug" };
+                        let msg = format!("Compiling with build type: {}", build_type);
+                        ctx.ui.print(&ctx.ui.info(&msg));
+                    }
                     
                     dougu_command_build::execute_compile(compile_args, &ctx.ui).await
                         .map_err(|e| format!("Build compile failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
+                    }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
                 }
                 dougu_command_build::BuildCommands::Pack(pack_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Pack"));
-                    ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
+                        
+                        let output_dir = pack_args.output_dir.clone().unwrap_or_else(|| "./target/dist".to_string());
+                        let msg = format!("Creating archive in: {}", output_dir);
+                        ctx.ui.print(&ctx.ui.info(&msg));
+                    }
                     
-                    let output_dir = pack_args.output_dir.clone().unwrap_or_else(|| "./target/dist".to_string());
-                    let msg = format!("Creating archive in: {}", output_dir);
-                    ctx.ui.print(&ctx.ui.info(&msg));
-                    
-                    dougu_command_build::execute_pack(pack_args).await
+                    // Pass UI context to execute_pack
+                    let result = dougu_command_build::execute_pack(pack_args, &ctx.ui).await
                         .map_err(|e| format!("Build pack failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Archive created successfully"));
+                    // Print the result directly - it's already formatted by the execute_pack function
+                    match ctx.ui.format() {
+                        OutputFormat::Json => {
+                            // For JSON, just print the raw result without any additional formatting
+                            println!("{}", result);
+                        },
+                        _ => {
+                            // For other formats, show success message and the result
+                            ctx.ui.print(&ctx.ui.success("Archive created successfully"));
+                            ctx.ui.print(&result);
+                        }
+                    }
+                    
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
                 }
             }

@@ -1,0 +1,9 @@
+# Build Operations
+## Creating Archive
+Creating archive in: ./target/dist
+{
+  "name": "dougu",
+  "path": "./target/dist/dougu-1-macos.zip",
+  "version": "1",
+  "platform": "macos"
+}
