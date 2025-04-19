@@ -7,6 +7,7 @@ use tokio::process::Command;
 use uuid::Uuid;
 use walkdir::WalkDir;
 use dougu_essentials_build::{BuildInfo, get_build_info};
+use serde_json::json;
 
 mod resources;
 
@@ -101,6 +102,14 @@ pub struct PackArgs {
     /// Output directory for the archive
     #[arg(short, long)]
     pub output_dir: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct PackOutput {
+    name: String,
+    path: String,
+    version: String,
+    platform: String,
 }
 
 /// Execute the package command
@@ -342,7 +351,7 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
 }
 
 /// Execute the pack command
-pub async fn execute_pack(args: &PackArgs) -> Result<()> {
+pub async fn execute_pack(args: &PackArgs) -> Result<String> {
     let input_dir = args.input_dir.as_deref().unwrap_or("./target/package");
     let output_dir = args.output_dir.as_deref().unwrap_or("./target/dist");
     
@@ -415,6 +424,8 @@ pub async fn execute_pack(args: &PackArgs) -> Result<()> {
     fs::create_dir_all(output_dir)?;
     
     // Process each executable
+    let mut archive_path = None;
+    let mut archive_name = None;
     for executable_path in executables {
         let exec_name = executable_path.file_name()
             .ok_or_else(|| anyhow!("Invalid executable filename"))?
@@ -433,19 +444,21 @@ pub async fn execute_pack(args: &PackArgs) -> Result<()> {
         
         // Use provided name or detected name
         let name = args.name.as_deref().unwrap_or(&detected_name);
+        archive_name = Some(name.to_string());
         
         // Use provided version or detected version
         let version = args.version.as_deref().unwrap_or(&detected_version);
         
         // Create archive name using the specified convention
-        let archive_name = format!("{}-{}-{}.zip", name, version, platform);
-        let archive_path = PathBuf::from(output_dir).join(&archive_name);
+        let archive_filename = format!("{}-{}-{}.zip", name, version, platform);
+        let current_archive_path = PathBuf::from(output_dir).join(&archive_filename);
+        archive_path = Some(current_archive_path.clone());
         
         dougu_essentials_logger::log_info(resources::log_messages::PACKING_ARTIFACT
-            .replace("{name}", &archive_name));
+            .replace("{name}", &archive_filename));
         
         // Create the zip file
-        let zip_file = fs::File::create(&archive_path)?;
+        let zip_file = fs::File::create(&current_archive_path)?;
         let mut zip = zip::ZipWriter::new(zip_file);
         
         // Set file options (executable permissions for binaries)
@@ -490,12 +503,22 @@ pub async fn execute_pack(args: &PackArgs) -> Result<()> {
         zip.finish()?;
         
         dougu_essentials_logger::log_info(resources::log_messages::PACKAGE_CREATED
-            .replace("{path}", &archive_path.to_string_lossy()));
+            .replace("{path}", &current_archive_path.to_string_lossy()));
     }
     
     dougu_essentials_logger::log_info(resources::log_messages::PACK_COMPLETE);
     
-    Ok(())
+    // Create and return JSON output
+    let output = PackOutput {
+        name: archive_name.ok_or_else(|| anyhow!("No archive name was created"))?,
+        path: archive_path
+            .map(|p| p.to_string_lossy().into_owned())
+            .ok_or_else(|| anyhow!("No archive was created"))?,
+        version: build_info.build_release.to_string(),
+        platform: platform,
+    };
+    
+    Ok(serde_json::to_string(&output)?)
 }
 
 pub fn add(left: u64, right: u64) -> u64 {

@@ -81,19 +81,21 @@ jobs:
         run: |
           # Build the artifact using the simplified build pack command
           mkdir -p target/dist
-          ./target/debug/dougu build pack \
+          PACK_OUTPUT=$(./target/debug/dougu build pack \
             --input-dir package \
-            --output-dir target/dist
+            --output-dir target/dist)
           
-          # Find the created archive
-          ARCHIVE_PATH=$(find target/dist -name "*.zip" | head -n 1)
+          # Extract information from JSON output
+          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj json query -q '.path')
+          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj json query -q '.name')
           
-          # Save archive path for use in upload step
+          # Save information for use in upload step
           echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
+          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
       
       # Upload artifact
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ github.run_number }}-${{ steps.platform.outputs.name }}
+          name: ${{ steps.pack_artifact.outputs.artifact_name }}-${{ steps.platform.outputs.name }}
           path: ${{ steps.pack_artifact.outputs.archive_path }} 
