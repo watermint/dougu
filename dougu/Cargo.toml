@@ -11,10 +11,10 @@ homepage = "https://github.com/your-org/dougu"
 readme = "../README.md"
 
 [dependencies]
-dougu-essentials-logger = { path = "../dougu-essentials-logger" }
-dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
-dougu-command-file = { path = "../dougu-command-file" }
-dougu-command-dropbox = { path = "../dougu-command-dropbox" }
+dougu-essentials-logger = "0.1.0"
+dougu-essentials-i18n = "0.1.0"
+dougu-command-file = "0.1.0"
+dougu-command-dropbox = "0.1.0"
 clap = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
