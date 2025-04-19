@@ -8,7 +8,7 @@ fn test_i18n_commandlet_integration() {
     
     // Load translations
     load_translations("en", "../dougu-foundation-run/src/resources/i18n-en.json").unwrap();
-    load_translations("es", "../dougu-foundation-run/src/resources/i18n-es.json").unwrap();
+    load_translations("ja", "../dougu-foundation-run/src/resources/i18n-ja.json").unwrap();
     
     // Test basic translation in English (default)
     let error_msg = t("RESOURCE_NOT_FOUND");
@@ -23,21 +23,21 @@ fn test_i18n_commandlet_integration() {
     assert_eq!(error.code, "NOT_FOUND");
     assert_eq!(error.message, "Resource not found");
     
-    // Switch to Spanish
-    set_locale("es").unwrap();
+    // Switch to Japanese
+    set_locale("ja").unwrap();
     
-    // Test in Spanish
+    // Test in Japanese
     let error_msg = t("RESOURCE_NOT_FOUND");
-    assert_eq!(error_msg, "Recurso no encontrado");
+    assert_eq!(error_msg, "リソースが見つかりません");
     
-    // Test with variables in Spanish
+    // Test with variables in Japanese
     let layer_msg = tf("LAYER_EXECUTION", vars!("" => "TestLayer"));
-    assert_eq!(layer_msg, "Ejecutando capa: TestLayer");
+    assert_eq!(layer_msg, "レイヤーを実行中: TestLayer");
     
-    // Test command error with i18n in Spanish
+    // Test command error with i18n in Japanese
     let error = CommandletError::with_i18n("NOT_FOUND", "RESOURCE_NOT_FOUND");
     assert_eq!(error.code, "NOT_FOUND");
-    assert_eq!(error.message, "Recurso no encontrado");
+    assert_eq!(error.message, "リソースが見つかりません");
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn test_file_commandlet_translations() {
     
     // Load translations
     load_translations("en", "../dougu-command-file/src/resources/i18n-en.json").unwrap();
-    load_translations("es", "../dougu-command-file/src/resources/i18n-es.json").unwrap();
+    load_translations("ja", "../dougu-command-file/src/resources/i18n-ja.json").unwrap();
     
     // Test file copy success message in English
     let msg = tf("FILE_COPY_SUCCESS", vars!(
@@ -62,19 +62,19 @@ fn test_file_commandlet_translations() {
     ));
     assert_eq!(msg, "Listing directory: /home/user");
     
-    // Switch to Spanish
-    set_locale("es").unwrap();
+    // Switch to Japanese
+    set_locale("ja").unwrap();
     
-    // Test file copy success message in Spanish
+    // Test file copy success message in Japanese
     let msg = tf("FILE_COPY_SUCCESS", vars!(
         "source" => "file.txt",
         "destination" => "backup.txt"
     ));
-    assert_eq!(msg, "Copiado con éxito file.txt a backup.txt");
+    assert_eq!(msg, "file.txtからbackup.txtへのコピーに成功しました");
     
-    // Test file list start message in Spanish
+    // Test file list start message in Japanese
     let msg = tf("FILE_LIST_START", vars!(
         "directory" => "/home/user"
     ));
-    assert_eq!(msg, "Listando directorio: /home/user");
+    assert_eq!(msg, "ディレクトリを一覧表示: /home/user");
 } 

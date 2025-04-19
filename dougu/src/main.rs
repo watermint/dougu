@@ -307,6 +307,38 @@ async fn main() -> Result<()> {
     info!("{}", log_messages::SETTING_VERBOSITY.replace("{}", &level.to_string()));
     dougu_essentials_logger::init(level)?;
     
+    // Determine locale from command-line or environment variable
+    let locale = if cli.locale != "en" {
+        // If explicitly set on command-line, use that
+        info!("Using locale from command-line: {}", cli.locale);
+        cli.locale.clone()
+    } else {
+        // Otherwise check LANG environment variable
+        match std::env::var("LANG") {
+            Ok(lang) => {
+                info!("LANG environment variable: {}", lang);
+                // Extract language code from LANG (e.g., "en" from "en_US.UTF-8")
+                let lang_code = lang.split('_').next().unwrap_or("en");
+                info!("Extracted language code: {}", lang_code);
+                // Only use if we have translations for this language
+                match lang_code {
+                    "ja" | "en" => {
+                        info!("Using locale from LANG: {}", lang_code);
+                        lang_code.to_string()
+                    },
+                    _ => {
+                        info!("Unsupported language in LANG: {}, defaulting to English", lang_code);
+                        "en".to_string() // Default to English for unsupported languages
+                    }
+                }
+            },
+            Err(_) => {
+                info!("LANG environment variable not set, defaulting to English");
+                "en".to_string() // Default to English if LANG is not set
+            }
+        }
+    };
+    
     // Create CommandLauncher
     let mut launcher = CommandLauncher::new();
     
@@ -322,10 +354,10 @@ async fn main() -> Result<()> {
     let mut context = LauncherContext::new(command_name.to_string(), cli.verbose);
     
     // Store the locale in the context for I18nInitializerLayer to use
-    context.set_data("locale", cli.locale.clone());
+    context.set_data("locale", locale.clone());
     
     // Add the I18nInitializerLayer as the first layer
-    launcher.add_layer(I18nInitializerLayer::new(&cli.locale));
+    launcher.add_layer(I18nInitializerLayer::new(&locale));
     
     // Add appropriate command layers based on the command
     match &cli.command {
