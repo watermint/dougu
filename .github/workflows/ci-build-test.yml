@@ -1,7 +1,10 @@
-name: Build and Test (Reusable)
+name: Build and Test
 
 on:
-  workflow_call:
+  push:
+    branches: [current]
+  pull_request:
+    branches: [current]
 
 jobs:
   build-test:
@@ -21,7 +24,9 @@ jobs:
         run: cargo build --workspace --all-targets
       - name: Test
         run: cargo test --workspace --all-targets
-      - name: Package Artifacts
-        uses: ./.github/workflows/package-artifacts.yml
-        with:
-          build-id: ${{ github.run_number }} 
+
+  package-artifacts:
+    needs: build-test
+    uses: ./.github/workflows/package-artifacts.yml
+    with:
+      build-id: ${{ github.run_number }} 
