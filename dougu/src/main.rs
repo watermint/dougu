@@ -20,15 +20,15 @@ mod i18n;
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// Set verbosity level (0-5)
-    #[arg(short, long, default_value_t = 2)]
+    #[arg(long = "ui-verbose", default_value_t = 2, global = true)]
     verbose: u8,
 
     /// Set locale for internationalization (e.g., 'en', 'es')
-    #[arg(short, long, default_value = "en")]
+    #[arg(long = "ui-locale", default_value = "en", global = true)]
     locale: String,
 
     /// Set output format (default, json, markdown)
-    #[arg(long, value_parser = ["default", "json", "markdown"], default_value = "default", global = true)]
+    #[arg(long = "ui-format", value_parser = ["default", "json", "markdown"], default_value = "default", global = true)]
     format: String,
 
     #[command(subcommand)]

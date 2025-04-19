@@ -20,4 +20,4 @@ pub const LIST_EMPTY: &str = "Empty list";
 pub const BLOCK_PLACEHOLDER: &str = "No content provided";
 
 // Format options
-pub const FORMAT_OPTION_DESCRIPTION: &str = "Output format (json, markdown, default)"; 
+pub const FORMAT_OPTION_DESCRIPTION: &str = "Output UI format (json, markdown, default)"; 

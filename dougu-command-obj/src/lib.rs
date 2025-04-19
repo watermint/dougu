@@ -19,7 +19,7 @@ use resources::messages::*;
 #[command(about = CMD_OBJ_DESCRIPTION)]
 pub struct ObjCommand {
     /// Output format (default, json, markdown)
-    #[arg(long = "format", help = FORMAT_OPTION_DESCRIPTION, value_parser = ["default", "json", "markdown"], default_value = "default")]
+    #[arg(long = "ui-format", help = FORMAT_OPTION_DESCRIPTION, value_parser = ["default", "json", "markdown"], default_value = "default")]
     pub format: String,
     #[command(subcommand)]
     command: ObjCommands,
