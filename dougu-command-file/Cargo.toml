@@ -7,6 +7,9 @@ publish = false
 [dependencies]
 dougu-essentials-logger = { path = "../dougu-essentials-logger" }
 dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
-clap = { workspace = true }
+dougu-foundation-run = { path = "../dougu-foundation-run" }
 anyhow = { workspace = true }
+clap = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+async-trait = { workspace = true }
+tokio = { workspace = true }

@@ -2,12 +2,13 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use log::{info, LevelFilter};
 use async_trait::async_trait;
+use serde_json::json;
 
-use dougu_command_file::{FileArgs, FileCommands};
+use dougu_command_file::{FileArgs, FileCommands, FileCommandlet};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
-use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer};
+use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, Commandlet};
 use dougu_foundation_run::resources::log_messages;
 
 #[derive(Parser)]
@@ -34,45 +35,38 @@ enum Commands {
     
     /// Build operations
     Build(BuildArgs),
+    
+    /// Show version information
+    Version,
 }
 
-// File command layer
-struct FileCommandLayer;
+// File command layer using new commandlet architecture
+struct FileCommandletLayer;
 
 #[async_trait]
-impl LauncherLayer for FileCommandLayer {
+impl LauncherLayer for FileCommandletLayer {
     fn name(&self) -> &str {
-        "FileCommandLayer"
+        "FileCommandletLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         if let Some(args_str) = ctx.get_data("file_args") {
-            // Parse the serialized args
-            let args: FileArgs = serde_json::from_str(args_str)
-                .map_err(|e| format!("Failed to parse file args: {}", e))?;
-                
             info!("{}", log_messages::COMMAND_START.replace("{}", "File"));
             
-            match &args.command {
-                FileCommands::Copy(copy_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Copy"));
-                    dougu_command_file::execute_copy(copy_args)
-                        .map_err(|e| format!("File copy failed: {}", e))?;
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Copy"));
-                }
-                FileCommands::Move(move_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Move"));
-                    dougu_command_file::execute_move(move_args)
-                        .map_err(|e| format!("File move failed: {}", e))?;
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Move"));
-                }
-                FileCommands::List(list_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "List"));
-                    dougu_command_file::execute_list(list_args)
-                        .map_err(|e| format!("File list failed: {}", e))?;
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "List"));
-                }
-            }
+            // Create the commandlet
+            let commandlet = FileCommandlet;
+            let runner = CommandRunner::new(commandlet);
+            
+            // Run the commandlet with the serialized arguments
+            let result = runner.run(args_str).await
+                .map_err(|e| format!("File command execution failed: {}", e))?;
+            
+            // Format and display the result
+            let formatted_result = runner.format_results(&result)
+                .map_err(|e| format!("Failed to format results: {}", e))?;
+            
+            // Print the result
+            println!("{}", formatted_result);
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
         }
@@ -221,6 +215,80 @@ impl LauncherLayer for BuildCommandLayer {
     }
 }
 
+// Version command layer as a Commandlet
+struct VersionCommandlet;
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct VersionParams {
+    // Empty parameters for version command
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct VersionResults {
+    pub version: String,
+    pub rust_version: String,
+    pub target: String,
+    pub profile: String,
+    pub timestamp: String,
+}
+
+#[async_trait]
+impl Commandlet for VersionCommandlet {
+    type Params = VersionParams;
+    type Results = VersionResults;
+    
+    fn name(&self) -> &str {
+        "VersionCommandlet"
+    }
+    
+    async fn execute(&self, _params: Self::Params) -> Result<Self::Results, dougu_foundation_run::CommandletError> {
+        Ok(VersionResults {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            rust_version: std::env::var("RUSTC_VERSION").unwrap_or_else(|_| "unknown".to_string()),
+            target: std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string()),
+            profile: std::env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string()),
+            timestamp: chrono::Local::now().to_rfc3339(),
+        })
+    }
+}
+
+struct VersionCommandLayer;
+
+#[async_trait]
+impl LauncherLayer for VersionCommandLayer {
+    fn name(&self) -> &str {
+        "VersionCommandLayer"
+    }
+
+    async fn run(&self, _ctx: &mut LauncherContext) -> Result<(), String> {
+        // Create the commandlet and runner
+        let commandlet = VersionCommandlet;
+        let runner = CommandRunner::new(commandlet);
+        
+        // Create empty parameters
+        let params = VersionParams {};
+        let serialized_params = serde_json::to_string(&params)
+            .map_err(|e| format!("Failed to serialize version params: {}", e))?;
+        
+        // Run the commandlet
+        let result = runner.run(&serialized_params).await
+            .map_err(|e| format!("Version command execution failed: {}", e))?;
+            
+        // Parse the result
+        let parsed_result: VersionResults = serde_json::from_str(&result)
+            .map_err(|e| format!("Failed to parse version results: {}", e))?;
+            
+        // Display the result
+        println!("dougu version: {}", parsed_result.version);
+        println!("Rust version: {}", parsed_result.rust_version);
+        println!("Build target: {}", parsed_result.target);
+        println!("Build profile: {}", parsed_result.profile);
+        println!("Build timestamp: {}", parsed_result.timestamp);
+        
+        Ok(())
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -247,6 +315,7 @@ async fn main() -> Result<()> {
         Commands::Dropbox(_) => "Dropbox",
         Commands::Obj(_) => "Obj",
         Commands::Build(_) => "Build",
+        Commands::Version => "Version",
     };
     
     let mut context = LauncherContext::new(command_name.to_string(), cli.verbose);
@@ -258,7 +327,7 @@ async fn main() -> Result<()> {
             let args_json = serde_json::to_string(args)
                 .map_err(|e| anyhow::anyhow!("Failed to serialize file args: {}", e))?;
             context.set_data("file_args", args_json);
-            launcher.add_layer(FileCommandLayer);
+            launcher.add_layer(FileCommandletLayer);
         }
         Commands::Dropbox(args) => {
             // Serialize args to string to pass through context
@@ -280,6 +349,9 @@ async fn main() -> Result<()> {
                 .map_err(|e| anyhow::anyhow!("Failed to serialize build args: {}", e))?;
             context.set_data("build_args", args_json);
             launcher.add_layer(BuildCommandLayer);
+        }
+        Commands::Version => {
+            launcher.add_layer(VersionCommandLayer);
         }
     }
     

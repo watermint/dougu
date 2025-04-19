@@ -4,6 +4,80 @@ use resources::error_messages;
 use resources::log_messages;
 use log::{debug, info, error};
 use async_trait::async_trait;
+use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+
+/// Commandlet represents a command implementation that takes serializable parameters and returns serializable results
+#[async_trait]
+pub trait Commandlet {
+    /// The type of parameters this commandlet accepts
+    type Params: Serialize + for<'a> Deserialize<'a> + Send + Sync;
+    
+    /// The type of results this commandlet returns 
+    type Results: Serialize + for<'a> Deserialize<'a> + Send + Sync;
+    
+    /// Returns the name of this commandlet
+    fn name(&self) -> &str;
+    
+    /// Executes the commandlet with the given parameters
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError>;
+}
+
+/// Error type for commandlet operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandletError {
+    pub code: String,
+    pub message: String,
+    pub details: Option<String>,
+}
+
+impl CommandletError {
+    pub fn new(code: &str, message: &str) -> Self {
+        Self {
+            code: code.to_string(),
+            message: message.to_string(),
+            details: None,
+        }
+    }
+    
+    pub fn with_details(code: &str, message: &str, details: &str) -> Self {
+        Self {
+            code: code.to_string(),
+            message: message.to_string(),
+            details: Some(details.to_string()),
+        }
+    }
+}
+
+impl std::fmt::Display for CommandletError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.code, self.message)?;
+        if let Some(details) = &self.details {
+            write!(f, " ({})", details)?;
+        }
+        Ok(())
+    }
+}
+
+impl From<String> for CommandletError {
+    fn from(message: String) -> Self {
+        Self {
+            code: "UNKNOWN_ERROR".to_string(),
+            message,
+            details: None,
+        }
+    }
+}
+
+impl From<&str> for CommandletError {
+    fn from(message: &str) -> Self {
+        Self {
+            code: "UNKNOWN_ERROR".to_string(),
+            message: message.to_string(),
+            details: None,
+        }
+    }
+}
 
 #[async_trait]
 pub trait LauncherLayer {
@@ -59,6 +133,48 @@ impl CommandLauncher {
         
         info!("{}", log_messages::LAUNCHER_COMPLETE);
         Ok(())
+    }
+}
+
+/// CommandRunner handles parsing command line arguments into params and formatting results
+pub struct CommandRunner<C: Commandlet> {
+    commandlet: C,
+}
+
+impl<C: Commandlet> CommandRunner<C> {
+    pub fn new(commandlet: C) -> Self {
+        Self { commandlet }
+    }
+    
+    /// Run the commandlet with the given serialized parameters
+    pub async fn run(&self, serialized_params: &str) -> Result<String, CommandletError> {
+        // Deserialize the parameters
+        let params: C::Params = serde_json::from_str(serialized_params)
+            .map_err(|e| CommandletError::with_details(
+                "PARAM_PARSE_ERROR", 
+                "Failed to parse parameters", 
+                &e.to_string()
+            ))?;
+        
+        // Execute the commandlet
+        let results = self.commandlet.execute(params).await?;
+        
+        // Serialize the results
+        let serialized_results = serde_json::to_string(&results)
+            .map_err(|e| CommandletError::with_details(
+                "RESULT_SERIALIZE_ERROR", 
+                "Failed to serialize results", 
+                &e.to_string()
+            ))?;
+        
+        Ok(serialized_results)
+    }
+    
+    /// Format the serialized results for display
+    pub fn format_results(&self, serialized_results: &str) -> Result<String, CommandletError> {
+        // For now, just return the JSON as is
+        // In a real implementation, this could format results based on output preferences
+        Ok(serialized_results.to_string())
     }
 }
 
