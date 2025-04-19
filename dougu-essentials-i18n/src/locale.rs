@@ -239,10 +239,11 @@ mod tests {
         let locale = Locale::from_str("zh-Hans-CN").unwrap();
         let fallbacks = locale.fallbacks();
         
-        assert_eq!(fallbacks.len(), 3);
+        assert_eq!(fallbacks.len(), 4);
         assert_eq!(fallbacks[0].as_str(), "zh-Hans-CN");
         assert_eq!(fallbacks[1].as_str(), "zh-Hans-");
-        assert_eq!(fallbacks[2].as_str(), "zh");
+        assert_eq!(fallbacks[2].as_str(), "zh-CN");
+        assert_eq!(fallbacks[3].as_str(), "zh");
     }
 
     #[test]
