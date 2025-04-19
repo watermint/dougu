@@ -10,4 +10,6 @@ pub const FOUND_EXECUTABLES: &str = "Found {count} executables to package";
 pub const CREATING_PACKAGE_DIR: &str = "Creating package directory at {dir}";
 pub const PACKAGE_CREATED: &str = "Created package archive at {path}";
 pub const README_MISSING: &str = "README.md file not found, packaging aborted";
-pub const COPIED_FILES: &str = "Copied {count} files to package directory"; 
+pub const COPIED_FILES: &str = "Copied {count} files to package directory";
+pub const PACKING_ARTIFACT: &str = "Packing artifact into {name}";
+pub const PACK_COMPLETE: &str = "Artifact successfully packed"; 

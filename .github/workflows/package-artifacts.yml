@@ -41,6 +41,9 @@ jobs:
             echo "No executables found. Aborting." >&2
             exit 1
           fi
+          # Get the first executable name as the app name
+          APP_NAME=$(basename $(echo "$EXECUTABLES" | head -n 1))
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "executables<<EOF" >> $GITHUB_OUTPUT
           echo "$EXECUTABLES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -55,10 +58,22 @@ jobs:
           echo "Build Type: github" >> package/VERSION.txt
           echo "Build ID: ${{ github.run_number }}" >> package/VERSION.txt
           echo "Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> package/VERSION.txt
-      - name: Create zip archive
+      - name: Pack artifact
         run: |
-          cd package
-          zip -r ../artifacts-${{ inputs.build-id }}.zip .
+          # Build the artifact using the build pack command
+          mkdir -p target/dist
+          ./target/debug/dougu build pack \
+            --name ${{ steps.find_execs.outputs.app_name }} \
+            --version ${{ inputs.release }} \
+            --platform linux \
+            --input-dir package \
+            --output-dir target/dist
+          
+          # Find the created archive
+          ARCHIVE_PATH=$(find target/dist -name "*.zip" | head -n 1)
+          
+          # Copy to expected output location
+          cp $ARCHIVE_PATH artifacts-${{ inputs.build-id }}.zip
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
         with:

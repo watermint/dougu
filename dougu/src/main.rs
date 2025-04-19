@@ -328,6 +328,20 @@ impl LauncherLayer for BuildCommandLayer {
                     ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
                 }
+                dougu_command_build::BuildCommands::Pack(pack_args) => {
+                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Pack"));
+                    ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
+                    
+                    let output_dir = pack_args.output_dir.clone().unwrap_or_else(|| "./target/dist".to_string());
+                    let msg = format!("Creating archive in: {}", output_dir);
+                    ctx.ui.print(&ctx.ui.info(&msg));
+                    
+                    dougu_command_build::execute_pack(pack_args).await
+                        .map_err(|e| format!("Build pack failed: {}", e))?;
+                    
+                    ctx.ui.print(&ctx.ui.success("Archive created successfully"));
+                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
+                }
             }
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Build"));

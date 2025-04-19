@@ -25,6 +25,9 @@ pub enum BuildCommands {
     
     /// Build the application without packaging
     Compile(CompileArgs),
+
+    /// Create archive of the artifact
+    Pack(PackArgs),
 }
 
 #[derive(Debug, Args, Serialize, Deserialize)]
@@ -74,6 +77,29 @@ pub struct CompileArgs {
     /// Release mode (optimized build)
     #[arg(short, long)]
     pub release: bool,
+}
+
+#[derive(Debug, Args, Serialize, Deserialize)]
+pub struct PackArgs {
+    /// Executable name for the archive
+    #[arg(short, long)]
+    pub name: Option<String>,
+    
+    /// Version for the archive
+    #[arg(short, long)]
+    pub version: Option<String>,
+    
+    /// Target platform (e.g., windows, macos, linux)
+    #[arg(short, long)]
+    pub platform: Option<String>,
+    
+    /// Directory containing artifacts to pack
+    #[arg(short, long)]
+    pub input_dir: Option<String>,
+    
+    /// Output directory for the archive
+    #[arg(short, long)]
+    pub output_dir: Option<String>,
 }
 
 /// Execute the package command
@@ -310,6 +336,137 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     }
     
     dougu_essentials_logger::log_info(resources::log_messages::BUILD_COMPLETE);
+    
+    Ok(())
+}
+
+/// Execute the pack command
+pub async fn execute_pack(args: &PackArgs) -> Result<()> {
+    let input_dir = args.input_dir.as_deref().unwrap_or("./target/package");
+    let output_dir = args.output_dir.as_deref().unwrap_or("./target/dist");
+    
+    // Determine platform if not specified
+    let platform = match args.platform.as_deref() {
+        Some(platform) => platform.to_string(),
+        None => {
+            #[cfg(target_os = "windows")]
+            let platform = "windows";
+            #[cfg(target_os = "macos")]
+            let platform = "macos";
+            #[cfg(target_os = "linux")]
+            let platform = "linux";
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+            let platform = "unknown";
+            
+            platform.to_string()
+        }
+    };
+    
+    // Find executables in input directory
+    let mut executables = Vec::new();
+    for entry in WalkDir::new(input_dir).max_depth(1) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(metadata) = fs::metadata(path) {
+                    let is_executable = metadata.permissions().mode() & 0o111 != 0;
+                    if is_executable {
+                        let filename = path.file_name().unwrap().to_string_lossy().to_string();
+                        // Skip files that don't look like executables
+                        if !filename.ends_with(".d") && 
+                           !filename.ends_with(".rlib") && 
+                           !filename.ends_with(".o") && 
+                           !filename.ends_with(".json") && 
+                           !filename.ends_with(".lock") && 
+                           !filename.ends_with(".so") && 
+                           !filename.ends_with(".dll") && 
+                           !filename.ends_with(".dylib") {
+                            executables.push(path.to_path_buf());
+                        }
+                    }
+                }
+            }
+            
+            #[cfg(windows)]
+            {
+                let extension = path.extension().unwrap_or_default().to_string_lossy();
+                if extension == "exe" {
+                    executables.push(path.to_path_buf());
+                }
+            }
+        }
+    }
+    
+    if executables.is_empty() {
+        dougu_essentials_logger::log_error(resources::log_messages::EXECUTABLE_SEARCH_FAILED
+            .replace("{dir}", input_dir));
+        return Err(anyhow!("No executables found in {}", input_dir));
+    }
+    
+    // Create output directory if it doesn't exist
+    fs::create_dir_all(output_dir)?;
+    
+    // Process each executable
+    for executable_path in executables {
+        let exec_name = executable_path.file_name()
+            .ok_or_else(|| anyhow!("Invalid executable filename"))?
+            .to_string_lossy()
+            .to_string();
+        
+        // Use provided name or executable name
+        let name = args.name.as_deref().unwrap_or(&exec_name);
+        
+        // Use provided version or default to "0.1.0"
+        let version = args.version.as_deref().unwrap_or("0.1.0");
+        
+        // Create archive name using the specified convention
+        let archive_name = format!("{}-{}-{}.zip", name, version, platform);
+        let archive_path = PathBuf::from(output_dir).join(&archive_name);
+        
+        dougu_essentials_logger::log_info(resources::log_messages::PACKING_ARTIFACT
+            .replace("{name}", &archive_name));
+        
+        // Create the zip file
+        let zip_file = fs::File::create(&archive_path)?;
+        let mut zip = zip::ZipWriter::new(zip_file);
+        
+        // Set file options (executable permissions for binaries)
+        let options = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o755);
+        
+        // Add the executable to the archive
+        zip.start_file(exec_name, options)?;
+        let mut file = fs::File::open(&executable_path)?;
+        std::io::copy(&mut file, &mut zip)?;
+        
+        // Add README.md if it exists in the input directory
+        let readme_path = Path::new(input_dir).join("README.md");
+        if readme_path.exists() {
+            zip.start_file("README.md", options)?;
+            let mut file = fs::File::open(readme_path)?;
+            std::io::copy(&mut file, &mut zip)?;
+        }
+        
+        // Add VERSION.txt if it exists in the input directory
+        let version_path = Path::new(input_dir).join("VERSION.txt");
+        if version_path.exists() {
+            zip.start_file("VERSION.txt", options)?;
+            let mut file = fs::File::open(version_path)?;
+            std::io::copy(&mut file, &mut zip)?;
+        }
+        
+        zip.finish()?;
+        
+        dougu_essentials_logger::log_info(resources::log_messages::PACKAGE_CREATED
+            .replace("{path}", &archive_path.to_string_lossy()));
+    }
+    
+    dougu_essentials_logger::log_info(resources::log_messages::PACK_COMPLETE);
     
     Ok(())
 }
