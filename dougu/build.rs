@@ -20,6 +20,11 @@ fn main() {
         println!("cargo:rustc-env=DOUGU_RELEASE={}", release);
     }
     
+    // Pass through executable name if specified
+    if let Ok(executable_name) = env::var("DOUGU_EXECUTABLE_NAME") {
+        println!("cargo:rustc-env=DOUGU_EXECUTABLE_NAME={}", executable_name);
+    }
+    
     // Try to get Rust version
     if let Ok(output) = Command::new("rustc").arg("--version").output() {
         if output.status.success() {

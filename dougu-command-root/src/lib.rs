@@ -25,6 +25,7 @@ pub struct VersionResults {
     pub repository_owner: String,
     pub rust_version: String,
     pub version: String,
+    pub executable_name: String,
 }
 
 #[async_trait]
@@ -49,6 +50,7 @@ impl Commandlet for VersionCommandlet {
         let build_release = build_info.build_release;
         let repository_owner = build_info.repository_owner.clone();
         let repository_name = build_info.repository_name.clone();
+        let executable_name = build_info.executable_name.clone();
         
         Ok(VersionResults {
             version,
@@ -58,6 +60,7 @@ impl Commandlet for VersionCommandlet {
             build_timestamp,
             repository_owner,
             repository_name,
+            executable_name,
         })
     }
 }
@@ -79,6 +82,7 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
     let prop_repository_owner = "Repository Owner".to_string();
     let prop_rust_version = t(VERSION_PROPERTY_RUST_VERSION);
     let prop_version = t(VERSION_PROPERTY_VERSION);
+    let prop_executable_name = t(VERSION_PROPERTY_EXECUTABLE_NAME);
     let prop_header = t(VERSION_PROPERTY);
     let value_header = t(VERSION_VALUE);
     
@@ -96,6 +100,11 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
     table_data.push(vec![
         prop_build_type.clone(),
         results.build_type.clone()
+    ]);
+    
+    table_data.push(vec![
+        prop_executable_name.clone(),
+        results.executable_name.clone()
     ]);
     
     table_data.push(vec![

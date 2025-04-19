@@ -10,6 +10,7 @@ pub struct BuildInfo {
     pub repository_owner: String,
     pub copyright_owner: String,
     pub copyright_year: u32,
+    pub executable_name: String,
 }
 
 impl BuildInfo {
@@ -98,6 +99,7 @@ impl BuildInfo {
             repository_name,
             copyright_owner: "Takayuki Okazaki".to_string(),
             copyright_year: Utc::now().year() as u32,
+            executable_name: "dougu".to_string(),
         }
     }
 
@@ -126,6 +128,16 @@ impl BuildInfo {
             }
         };
         
+        let executable_name = {
+            if let Some(name) = option_env!("DOUGU_EXECUTABLE_NAME") {
+                name.to_string()
+            } else if let Ok(name) = std::env::var("DOUGU_EXECUTABLE_NAME") {
+                name
+            } else {
+                "dougu".to_string()
+            }
+        };
+        
         Self {
             build_release,
             build_type: "github".to_string(),
@@ -134,6 +146,7 @@ impl BuildInfo {
             repository_name,
             copyright_owner,
             copyright_year,
+            executable_name,
         }
     }
 }
@@ -220,6 +233,10 @@ pub fn get_build_info() -> BuildInfo {
                     .and_then(|y| y.parse::<u32>().ok())
                     .unwrap_or_else(|| Utc::now().year() as u32);
                 
+                let executable_name = option_env!("DOUGU_EXECUTABLE_NAME")
+                    .map(String::from)
+                    .unwrap_or_else(|| "dougu".to_string());
+                
                 return BuildInfo {
                     build_release,
                     build_type: build_type.to_string(),
@@ -228,6 +245,7 @@ pub fn get_build_info() -> BuildInfo {
                     repository_name,
                     copyright_owner,
                     copyright_year,
+                    executable_name,
                 };
             }
         }
