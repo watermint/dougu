@@ -20,21 +20,25 @@ jobs:
         with:
           toolchain: stable
           override: true
+          
+      - name: Test
+        run: cargo test --workspace --all-targets
+
       - name: Build
         id: build
         shell: bash
         run: |
-          # Build and capture executable information
-          BUILD_OUTPUT=$(cargo build --workspace --all-targets --message-format=json)
-          EXECUTABLE=$(echo "$BUILD_OUTPUT" | grep -m 1 '"executable"' | cut -d '"' -f 4)
+          # Get executable path from build output
+          cargo build --workspace --all-targets --message-format=json > build_output.json
+          EXECUTABLE=$(./target/debug/dougu obj json query -i build_output.json -q '.[] | select(.executable != null) | .executable' | head -n 1)
+          
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found in build output. Aborting." >&2
             exit 1
           fi
+          
           echo "executable=$EXECUTABLE" >> $GITHUB_OUTPUT
-          echo "app_name=$(basename $EXECUTABLE)" >> $GITHUB_OUTPUT
-      - name: Test
-        run: cargo test --workspace --all-targets
+          echo "app_name=dougu" >> $GITHUB_OUTPUT
       
       # Pack artifact
       - name: Pack artifact
