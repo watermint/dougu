@@ -67,32 +67,11 @@ impl LauncherLayer for VersionCommandLayer {
         // Run the commandlet
         let result = runner.run(&serialized_params).await
             .map_err(|e| format!("{}: {}", t(VERSION_ERROR_EXECUTION), e))?;
-            
-        // Parse the result
-        let parsed_result: VersionResults = serde_json::from_str(&result)
-            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_PARSE), e))?;
         
-        // Format output using the UI manager
-        let ui = runner.ui();
-        let heading = ui.heading(1, &t(VERSION_HEADING));
-        ui.print(&heading);
-        
-        // Convert i18n strings to static strings for table headers
-        let property_text = t(VERSION_PROPERTY);
-        let value_text = t(VERSION_VALUE);
-        let headers = &[property_text.as_str(), value_text.as_str()];
-        
-        // Create rows with property labels
-        let rows = vec![
-            vec![t(VERSION_PROPERTY_VERSION), parsed_result.version],
-            vec![t(VERSION_PROPERTY_RUST_VERSION), parsed_result.rust_version],
-            vec![t(VERSION_PROPERTY_BUILD_TARGET), parsed_result.target],
-            vec![t(VERSION_PROPERTY_BUILD_PROFILE), parsed_result.profile],
-            vec![t(VERSION_PROPERTY_BUILD_TIMESTAMP), parsed_result.timestamp],
-        ];
-        
-        let table = ui.table(headers, &rows);
-        ui.print(&table);
+        // Format and print the result using the formatter (respects output format)
+        let formatted_result = runner.format_results(&result)
+            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_FORMAT), e))?;
+        println!("{}", formatted_result);
         
         Ok(())
     }
