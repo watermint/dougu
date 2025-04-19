@@ -1,6 +1,6 @@
 [package]
 name = "dougu"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 description = "A multi-command CLI tool with nested command structure for file and Dropbox operations."
 license = "Apache-2.0"

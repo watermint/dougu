@@ -601,7 +601,7 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "dougu"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -626,7 +626,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-command-build"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -644,7 +644,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-command-dropbox"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -661,7 +661,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-command-file"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -676,7 +676,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-command-obj"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -713,7 +713,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-domain-dropbox"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "dougu-essentials-logger",
@@ -734,7 +734,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-essentials-fs"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -746,7 +746,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-essentials-i18n"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "once_cell",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-essentials-kvs"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -769,7 +769,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-essentials-logger"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -778,7 +778,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-essentials-obj"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -796,7 +796,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-essentials-sql"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -824,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "dougu-foundation-run"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
