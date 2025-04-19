@@ -11,6 +11,9 @@ use dougu_foundation_run::{SpecCommandlet, SpecParams, SpecResults, CommandletEr
 use dougu_foundation_ui::UIManager;
 
 mod resources;
+mod launcher;
+
+pub use launcher::BuildCommandLayer;
 
 #[derive(Debug, Args, Serialize, Deserialize)]
 pub struct BuildArgs {

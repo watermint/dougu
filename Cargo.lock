@@ -656,6 +656,7 @@ dependencies = [
  "dougu-domain-dropbox",
  "dougu-essentials-i18n",
  "dougu-essentials-logger",
+ "dougu-foundation-run",
  "dougu-foundation-ui",
  "log",
  "serde",
@@ -683,12 +684,14 @@ name = "dougu-command-obj"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.21.7",
  "bson",
  "ciborium",
  "clap",
  "dougu-essentials-logger",
  "dougu-essentials-obj",
+ "dougu-foundation-run",
  "dougu-foundation-ui",
  "jaq-interpret",
  "jaq-parse",
@@ -706,6 +709,10 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "dougu-command-build",
+ "dougu-command-dropbox",
+ "dougu-command-file",
+ "dougu-command-obj",
  "dougu-essentials-build",
  "dougu-foundation-i18n",
  "dougu-foundation-run",

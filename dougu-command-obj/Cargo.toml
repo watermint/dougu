@@ -7,6 +7,7 @@ publish = false
 [dependencies]
 dougu-essentials-obj = { path = "../dougu-essentials-obj" }
 dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-foundation-run = { path = "../dougu-foundation-run" }
 log = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
@@ -20,4 +21,5 @@ jaq-parse = { workspace = true }
 jaq-interpret = { workspace = true }
 jaq-syn = { workspace = true }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
-base64 = "0.21" 
+base64 = "0.21"
+async-trait = { workspace = true } 

@@ -12,6 +12,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 mod resources;
+mod launcher;
+
+pub use launcher::ObjCommandLayer;
+
 use resources::messages::*;
 
 #[derive(Parser, Serialize, Deserialize)]

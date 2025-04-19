@@ -8,6 +8,7 @@ publish = false
 dougu-essentials-logger = { path = "../dougu-essentials-logger" }
 dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
+dougu-foundation-run = { path = "../dougu-foundation-run" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

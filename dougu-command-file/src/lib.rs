@@ -6,6 +6,9 @@ use dougu_foundation_run::{Commandlet, CommandletError, CommandletSpec, SpecFiel
 use dougu_foundation_i18n::{tf, vars};
 
 pub mod resources;
+mod launcher;
+
+pub use launcher::FileCommandLayer;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

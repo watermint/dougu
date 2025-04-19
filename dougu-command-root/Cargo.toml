@@ -9,6 +9,10 @@ dougu-foundation-run = { path = "../dougu-foundation-run" }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
+dougu-command-file = { path = "../dougu-command-file" }
+dougu-command-dropbox = { path = "../dougu-command-dropbox" }
+dougu-command-obj = { path = "../dougu-command-obj" }
+dougu-command-build = { path = "../dougu-command-build" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 log = { workspace = true }
