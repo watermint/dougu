@@ -66,8 +66,40 @@ impl LauncherLayer for FileCommandletLayer {
             let ui = UIManager::default();
             let runner = CommandRunner::with_ui(commandlet, ui);
             
+            // Add language to the args if it's a JSON object
+            let args_with_language = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
+                // Parse the JSON, add language, and reserialize
+                if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(args_str) {
+                    if let Some(obj) = json.as_object_mut() {
+                        // Add context object with language if it doesn't exist
+                        if !obj.contains_key("context") {
+                            let mut context = serde_json::Map::new();
+                            context.insert("language".to_string(), serde_json::Value::String(ctx.get_language().to_string()));
+                            obj.insert("context".to_string(), serde_json::Value::Object(context));
+                        } else if let Some(context) = obj.get_mut("context") {
+                            // Add language to existing context
+                            if let Some(context_obj) = context.as_object_mut() {
+                                context_obj.insert("language".to_string(), serde_json::Value::String(ctx.get_language().to_string()));
+                            }
+                        }
+                        
+                        if let Ok(new_json) = serde_json::to_string(obj) {
+                            new_json
+                        } else {
+                            args_str.to_string()
+                        }
+                    } else {
+                        args_str.to_string()
+                    }
+                } else {
+                    args_str.to_string()
+                }
+            } else {
+                args_str.to_string()
+            };
+            
             // Run the commandlet with the serialized arguments
-            let result = runner.run(args_str).await
+            let result = runner.run(&args_with_language).await
                 .map_err(|e| format!("File command execution failed: {}", e))?;
             
             // Format and display the result using UI manager
@@ -351,10 +383,8 @@ async fn main() -> Result<()> {
         Commands::Version => "Version",
     };
     
-    let mut context = LauncherContext::new(command_name.to_string(), cli.verbose);
-    
-    // Store the locale in the context for I18nInitializerLayer to use
-    context.set_data("locale", locale.clone());
+    // Create context with command name, verbosity, and language
+    let mut context = LauncherContext::with_language(command_name.to_string(), cli.verbose, &locale);
     
     // Add the I18nInitializerLayer as the first layer
     launcher.add_layer(I18nInitializerLayer::new(&locale));

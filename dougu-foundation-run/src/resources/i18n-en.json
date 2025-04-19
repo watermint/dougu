@@ -59,5 +59,23 @@
     "source": "Command launcher completed",
     "context": "Log message",
     "text": "Command launcher completed"
+  },
+  "SETTING_LANGUAGE": {
+    "source": "Setting application language: {}",
+    "context": "Log message with language code",
+    "comments": "Variable {} is the language code",
+    "text": "Setting application language: {}"
+  },
+  "USING_DEFAULT_LANGUAGE": {
+    "source": "Using default language: {}",
+    "context": "Log message with language code",
+    "comments": "Variable {} is the language code",
+    "text": "Using default language: {}"
+  },
+  "LANGUAGE_UNSUPPORTED": {
+    "source": "Language {} is unsupported, using: {}",
+    "context": "Log message with language codes",
+    "comments": "Variables: first {} is requested language, second {} is fallback language",
+    "text": "Language {} is unsupported, using: {}"
   }
 } 

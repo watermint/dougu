@@ -93,6 +93,7 @@ pub struct LauncherContext {
     // Store contextual information for command execution
     pub command_name: String,
     pub verbosity: u8,
+    pub language: String, // Store current language/locale
     pub data: std::collections::HashMap<String, String>,
 }
 
@@ -101,8 +102,28 @@ impl LauncherContext {
         Self {
             command_name,
             verbosity,
+            language: "en".to_string(), // Default to English
             data: std::collections::HashMap::new(),
         }
+    }
+
+    pub fn with_language(command_name: String, verbosity: u8, language: &str) -> Self {
+        Self {
+            command_name,
+            verbosity,
+            language: language.to_string(),
+            data: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn set_language(&mut self, language: &str) {
+        self.language = language.to_string();
+        // Also update in data map for backwards compatibility
+        self.set_data("active_locale", language.to_string());
+    }
+
+    pub fn get_language(&self) -> &str {
+        &self.language
     }
 
     pub fn set_data(&mut self, key: &str, value: String) {
@@ -201,6 +222,39 @@ impl<C: Commandlet> CommandRunner<C> {
     /// Get UI manager reference
     pub fn ui(&self) -> &UIManager {
         &self.ui
+    }
+
+    /// Get the current language from a context
+    pub fn get_language(ctx: &LauncherContext) -> &str {
+        ctx.get_language()
+    }
+
+    /// Get the current language from a context parameter string
+    pub fn get_context_language(params_json: &str) -> Option<String> {
+        // Attempt to parse the context portion of the parameters
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(params_json) {
+            if let Some(obj) = value.as_object() {
+                // Check for "context" object with "language" field
+                if let Some(context) = obj.get("context") {
+                    if let Some(context_obj) = context.as_object() {
+                        if let Some(language) = context_obj.get("language") {
+                            if let Some(language_str) = language.as_str() {
+                                return Some(language_str.to_string());
+                            }
+                        }
+                    }
+                }
+                
+                // Also check for "language" field directly
+                if let Some(language) = obj.get("language") {
+                    if let Some(language_str) = language.as_str() {
+                        return Some(language_str.to_string());
+                    }
+                }
+            }
+        }
+        
+        None
     }
 }
 

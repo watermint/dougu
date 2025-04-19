@@ -7,11 +7,21 @@ use async_trait::async_trait;
 // Implement I18nContext for LauncherContext to make it compatible with I18nInitializer
 impl I18nContext for LauncherContext {
     fn get_context_data(&self, key: &str) -> Option<&String> {
-        self.get_data(key)
+        if key == "locale" || key == "active_locale" {
+            // For locale keys, we'll return the language field directly
+            Some(&self.language)
+        } else {
+            self.get_data(key)
+        }
     }
     
     fn set_context_data(&mut self, key: &str, value: String) {
-        self.set_data(key, value);
+        if key == "locale" || key == "active_locale" {
+            // For locale keys, update the language field
+            self.set_language(&value);
+        } else {
+            self.set_data(key, value);
+        }
     }
 }
 
@@ -82,8 +92,19 @@ impl LauncherLayer for I18nInitializerLayer {
     }
     
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Use the initializer to set up i18n
-        self.initializer.initialize(ctx)
+        // Store default locale as a fallback (will be used if no locale key exists in context)
+        let result = self.initializer.initialize(ctx);
+        
+        // If initialization succeeded, ensure language field matches active_locale
+        if result.is_ok() {
+            if let Some(active_locale) = ctx.get_data("active_locale") {
+                if ctx.get_language() != active_locale {
+                    ctx.set_language(active_locale);
+                }
+            }
+        }
+        
+        result
     }
 }
 
@@ -118,8 +139,8 @@ impl LauncherLayer for I18nInitializerLayer {
     }
     
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Just store the locale in context
-        ctx.set_data("active_locale", self.default_locale.clone());
+        // Set both the language property and store in data map
+        ctx.set_language(&self.default_locale);
         log::warn!("I18n feature is disabled, using placeholder implementation");
         Ok(())
     }

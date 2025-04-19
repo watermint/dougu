@@ -8,8 +8,8 @@ pub fn initialize_i18n(default_locale: &str) -> Result<(), String> {
     let mut launcher = CommandLauncher::new();
     launcher.add_layer(I18nInitializerLayer::new(default_locale));
     
-    // Create a simple context
-    let mut context = LauncherContext::new("I18nInitialization".to_string(), 0);
+    // Create a simple context with the specified language
+    let mut context = LauncherContext::with_language("I18nInitialization".to_string(), 0, default_locale);
     
     // Launch the i18n layer
     tokio::runtime::Builder::new_current_thread()
