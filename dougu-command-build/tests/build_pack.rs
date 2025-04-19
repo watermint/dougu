@@ -1,5 +1,6 @@
 use anyhow::Result;
 use dougu_command_build::PackOutput;
+use dougu_foundation_ui::{UIManager, OutputFormat};
 use std::fs;
 use tempfile::tempdir;
 
@@ -32,6 +33,9 @@ async fn test_build_pack_json_output() -> Result<()> {
     
     fs::create_dir_all(&output_dir)?;
     
+    // Create UI manager for testing (JSON format)
+    let ui = UIManager::with_format(OutputFormat::Json);
+    
     // Run the build pack command
     let output = dougu_command_build::execute_pack(&dougu_command_build::PackArgs {
         name: Some("test".to_string()),
@@ -39,7 +43,7 @@ async fn test_build_pack_json_output() -> Result<()> {
         platform: Some("test-platform".to_string()),
         input_dir: Some(input_dir.to_string_lossy().into_owned()),
         output_dir: Some(output_dir.to_string_lossy().into_owned()),
-    }).await?;
+    }, &ui).await?;
     
     // Parse the JSON output
     let pack_output: PackOutput = serde_json::from_str(&output)?;
@@ -64,6 +68,9 @@ async fn test_build_pack_invalid_input() -> Result<()> {
     let output_dir = temp_dir.path().join("output");
     fs::create_dir_all(&output_dir)?;
     
+    // Create UI manager for testing (JSON format)
+    let ui = UIManager::with_format(OutputFormat::Json);
+    
     // Try to run the build pack command with invalid input
     let result = dougu_command_build::execute_pack(&dougu_command_build::PackArgs {
         name: Some("test".to_string()),
@@ -71,7 +78,7 @@ async fn test_build_pack_invalid_input() -> Result<()> {
         platform: Some("test-platform".to_string()),
         input_dir: Some(input_dir.to_string_lossy().into_owned()),
         output_dir: Some(output_dir.to_string_lossy().into_owned()),
-    }).await;
+    }, &ui).await;
     
     // Should return an error
     assert!(result.is_err());
