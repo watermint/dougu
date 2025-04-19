@@ -1,0 +1,17 @@
+[package]
+name = "dougu-essentials-kvs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+log = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+redb = "1.5.0"
+
+[features]
+examples = [] 
