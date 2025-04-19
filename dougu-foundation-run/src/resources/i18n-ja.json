@@ -50,10 +50,10 @@
     "text": "コマンドランチャーを開始します"
   },
   "LAYER_EXECUTION": {
-    "source": "Executing layer: {}",
+    "source": "Executing layer: {layer}",
     "context": "Log message with layer name",
-    "comments": "Variable {} is the layer name",
-    "text": "レイヤーを実行中: {}"
+    "comments": "Variable {layer} is the layer name",
+    "text": "レイヤーを実行中: {layer}"
   },
   "LAUNCHER_COMPLETE": {
     "source": "Command launcher completed",
@@ -61,21 +61,21 @@
     "text": "コマンドランチャーが完了しました"
   },
   "SETTING_LANGUAGE": {
-    "source": "Setting application language: {}",
+    "source": "Setting application language: {lang}",
     "context": "Log message with language code",
-    "comments": "Variable {} is the language code",
-    "text": "アプリケーション言語を設定しています: {}"
+    "comments": "Variable {lang} is the language code",
+    "text": "アプリケーション言語を設定しています: {lang}"
   },
   "USING_DEFAULT_LANGUAGE": {
-    "source": "Using default language: {}",
+    "source": "Using default language: {lang}",
     "context": "Log message with language code",
-    "comments": "Variable {} is the language code",
-    "text": "デフォルト言語を使用しています: {}"
+    "comments": "Variable {lang} is the language code",
+    "text": "デフォルト言語を使用しています: {lang}"
   },
   "LANGUAGE_UNSUPPORTED": {
-    "source": "Language {} is unsupported, using: {}",
+    "source": "Language {requested} is unsupported, using: {fallback}",
     "context": "Log message with language codes",
-    "comments": "Variables: first {} is requested language, second {} is fallback language",
-    "text": "言語 {} はサポートされていません。代わりに {} を使用しています"
+    "comments": "Variables: {requested} is requested language, {fallback} is fallback language",
+    "text": "言語 {requested} はサポートされていません。代わりに {fallback} を使用しています"
   }
 } 

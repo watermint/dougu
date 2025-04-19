@@ -50,10 +50,10 @@
     "text": "Starting command launcher"
   },
   "LAYER_EXECUTION": {
-    "source": "Executing layer: {}",
+    "source": "Executing layer: {layer}",
     "context": "Log message with layer name",
-    "comments": "Variable {} is the layer name",
-    "text": "Executing layer: {}"
+    "comments": "Variable {layer} is the layer name",
+    "text": "Executing layer: {layer}"
   },
   "LAUNCHER_COMPLETE": {
     "source": "Command launcher completed",
@@ -61,21 +61,21 @@
     "text": "Command launcher completed"
   },
   "SETTING_LANGUAGE": {
-    "source": "Setting application language: {}",
+    "source": "Setting application language: {lang}",
     "context": "Log message with language code",
-    "comments": "Variable {} is the language code",
-    "text": "Setting application language: {}"
+    "comments": "Variable {lang} is the language code",
+    "text": "Setting application language: {lang}"
   },
   "USING_DEFAULT_LANGUAGE": {
-    "source": "Using default language: {}",
+    "source": "Using default language: {lang}",
     "context": "Log message with language code",
-    "comments": "Variable {} is the language code",
-    "text": "Using default language: {}"
+    "comments": "Variable {lang} is the language code",
+    "text": "Using default language: {lang}"
   },
   "LANGUAGE_UNSUPPORTED": {
-    "source": "Language {} is unsupported, using: {}",
+    "source": "Language {requested} is unsupported, using: {fallback}",
     "context": "Log message with language codes",
-    "comments": "Variables: first {} is requested language, second {} is fallback language",
-    "text": "Language {} is unsupported, using: {}"
+    "comments": "Variables: {requested} is requested language, {fallback} is fallback language",
+    "text": "Language {requested} is unsupported, using: {fallback}"
   }
 } 

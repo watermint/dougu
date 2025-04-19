@@ -3,7 +3,6 @@ use dougu_foundation_run::{CommandLauncher, LauncherContext, I18nInitializerLaye
 use std::str::FromStr;
 
 /// Initialize the i18n system with all available translations
-/// Using legacy direct approach - prefer using I18nInitializerLayer
 pub fn initialize_i18n(default_locale: &str) -> Result<(), String> {
     // Create a launcher with the I18nInitializerLayer
     let mut launcher = CommandLauncher::new();

@@ -126,37 +126,18 @@ impl LauncherContext {
         ctx
     }
 
-    pub fn with_language(command_name: String, verbosity: u8, language: &str) -> Self {
-        // For backward compatibility
-        let locale = Locale::from_str(language).unwrap_or_else(|_| Locale::default());
-        Self::with_locale(command_name, verbosity, locale)
-    }
-
     pub fn set_locale(&mut self, locale: Locale) {
-        // Clone locale before moving it to self.locale
         let locale_str = locale.as_str().to_string();
         self.locale = locale;
-        // Also update in data map for backwards compatibility
         self.set_data("active_locale", locale_str);
-    }
-
-    pub fn set_language(&mut self, language: &str) {
-        // For backward compatibility
-        if let Ok(locale) = Locale::from_str(language) {
-            self.set_locale(locale);
-        }
-    }
-
-    pub fn get_locale(&self) -> &Locale {
-        &self.locale
-    }
-
-    pub fn get_language(&self) -> &str {
-        self.locale.language()
     }
 
     pub fn set_data(&mut self, key: &str, value: String) {
         self.data.insert(key.to_string(), value);
+    }
+
+    pub fn get_locale(&self) -> &Locale {
+        &self.locale
     }
 
     pub fn get_data(&self, key: &str) -> Option<&String> {
@@ -258,14 +239,8 @@ impl<C: Commandlet> CommandRunner<C> {
         ctx.get_locale()
     }
 
-    /// Get the current language from a context
-    pub fn get_language(ctx: &LauncherContext) -> &str {
-        ctx.get_language()
-    }
-
     /// Get the current locale from a context parameter string
     pub fn get_context_locale(params_json: &str) -> Option<Locale> {
-        // Attempt to parse the context portion of the parameters
         if let Ok(value) = serde_json::from_str::<serde_json::Value>(params_json) {
             if let Some(obj) = value.as_object() {
                 // Check for "context" object with "locale" field
@@ -278,17 +253,8 @@ impl<C: Commandlet> CommandRunner<C> {
                                 }
                             }
                         }
-                        // Also check for "language" field for backward compatibility
-                        if let Some(language) = context_obj.get("language") {
-                            if let Some(language_str) = language.as_str() {
-                                if let Ok(locale) = Locale::from_str(language_str) {
-                                    return Some(locale);
-                                }
-                            }
-                        }
                     }
                 }
-                
                 // Also check for "locale" field directly
                 if let Some(locale) = obj.get("locale") {
                     if let Some(locale_str) = locale.as_str() {
@@ -297,24 +263,9 @@ impl<C: Commandlet> CommandRunner<C> {
                         }
                     }
                 }
-                
-                // Also check for "language" field directly for backward compatibility
-                if let Some(language) = obj.get("language") {
-                    if let Some(language_str) = language.as_str() {
-                        if let Ok(locale) = Locale::from_str(language_str) {
-                            return Some(locale);
-                        }
-                    }
-                }
             }
         }
-        
         None
-    }
-
-    /// Get the current language from a context parameter string (for backward compatibility)
-    pub fn get_context_language(params_json: &str) -> Option<String> {
-        Self::get_context_locale(params_json).map(|locale| locale.language().to_string())
     }
 }
 

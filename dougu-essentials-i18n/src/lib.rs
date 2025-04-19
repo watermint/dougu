@@ -58,15 +58,11 @@ impl TranslationMessage {
     }
 }
 
-/// Simple key-to-string map for backward compatibility
-type SimpleLocaleMap = HashMap<String, String>;
-
 /// Advanced locale map with full message containers
 type AdvancedLocaleMap = HashMap<String, TranslationMessage>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct I18n {
-    simple_locales: HashMap<String, SimpleLocaleMap>,
     advanced_locales: HashMap<String, AdvancedLocaleMap>,
     current_locale: String,
 }
@@ -75,22 +71,9 @@ impl I18n {
     /// Create a new I18n instance with default locale
     pub fn new(default_locale: &str) -> Self {
         Self {
-            simple_locales: HashMap::new(),
             advanced_locales: HashMap::new(),
             current_locale: default_locale.to_string(),
         }
-    }
-
-    /// Load simple translations from JSON file
-    pub fn load_file<P: AsRef<Path>>(&mut self, locale: &str, path: P) -> Result<()> {
-        let mut file = File::open(path)?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)?;
-        
-        let translations: SimpleLocaleMap = serde_json::from_str(&content)?;
-        self.simple_locales.insert(locale.to_string(), translations);
-        
-        Ok(())
     }
 
     /// Load advanced translations with message containers from JSON file
@@ -116,10 +99,9 @@ impl I18n {
 
     /// Set current locale
     pub fn set_locale(&mut self, locale: &str) -> Result<()> {
-        let has_simple = self.simple_locales.contains_key(locale);
         let has_advanced = self.advanced_locales.contains_key(locale);
         
-        if !has_simple && !has_advanced {
+        if !has_advanced {
             return Err(anyhow!("Locale '{}' not loaded", locale));
         }
         
@@ -127,21 +109,13 @@ impl I18n {
         Ok(())
     }
 
-    /// Get translation for key from simple locale map
+    /// Get translation for key from advanced locale map
     pub fn translate(&self, key: &str) -> Result<&str> {
-        if let Some(locale_map) = self.simple_locales.get(&self.current_locale) {
-            if let Some(translation) = locale_map.get(key) {
-                return Ok(translation);
-            }
-        }
-        
-        // Try advanced locales as fallback
         if let Some(locale_map) = self.advanced_locales.get(&self.current_locale) {
             if let Some(message) = locale_map.get(key) {
                 return Ok(&message.text);
             }
         }
-        
         Err(anyhow!("Translation key '{}' not found", key))
     }
     
@@ -163,15 +137,7 @@ impl I18n {
     pub fn tf(&self, key: &str, variables: &HashMap<&str, &str>) -> String {
         match self.translate_message(key) {
             Ok(msg) => msg.format(variables),
-            Err(_) => {
-                // Fallback to simple translation and do manual replacement
-                let text = self.t(key);
-                let mut result = text;
-                for (key, value) in variables {
-                    result = result.replace(&format!("{{{}}}", key), value);
-                }
-                result
-            }
+            Err(_) => key.to_string(),
         }
     }
 }
