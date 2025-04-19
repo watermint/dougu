@@ -6,6 +6,7 @@ use std::fs;
 use tokio::process::Command;
 use uuid::Uuid;
 use walkdir::WalkDir;
+use dougu_essentials_build::{BuildInfo, get_build_info};
 
 mod resources;
 
@@ -345,6 +346,9 @@ pub async fn execute_pack(args: &PackArgs) -> Result<()> {
     let input_dir = args.input_dir.as_deref().unwrap_or("./target/package");
     let output_dir = args.output_dir.as_deref().unwrap_or("./target/dist");
     
+    // Get build information
+    let build_info = get_build_info();
+    
     // Determine platform if not specified
     let platform = match args.platform.as_deref() {
         Some(platform) => platform.to_string(),
@@ -417,11 +421,21 @@ pub async fn execute_pack(args: &PackArgs) -> Result<()> {
             .to_string_lossy()
             .to_string();
         
-        // Use provided name or executable name
-        let name = args.name.as_deref().unwrap_or(&exec_name);
+        // Use build_info for name detection
+        let detected_name = if !build_info.executable_name.is_empty() {
+            build_info.executable_name.clone()
+        } else {
+            exec_name.clone()
+        };
         
-        // Use provided version or default to "0.1.0"
-        let version = args.version.as_deref().unwrap_or("0.1.0");
+        // Use build_info for version detection
+        let detected_version = build_info.build_release.to_string();
+        
+        // Use provided name or detected name
+        let name = args.name.as_deref().unwrap_or(&detected_name);
+        
+        // Use provided version or detected version
+        let version = args.version.as_deref().unwrap_or(&detected_version);
         
         // Create archive name using the specified convention
         let archive_name = format!("{}-{}-{}.zip", name, version, platform);
@@ -458,6 +472,19 @@ pub async fn execute_pack(args: &PackArgs) -> Result<()> {
             zip.start_file("VERSION.txt", options)?;
             let mut file = fs::File::open(version_path)?;
             std::io::copy(&mut file, &mut zip)?;
+        } else {
+            // Generate a VERSION.txt with build info
+            let version_content = format!(
+                "Name: {}\nRelease: {}\nBuild Type: {}\nBuild Date: {}\nRepository: {}/{}",
+                name,
+                build_info.build_release,
+                build_info.build_type,
+                build_info.build_timestamp,
+                build_info.repository_owner,
+                build_info.repository_name
+            );
+            zip.start_file("VERSION.txt", options)?;
+            std::io::copy(&mut std::io::Cursor::new(version_content.into_bytes()), &mut zip)?;
         }
         
         zip.finish()?;

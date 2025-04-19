@@ -8,5 +8,5 @@ publish = false
 
 [dependencies]
 serde = { workspace = true }
-chrono = "0.4.31"
+chrono = { workspace = true }
 log = { workspace = true } 

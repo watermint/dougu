@@ -24,9 +24,76 @@ jobs:
         run: cargo build --workspace --all-targets
       - name: Test
         run: cargo test --workspace --all-targets
-
-  package-artifacts:
-    needs: build-test
-    uses: ./.github/workflows/package-artifacts.yml
-    with:
-      build-id: ${{ github.run_number }} 
+      
+      # Get platform name from matrix OS
+      - name: Set platform name
+        id: platform
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            echo "name=linux" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            echo "name=macos" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "name=windows" >> $GITHUB_OUTPUT
+          fi
+      
+      # Find the executables
+      - name: Find executables
+        id: find_execs
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            EXECUTABLES=$(find target/debug -maxdepth 1 -type f -name "*.exe" | grep -v "\.d$\|\.rlib$\|\.o$\|\.json$\|\.lock$\|\.dll$")
+          else
+            EXECUTABLES=$(find target/debug -maxdepth 1 -type f -executable -not -name "*.d" -not -name "*.rlib" -not -name "*.o" -not -name "*.json" -not -name "*.lock" -not -name "*.so" -not -name "*.dll" -not -name "*.dylib")
+          fi
+          
+          if [ -z "$EXECUTABLES" ]; then
+            echo "No executables found. Aborting." >&2
+            exit 1
+          fi
+          
+          # Get the first executable name as the app name
+          APP_NAME=$(basename $(echo "$EXECUTABLES" | head -n 1))
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "executables<<EOF" >> $GITHUB_OUTPUT
+          echo "$EXECUTABLES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      # Prepare package directory
+      - name: Prepare package directory
+        shell: bash
+        run: |
+          mkdir -p package
+          cp ${{ steps.find_execs.outputs.executables }} package/
+          cp README.md package/
+          
+          # Set environment variables for build_info
+          echo "DOUGU_RELEASE=0" >> $GITHUB_ENV
+          echo "GITHUB_RUN_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+          echo "DOUGU_EXECUTABLE_NAME=${{ steps.find_execs.outputs.app_name }}" >> $GITHUB_ENV
+      
+      # Pack artifact
+      - name: Pack artifact
+        id: pack_artifact
+        shell: bash
+        run: |
+          # Build the artifact using the simplified build pack command
+          mkdir -p target/dist
+          ./target/debug/dougu build pack \
+            --input-dir package \
+            --output-dir target/dist
+          
+          # Find the created archive
+          ARCHIVE_PATH=$(find target/dist -name "*.zip" | head -n 1)
+          
+          # Save archive path for use in upload step
+          echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
+      
+      # Upload artifact
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ github.run_number }}-${{ steps.platform.outputs.name }}
+          path: ${{ steps.pack_artifact.outputs.archive_path }} 

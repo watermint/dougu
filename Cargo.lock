@@ -310,6 +310,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -631,6 +632,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
+ "dougu-essentials-build",
  "dougu-essentials-logger",
  "dougu-foundation-ui",
  "log",
