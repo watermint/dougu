@@ -18,7 +18,7 @@ dougu-command-dropbox = { path = "../dougu-command-dropbox" }
 dougu-command-obj = { path = "../dougu-command-obj" }
 dougu-command-build = { path = "../dougu-command-build" }
 dougu-command-root = { path = "../dougu-command-root" }
-dougu-foundation-run = { path = "../dougu-foundation-run" }
+dougu-foundation-run = { path = "../dougu-foundation-run", features = ["i18n"] }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 clap = { workspace = true }
 anyhow = { workspace = true }
@@ -28,4 +28,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
 chrono = "0.4.31"
-dougu-essentials-i18n-foundation = { path = "../dougu-essentials-i18n-foundation" }
+dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }

@@ -1,5 +1,5 @@
-use dougu_essentials_i18n_foundation::{set_locale, I18nInitializerLayer};
-use dougu_foundation_run::{CommandLauncher, LauncherContext};
+use dougu_foundation_i18n::set_locale;
+use dougu_foundation_run::{CommandLauncher, LauncherContext, I18nInitializerLayer};
 
 /// Initialize the i18n system with all available translations
 /// Using legacy direct approach - prefer using I18nInitializerLayer

@@ -1,5 +1,5 @@
-use dougu_essentials_i18n_foundation::{embedded, I18nInitializerLayer, t, tf, vars};
-use dougu_foundation_run::{CommandLauncher, LauncherContext};
+use dougu_foundation_i18n::{embedded, I18nInitializer, t, tf, vars, I18nContext};
+use dougu_foundation_run::{CommandLauncher, LauncherContext, I18nInitializerLayer};
 
 #[test]
 fn test_embedded_resources_exist() {
@@ -59,6 +59,45 @@ async fn test_embedded_initialization() {
         "destination" => "backup.txt"
     ));
     assert_eq!(copy_msg, "file.txtからbackup.txtへのコピーに成功しました");
+}
+
+#[tokio::test]
+async fn test_direct_initialization() {
+    // Test the direct I18nInitializer approach
+    let initializer = I18nInitializer::new("en");
+    
+    // Create a context that implements I18nContext
+    let mut context = TestContext::new();
+    
+    // Initialize i18n
+    initializer.initialize(&mut context).expect("Failed to initialize");
+    
+    // Test that translations are available
+    let error_msg = t("RESOURCE_NOT_FOUND");
+    assert_eq!(error_msg, "Resource not found");
+}
+
+// Simple context implementation for testing
+struct TestContext {
+    data: std::collections::HashMap<String, String>,
+}
+
+impl TestContext {
+    fn new() -> Self {
+        Self {
+            data: std::collections::HashMap::new(),
+        }
+    }
+}
+
+impl I18nContext for TestContext {
+    fn get_context_data(&self, key: &str) -> Option<&String> {
+        self.data.get(key)
+    }
+    
+    fn set_context_data(&mut self, key: &str, value: String) {
+        self.data.insert(key.to_string(), value);
+    }
 }
 
 #[tokio::test]

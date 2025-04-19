@@ -1,4 +1,4 @@
-use dougu_essentials_i18n_foundation::{I18nInitializerLayer, t, tf, vars};
+use dougu_foundation_i18n::{I18nInitializerLayer, t, tf, vars};
 use dougu_foundation_run::{CommandLauncher, LauncherContext};
 use std::path::Path;
 

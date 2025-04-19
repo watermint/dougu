@@ -1,4 +1,4 @@
-use dougu_essentials_i18n_foundation::{init, load_translations, set_locale, t, tf, vars, I18nCommandletError};
+use dougu_foundation_i18n::{init, load_translations, set_locale, t, tf, vars, I18nCommandletError};
 use dougu_foundation_run::CommandletError;
 
 #[test]

@@ -3,11 +3,15 @@ name = "dougu-foundation-run"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+i18n = ["dougu-foundation-i18n"]
+
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1.68"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-log = "0.4"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
-dougu-essentials-i18n-foundation = { path = "../dougu-essentials-i18n-foundation" } 
+dougu-foundation-i18n = { path = "../dougu-foundation-i18n", optional = true } 

@@ -8,10 +8,9 @@ use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as Dropbo
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
 use dougu_command_root::VersionCommandLayer;
-use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner};
+use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer};
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::UIManager;
-use dougu_essentials_i18n_foundation::I18nInitializerLayer;
 
 // Keep the i18n module for potential future use
 mod i18n;

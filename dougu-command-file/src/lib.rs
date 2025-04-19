@@ -3,7 +3,7 @@ use clap::{Args, Subcommand};
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 use dougu_foundation_run::{Commandlet, CommandletError};
-use dougu_essentials_i18n_foundation::{t, tf, vars, I18nCommandletError};
+use dougu_foundation_i18n::{t, tf, vars, I18nCommandletError};
 
 pub mod resources;
 

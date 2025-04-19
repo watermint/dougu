@@ -1,4 +1,5 @@
 pub mod resources;
+pub mod i18n_adapter;
 
 use resources::error_messages;
 use resources::log_messages;
@@ -6,6 +7,9 @@ use log::{debug, info, error};
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use dougu_foundation_ui::{UIManager, format_commandlet_result};
+
+// Re-export i18n adapter for convenience
+pub use i18n_adapter::I18nInitializerLayer;
 
 /// Commandlet represents a command implementation that takes serializable parameters and returns serializable results
 #[async_trait]

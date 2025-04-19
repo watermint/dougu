@@ -614,6 +614,7 @@ dependencies = [
  "dougu-command-root",
  "dougu-essentials-i18n",
  "dougu-essentials-logger",
+ "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
  "log",
@@ -664,10 +665,11 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
- "dougu-essentials-i18n-foundation",
  "dougu-essentials-logger",
+ "dougu-foundation-i18n",
  "dougu-foundation-run",
  "serde",
+ "serde_json",
  "tokio",
 ]
 
@@ -734,16 +736,6 @@ name = "dougu-essentials-i18n"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "dougu-essentials-i18n-foundation"
-version = "0.1.0"
-dependencies = [
- "dougu-essentials-i18n",
- "dougu-foundation-run",
  "once_cell",
  "serde",
  "serde_json",
@@ -804,10 +796,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "dougu-foundation-run"
+name = "dougu-foundation-i18n"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "dougu-essentials-i18n",
+ "log",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "dougu-foundation-run"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dougu-foundation-i18n",
  "dougu-foundation-ui",
  "log",
  "serde",

@@ -1,0 +1,15 @@
+[package]
+name = "dougu-foundation-i18n"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
+once_cell = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true } 
