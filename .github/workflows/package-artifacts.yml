@@ -31,7 +31,9 @@ jobs:
             echo "No executables found. Aborting." >&2
             exit 1
           fi
-          echo "executables=$EXECUTABLES" >> $GITHUB_OUTPUT
+          echo "executables<<EOF" >> $GITHUB_OUTPUT
+          echo "$EXECUTABLES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       - name: Prepare package directory
         run: |
           mkdir -p package
