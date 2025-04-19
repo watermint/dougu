@@ -15,7 +15,8 @@ members = [
     "dougu-command-build",
     "dougu-command-root",
     "dougu-foundation-ui",
-    "dougu-foundation-i18n"
+    "dougu-foundation-i18n",
+    "dougu-essentials-build"
 ]
 resolver = "2"
 

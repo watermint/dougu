@@ -8,6 +8,7 @@ publish = false
 dougu-foundation-run = { path = "../dougu-foundation-run" }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
+dougu-essentials-build = { path = "../dougu-essentials-build" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 log = { workspace = true }

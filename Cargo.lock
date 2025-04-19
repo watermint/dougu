@@ -612,6 +612,7 @@ dependencies = [
  "dougu-command-file",
  "dougu-command-obj",
  "dougu-command-root",
+ "dougu-essentials-build",
  "dougu-essentials-i18n",
  "dougu-essentials-logger",
  "dougu-foundation-i18n",
@@ -701,6 +702,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "dougu-essentials-build",
  "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
@@ -719,6 +721,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "dougu-essentials-build"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "log",
+ "serde",
 ]
 
 [[package]]

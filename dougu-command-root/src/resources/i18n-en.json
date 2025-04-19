@@ -53,5 +53,25 @@
     "source": "Value",
     "context": "Table header in version command output",
     "text": "Value"
+  },
+  "VERSION_PROPERTY_BUILD_INFO": {
+    "source": "Build Info",
+    "context": "Property label in version command output",
+    "text": "Build Info"
+  },
+  "VERSION_PROPERTY_BUILD_RELEASE": {
+    "source": "Release",
+    "context": "Property label in version command output",
+    "text": "Release"
+  },
+  "VERSION_PROPERTY_BUILD_TYPE": {
+    "source": "Build Type",
+    "context": "Property label in version command output",
+    "text": "Build Type"
+  },
+  "VERSION_PROPERTY_BUILD_ID": {
+    "source": "Build ID",
+    "context": "Property label in version command output",
+    "text": "Build ID"
   }
 } 

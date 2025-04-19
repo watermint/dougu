@@ -6,6 +6,10 @@ on:
       build-id:
         required: true
         type: string
+      release:
+        required: false
+        type: string
+        default: '0'
 
 jobs:
   package:
@@ -22,7 +26,13 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Build project
-        run: cargo build
+        run: |
+          # Set DOUGU_RELEASE environment variable from inputs
+          export DOUGU_RELEASE="${{ inputs.release }}"
+          # GITHUB_RUN_NUMBER is automatically set by GitHub Actions
+          
+          # Build with proper version information
+          cargo build
       - name: Find executables
         id: find_execs
         run: |
@@ -39,6 +49,12 @@ jobs:
           mkdir -p package
           cp ${{ steps.find_execs.outputs.executables }} package/
           cp README.md package/
+          
+          # Create version info file using the same info our build system uses
+          echo "Release: ${{ inputs.release }}" > package/VERSION.txt
+          echo "Build Type: github" >> package/VERSION.txt
+          echo "Build ID: ${{ github.run_number }}" >> package/VERSION.txt
+          echo "Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> package/VERSION.txt
       - name: Create zip archive
         run: |
           cd package

@@ -1,0 +1,12 @@
+[package]
+name = "dougu-essentials-build"
+version = "0.1.0"
+edition = "2024"
+description = "Essential build information utilities for Dougu"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+chrono = "0.4.31"
+log = { workspace = true } 

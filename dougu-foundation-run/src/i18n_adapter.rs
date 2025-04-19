@@ -1,5 +1,6 @@
 #[cfg(feature = "i18n")]
-use dougu_foundation_i18n::{I18nInitializer, I18nContext, ErrorWithDetails, t, tf, Locale};
+use dougu_foundation_i18n::{I18nInitializer, I18nContext, ErrorWithDetails, t, tf};
+use dougu_essentials_i18n::Locale;
 use crate::{CommandletError, LauncherLayer, LauncherContext};
 use async_trait::async_trait;
 use std::str::FromStr;
