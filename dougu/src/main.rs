@@ -4,6 +4,7 @@ use log::LevelFilter;
 
 use dougu_command_file::{FileArgs, FileCommands};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
+use dougu_command_obj::ObjCommand;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -23,6 +24,9 @@ enum Commands {
     
     /// Dropbox operations
     Dropbox(DropboxArgs),
+    
+    /// Object notation operations (JSON, BSON, XML, CBOR)
+    Obj(ObjCommand),
 }
 
 #[tokio::main]
@@ -42,7 +46,7 @@ async fn main() -> Result<()> {
     dougu_essentials_logger::init(level)?;
     
     // Process commands
-    match &cli.command {
+    match cli.command {
         Commands::File(args) => {
             match &args.command {
                 FileCommands::Copy(copy_args) => {
@@ -85,6 +89,9 @@ async fn main() -> Result<()> {
                     }
                 }
             }
+        }
+        Commands::Obj(cmd) => {
+            cmd.execute().await?;
         }
     }
     

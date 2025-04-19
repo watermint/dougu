@@ -1,0 +1,32 @@
+[package]
+name = "dougu-essentials-obj"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+log = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+ciborium = { workspace = true }
+bson = { workspace = true }
+quick-xml = { workspace = true }
+jaq-parse = { workspace = true }
+jaq-interpret = { workspace = true }
+jaq-syn = { workspace = true }
+hex = { workspace = true }
+
+[features]
+examples = []
+
+[[bin]]
+name = "format_conversion"
+path = "src/examples/format_conversion.rs"
+required-features = ["examples"]
+
+[[bin]]
+name = "cli"
+path = "src/examples/cli.rs"
+required-features = ["examples"] 
