@@ -5,6 +5,7 @@ members = [
     "dougu-essentials-i18n",
     "dougu-essentials-fs",
     "dougu-essentials-kvs",
+    "dougu-essentials-sql",
     "dougu-domain-dropbox",
     "dougu-command-file",
     "dougu-command-dropbox",
