@@ -1,0 +1,14 @@
+[package]
+name = "dougu-command-root"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+dougu-foundation-run = { path = "../dougu-foundation-run" }
+dougu-foundation-ui = { path = "../dougu-foundation-ui" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+log = { workspace = true }
+async-trait = { workspace = true }
+chrono = "0.4.31" 

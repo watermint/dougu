@@ -7,7 +7,8 @@ use dougu_command_file::{FileArgs, FileCommandlet};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
-use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, Commandlet};
+use dougu_command_root::VersionCommandLayer;
+use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner};
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::UIManager;
 
@@ -277,89 +278,6 @@ impl LauncherLayer for BuildCommandLayer {
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Build"));
         }
-        
-        Ok(())
-    }
-}
-
-// Version command layer as a Commandlet
-struct VersionCommandlet;
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct VersionParams {
-    // Empty parameters for version command
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct VersionResults {
-    pub version: String,
-    pub rust_version: String,
-    pub target: String,
-    pub profile: String,
-    pub timestamp: String,
-}
-
-#[async_trait]
-impl Commandlet for VersionCommandlet {
-    type Params = VersionParams;
-    type Results = VersionResults;
-    
-    fn name(&self) -> &str {
-        "VersionCommandlet"
-    }
-    
-    async fn execute(&self, _params: Self::Params) -> Result<Self::Results, dougu_foundation_run::CommandletError> {
-        Ok(VersionResults {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            rust_version: std::env::var("RUSTC_VERSION").unwrap_or_else(|_| "unknown".to_string()),
-            target: std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string()),
-            profile: std::env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string()),
-            timestamp: chrono::Local::now().to_rfc3339(),
-        })
-    }
-}
-
-struct VersionCommandLayer;
-
-#[async_trait]
-impl LauncherLayer for VersionCommandLayer {
-    fn name(&self) -> &str {
-        "VersionCommandLayer"
-    }
-
-    async fn run(&self, _ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the commandlet and runner with UI formatting
-        let commandlet = VersionCommandlet;
-        let ui = UIManager::default();
-        let runner = CommandRunner::with_ui(commandlet, ui);
-        
-        // Create empty parameters
-        let params = VersionParams {};
-        let serialized_params = serde_json::to_string(&params)
-            .map_err(|e| format!("Failed to serialize version params: {}", e))?;
-        
-        // Run the commandlet
-        let result = runner.run(&serialized_params).await
-            .map_err(|e| format!("Version command execution failed: {}", e))?;
-            
-        // Parse the result
-        let parsed_result: VersionResults = serde_json::from_str(&result)
-            .map_err(|e| format!("Failed to parse version results: {}", e))?;
-        
-        // Format output using the UI manager
-        let ui = runner.ui();
-        let heading = ui.heading(1, "Dougu Version Information");
-        ui.print(&heading);
-        
-        let pairs = [
-            ("Version", parsed_result.version.as_str()),
-            ("Rust Version", parsed_result.rust_version.as_str()),
-            ("Build Target", parsed_result.target.as_str()),
-            ("Build Profile", parsed_result.profile.as_str()),
-            ("Build Timestamp", parsed_result.timestamp.as_str()),
-        ];
-        
-        ui.print(&ui.key_value_list(&pairs));
         
         Ok(())
     }

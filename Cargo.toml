@@ -13,6 +13,7 @@ members = [
     "dougu-essentials-sql",
     "dougu-foundation-run",
     "dougu-command-build",
+    "dougu-command-root",
     "dougu-foundation-ui"
 ]
 resolver = "2"

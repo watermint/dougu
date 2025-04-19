@@ -17,6 +17,7 @@ dougu-command-file = { path = "../dougu-command-file" }
 dougu-command-dropbox = { path = "../dougu-command-dropbox" }
 dougu-command-obj = { path = "../dougu-command-obj" }
 dougu-command-build = { path = "../dougu-command-build" }
+dougu-command-root = { path = "../dougu-command-root" }
 dougu-foundation-run = { path = "../dougu-foundation-run" }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 clap = { workspace = true }
