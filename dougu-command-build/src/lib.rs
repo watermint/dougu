@@ -94,7 +94,9 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
         release: args.release,
     };
     
-    execute_compile(&build_args).await?;
+    // Create a UI manager for the compile command
+    let ui = dougu_foundation_ui::UIManager::default();
+    execute_compile(&build_args, &ui).await?;
     
     // Check if README.md exists
     if !Path::new("README.md").exists() {
@@ -209,19 +211,10 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
 }
 
 /// Execute the test command
-pub async fn execute_test(args: &TestArgs) -> Result<()> {
-    let mode = if args.release { "release" } else { "debug" };
-    let test_type = match (args.unit, args.integration) {
-        (true, false) => "unit",
-        (false, true) => "integration",
-        _ => "all",
-    };
+pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) -> Result<()> {
+    dougu_essentials_logger::log_info(resources::log_messages::RUNNING_TESTS);
     
-    dougu_essentials_logger::log_info(resources::log_messages::RUNNING_TESTS
-        .replace("{mode}", mode)
-        .replace("{type}", test_type));
-    
-    // Build base command
+    // Build cargo command
     let mut cmd = Command::new("cargo");
     cmd.arg("test");
     
@@ -229,14 +222,12 @@ pub async fn execute_test(args: &TestArgs) -> Result<()> {
         cmd.arg("--release");
     }
     
-    // Add filter if provided
+    // Apply test filter if specified
     if let Some(filter) = &args.filter {
         cmd.arg(filter);
-        dougu_essentials_logger::log_info(resources::log_messages::TEST_FILTER
-            .replace("{filter}", filter));
     }
     
-    // Type-specific arguments
+    // Unit or integration tests
     match (args.unit, args.integration) {
         (true, false) => {
             cmd.arg("--lib");
@@ -250,10 +241,7 @@ pub async fn execute_test(args: &TestArgs) -> Result<()> {
     // Execute cargo test command
     let output = cmd.output().await?;
     
-    // Create UI manager for output
-    let ui = dougu_foundation_ui::UIManager::default();
-    
-    // Print output
+    // Print output using the provided UI manager
     if !output.stdout.is_empty() {
         ui.print(&String::from_utf8_lossy(&output.stdout));
     }
@@ -278,7 +266,7 @@ pub async fn execute_test(args: &TestArgs) -> Result<()> {
 }
 
 /// Execute the compile command
-pub async fn execute_compile(args: &CompileArgs) -> Result<()> {
+pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIManager) -> Result<()> {
     let output = args.output_dir.as_deref().unwrap_or("./target");
     let mode = if args.release { "release" } else { "debug" };
     
@@ -302,10 +290,7 @@ pub async fn execute_compile(args: &CompileArgs) -> Result<()> {
     // Execute cargo build command
     let output = cmd.output().await?;
     
-    // Create UI manager for output
-    let ui = dougu_foundation_ui::UIManager::default();
-    
-    // Print output
+    // Print output using the provided UI manager
     if !output.stdout.is_empty() {
         ui.print(&String::from_utf8_lossy(&output.stdout));
     }

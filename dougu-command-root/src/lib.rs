@@ -53,11 +53,11 @@ impl LauncherLayer for VersionCommandLayer {
         "VersionCommandLayer"
     }
 
-    async fn run(&self, _ctx: &mut LauncherContext) -> Result<(), String> {
+    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         // Create the commandlet and runner with UI formatting
         let commandlet = VersionCommandlet;
-        let ui = UIManager::default();
-        let runner = CommandRunner::with_ui(commandlet, ui);
+        // Use UI from context instead of creating a new one
+        let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
         
         // Create empty parameters
         let params = VersionParams {};

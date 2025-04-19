@@ -167,7 +167,7 @@ impl LauncherLayer for DropboxCommandLayer {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File List"));
                             ctx.ui.print(&ctx.ui.info("Listing files from Dropbox..."));
                             
-                            dougu_command_dropbox::execute_file_list(list_args, token).await
+                            dougu_command_dropbox::execute_file_list(list_args, token, &ctx.ui).await
                                 .map_err(|e| format!("Dropbox file list failed: {}", e))?;
                             
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File List"));
@@ -308,7 +308,7 @@ impl LauncherLayer for BuildCommandLayer {
                     let msg = format!("Running test suite with filter: {}", test_filter);
                     ctx.ui.print(&ctx.ui.info(&msg));
                     
-                    dougu_command_build::execute_test(test_args).await
+                    dougu_command_build::execute_test(test_args, &ctx.ui).await
                         .map_err(|e| format!("Build test failed: {}", e))?;
                     
                     ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
@@ -322,7 +322,7 @@ impl LauncherLayer for BuildCommandLayer {
                     let msg = format!("Compiling with build type: {}", build_type);
                     ctx.ui.print(&ctx.ui.info(&msg));
                     
-                    dougu_command_build::execute_compile(compile_args).await
+                    dougu_command_build::execute_compile(compile_args, &ctx.ui).await
                         .map_err(|e| format!("Build compile failed: {}", e))?;
                     
                     ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
