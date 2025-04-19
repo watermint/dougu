@@ -3,16 +3,46 @@ pub mod i18n_adapter;
 
 use resources::error_messages;
 use resources::log_messages;
+use resources::spec_messages;
 use log::{debug, info, error};
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
-use dougu_foundation_ui::{UIManager, format_commandlet_result};
+use dougu_foundation_ui::{UIManager, format_commandlet_result, OutputFormat};
 use std::str::FromStr;
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
 // Re-export locale from essentials
 pub use dougu_essentials_i18n::{Locale, LocaleError};
+
+/// Represents a parameter or result type within a commandlet specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecField {
+    pub name: String,
+    pub description: Option<String>,
+    pub field_type: String,
+    pub required: bool,
+    pub default_value: Option<String>,
+}
+
+/// Represents a possible error that can be returned by a commandlet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecError {
+    pub code: String,
+    pub description: String,
+}
+
+/// Represents the full specification document for a commandlet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandletSpec {
+    pub name: String,
+    pub description: Option<String>,
+    pub behavior: String,
+    pub options: Vec<SpecField>,
+    pub parameters: Vec<SpecField>,
+    pub result_types: Vec<SpecField>,
+    pub errors: Vec<SpecError>,
+}
 
 /// Commandlet represents a command implementation that takes serializable parameters and returns serializable results
 #[async_trait]
@@ -28,6 +58,21 @@ pub trait Commandlet {
     
     /// Executes the commandlet with the given parameters
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError>;
+    
+    /// Generates a specification document for this commandlet
+    fn generate_spec(&self) -> CommandletSpec {
+        // Default implementation provides a basic spec structure
+        // Commandlets should override this to provide detailed specifications
+        CommandletSpec {
+            name: self.name().to_string(),
+            description: None,
+            behavior: "Not specified".to_string(),
+            options: Vec::new(),
+            parameters: Vec::new(),
+            result_types: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
 }
 
 /// Error type for commandlet operations
@@ -98,6 +143,7 @@ pub struct LauncherContext {
     pub verbosity: u8,
     pub locale: Locale, // Use Locale struct instead of raw string
     pub data: std::collections::HashMap<String, String>,
+    pub ui: UIManager,
 }
 
 impl LauncherContext {
@@ -108,6 +154,7 @@ impl LauncherContext {
             verbosity,
             locale: locale.clone(),
             data: std::collections::HashMap::new(),
+            ui: UIManager::default(),
         };
         // Ensure active_locale is set in the data map for I18nContext implementation
         ctx.set_data("active_locale", locale.as_str().to_string());
@@ -120,9 +167,28 @@ impl LauncherContext {
             verbosity,
             locale: locale.clone(),
             data: std::collections::HashMap::new(),
+            ui: UIManager::default(),
         };
         // Ensure active_locale is set in the data map for I18nContext implementation
         ctx.set_data("active_locale", locale.as_str().to_string());
+        ctx
+    }
+    
+    pub fn with_ui_format(command_name: String, verbosity: u8, locale: Locale, format: OutputFormat) -> Self {
+        let mut ctx = Self {
+            command_name,
+            verbosity,
+            locale: locale.clone(),
+            data: std::collections::HashMap::new(),
+            ui: UIManager::with_format(format),
+        };
+        // Ensure active_locale is set in the data map for I18nContext implementation
+        ctx.set_data("active_locale", locale.as_str().to_string());
+        ctx.set_data("output_format", match format {
+            OutputFormat::Default => "default",
+            OutputFormat::Json => "json",
+            OutputFormat::Markdown => "markdown",
+        }.to_string());
         ctx
     }
 
@@ -130,6 +196,15 @@ impl LauncherContext {
         let locale_str = locale.as_str().to_string();
         self.locale = locale;
         self.set_data("active_locale", locale_str);
+    }
+    
+    pub fn set_output_format(&mut self, format: OutputFormat) {
+        self.ui = UIManager::with_format(format);
+        self.set_data("output_format", match format {
+            OutputFormat::Default => "default",
+            OutputFormat::Json => "json",
+            OutputFormat::Markdown => "markdown",
+        }.to_string());
     }
 
     pub fn set_data(&mut self, key: &str, value: String) {
@@ -234,6 +309,11 @@ impl<C: Commandlet> CommandRunner<C> {
         &self.ui
     }
 
+    /// Generate specification document for this commandlet
+    pub fn generate_spec(&self) -> CommandletSpec {
+        self.commandlet.generate_spec()
+    }
+
     /// Get the current locale from a context
     pub fn get_locale(ctx: &LauncherContext) -> &Locale {
         ctx.get_locale()
@@ -266,6 +346,377 @@ impl<C: Commandlet> CommandRunner<C> {
             }
         }
         None
+    }
+}
+
+/// Parameters for spec generation commandlet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecParams {
+    /// Name of the commandlet to generate spec for
+    pub commandlet_name: Option<String>,
+    /// Format of the spec (text, json, markdown)
+    pub format: Option<String>,
+}
+
+/// Result of spec generation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecResults {
+    pub commandlet_name: String,
+    pub spec: CommandletSpec,
+    pub formatted_spec: String,
+}
+
+/// Formats a CommandletSpec as markdown
+pub fn format_spec_as_markdown(spec: &CommandletSpec) -> String {
+    let mut result = String::new();
+    
+    // Title
+    result.push_str(&format!("# {} {}\n\n", spec_messages::SPEC_DOCUMENT_TITLE, spec.name));
+    
+    // Description if available
+    if let Some(desc) = &spec.description {
+        result.push_str(&format!("{}\n\n", desc));
+    }
+    
+    // Behavior
+    result.push_str(&format!("## {}\n\n{}\n\n", spec_messages::SPEC_BEHAVIOR, spec.behavior));
+    
+    // Parameters
+    result.push_str(&format!("## {}\n\n", spec_messages::SPEC_PARAMETERS));
+    if spec.parameters.is_empty() {
+        result.push_str("No parameters defined.\n\n");
+    } else {
+        result.push_str(&format!("| {} | {} | {} | {} | {} |\n", 
+            spec_messages::SPEC_NAME, 
+            spec_messages::SPEC_DESCRIPTION, 
+            spec_messages::SPEC_TYPE, 
+            spec_messages::SPEC_REQUIRED, 
+            spec_messages::SPEC_DEFAULT
+        ));
+        result.push_str("|-------|-------------|------|----------|-------|\n");
+        
+        for param in &spec.parameters {
+            result.push_str(&format!("| {} | {} | {} | {} | {} |\n",
+                param.name,
+                param.description.as_ref().unwrap_or(&String::new()),
+                param.field_type,
+                if param.required { "Yes" } else { "No" },
+                param.default_value.as_ref().unwrap_or(&String::new())
+            ));
+        }
+        result.push_str("\n");
+    }
+    
+    // Options
+    if !spec.options.is_empty() {
+        result.push_str(&format!("## {}\n\n", spec_messages::SPEC_OPTIONS));
+        result.push_str(&format!("| {} | {} | {} | {} | {} |\n", 
+            spec_messages::SPEC_NAME, 
+            spec_messages::SPEC_DESCRIPTION, 
+            spec_messages::SPEC_TYPE, 
+            spec_messages::SPEC_REQUIRED, 
+            spec_messages::SPEC_DEFAULT
+        ));
+        result.push_str("|-------|-------------|------|----------|-------|\n");
+        
+        for option in &spec.options {
+            result.push_str(&format!("| {} | {} | {} | {} | {} |\n",
+                option.name,
+                option.description.as_ref().unwrap_or(&String::new()),
+                option.field_type,
+                if option.required { "Yes" } else { "No" },
+                option.default_value.as_ref().unwrap_or(&String::new())
+            ));
+        }
+        result.push_str("\n");
+    }
+    
+    // Result Types
+    result.push_str(&format!("## {}\n\n", spec_messages::SPEC_RESULTS));
+    if spec.result_types.is_empty() {
+        result.push_str("No result types defined.\n\n");
+    } else {
+        result.push_str(&format!("| {} | {} | {} |\n", 
+            spec_messages::SPEC_NAME, 
+            spec_messages::SPEC_DESCRIPTION, 
+            spec_messages::SPEC_TYPE
+        ));
+        result.push_str("|-------|-------------|---------|\n");
+        
+        for result_type in &spec.result_types {
+            result.push_str(&format!("| {} | {} | {} |\n",
+                result_type.name,
+                result_type.description.as_ref().unwrap_or(&String::new()),
+                result_type.field_type
+            ));
+        }
+        result.push_str("\n");
+    }
+    
+    // Errors
+    result.push_str(&format!("## {}\n\n", spec_messages::SPEC_ERRORS));
+    if spec.errors.is_empty() {
+        result.push_str("No errors defined.\n\n");
+    } else {
+        result.push_str(&format!("| {} | {} |\n", "Code", "Description"));
+        result.push_str("|------|-------------|\n");
+        
+        for error in &spec.errors {
+            result.push_str(&format!("| {} | {} |\n", error.code, error.description));
+        }
+    }
+    
+    result
+}
+
+/// Formats a CommandletSpec as plain text
+pub fn format_spec_as_text(spec: &CommandletSpec) -> String {
+    let mut result = String::new();
+    
+    // Title
+    result.push_str(&format!("{} {}\n", spec_messages::SPEC_DOCUMENT_TITLE, spec.name));
+    result.push_str(&format!("{}\n\n", "=".repeat(spec.name.len() + spec_messages::SPEC_DOCUMENT_TITLE.len() + 1)));
+    
+    // Description if available
+    if let Some(desc) = &spec.description {
+        result.push_str(&format!("{}\n\n", desc));
+    }
+    
+    // Behavior
+    result.push_str(&format!("{}:\n{}\n\n", spec_messages::SPEC_BEHAVIOR, spec.behavior));
+    
+    // Parameters
+    result.push_str(&format!("{}:\n", spec_messages::SPEC_PARAMETERS));
+    if spec.parameters.is_empty() {
+        result.push_str("No parameters defined.\n\n");
+    } else {
+        for param in &spec.parameters {
+            result.push_str(&format!("- {} ({}): ", param.name, param.field_type));
+            if let Some(desc) = &param.description {
+                result.push_str(desc);
+            }
+            if param.required {
+                result.push_str(" [Required]");
+            }
+            if let Some(default) = &param.default_value {
+                result.push_str(&format!(" [Default: {}]", default));
+            }
+            result.push_str("\n");
+        }
+        result.push_str("\n");
+    }
+    
+    // Options
+    if !spec.options.is_empty() {
+        result.push_str(&format!("{}:\n", spec_messages::SPEC_OPTIONS));
+        for option in &spec.options {
+            result.push_str(&format!("- {} ({}): ", option.name, option.field_type));
+            if let Some(desc) = &option.description {
+                result.push_str(desc);
+            }
+            if option.required {
+                result.push_str(" [Required]");
+            }
+            if let Some(default) = &option.default_value {
+                result.push_str(&format!(" [Default: {}]", default));
+            }
+            result.push_str("\n");
+        }
+        result.push_str("\n");
+    }
+    
+    // Result Types
+    result.push_str(&format!("{}:\n", spec_messages::SPEC_RESULTS));
+    if spec.result_types.is_empty() {
+        result.push_str("No result types defined.\n\n");
+    } else {
+        for result_type in &spec.result_types {
+            result.push_str(&format!("- {} ({})", result_type.name, result_type.field_type));
+            if let Some(desc) = &result_type.description {
+                result.push_str(&format!(": {}", desc));
+            }
+            result.push_str("\n");
+        }
+        result.push_str("\n");
+    }
+    
+    // Errors
+    result.push_str(&format!("{}:\n", spec_messages::SPEC_ERRORS));
+    if spec.errors.is_empty() {
+        result.push_str("No errors defined.\n");
+    } else {
+        for error in &spec.errors {
+            result.push_str(&format!("- {} - {}\n", error.code, error.description));
+        }
+    }
+    
+    result
+}
+
+/// Spec generation commandlet
+pub struct SpecCommandlet {
+    available_commandlets: Vec<Box<dyn AnyCommandlet>>,
+}
+
+/// Trait to allow storing different commandlet types in a collection
+pub trait AnyCommandlet: Send + Sync {
+    fn name(&self) -> &str;
+    fn generate_spec(&self) -> CommandletSpec;
+}
+
+impl<T: Commandlet + Send + Sync> AnyCommandlet for T {
+    fn name(&self) -> &str {
+        self.name()
+    }
+    
+    fn generate_spec(&self) -> CommandletSpec {
+        <T as Commandlet>::generate_spec(self)
+    }
+}
+
+impl SpecCommandlet {
+    pub fn new() -> Self {
+        Self {
+            available_commandlets: Vec::new(),
+        }
+    }
+    
+    pub fn register_commandlet<C: Commandlet + 'static + Send + Sync>(&mut self, commandlet: C) {
+        self.available_commandlets.push(Box::new(commandlet));
+    }
+    
+    fn find_commandlet(&self, name: &str) -> Option<&Box<dyn AnyCommandlet>> {
+        self.available_commandlets.iter().find(|c| c.name() == name)
+    }
+    
+    fn list_available_commandlets(&self) -> Vec<String> {
+        self.available_commandlets.iter().map(|c| c.name().to_string()).collect()
+    }
+}
+
+#[async_trait]
+impl Commandlet for SpecCommandlet {
+    type Params = SpecParams;
+    type Results = SpecResults;
+    
+    fn name(&self) -> &str {
+        "SpecCommandlet"
+    }
+    
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
+        let commandlet_name = params.commandlet_name.as_deref();
+        let format = params.format.as_deref().unwrap_or("text");
+        
+        // If no commandlet specified, generate spec for this commandlet
+        if commandlet_name.is_none() {
+            let spec = Commandlet::generate_spec(self);
+            let formatted_spec = match format {
+                "json" => serde_json::to_string_pretty(&spec)
+                    .map_err(|e| CommandletError::with_details(
+                        "SPEC_FORMAT_ERROR", 
+                        "Failed to format spec as JSON", 
+                        &e.to_string()
+                    ))?,
+                "markdown" => format_spec_as_markdown(&spec),
+                _ => format_spec_as_text(&spec),
+            };
+            
+            return Ok(SpecResults {
+                commandlet_name: Commandlet::name(self).to_string(),
+                spec,
+                formatted_spec,
+            });
+        }
+        
+        let commandlet_name = commandlet_name.unwrap();
+        
+        // Find the requested commandlet
+        let commandlet = self.find_commandlet(commandlet_name)
+            .ok_or_else(|| {
+                let available = self.list_available_commandlets().join(", ");
+                CommandletError::with_details(
+                    "UNKNOWN_COMMANDLET", 
+                    &format!("Unknown commandlet '{}'", commandlet_name),
+                    &format!("Available commandlets: {}", available)
+                )
+            })?;
+        
+        // Generate and format the spec
+        let spec = commandlet.generate_spec();
+        let formatted_spec = match format {
+            "json" => serde_json::to_string_pretty(&spec)
+                .map_err(|e| CommandletError::with_details(
+                    "SPEC_FORMAT_ERROR", 
+                    "Failed to format spec as JSON", 
+                    &e.to_string()
+                ))?,
+            "markdown" => format_spec_as_markdown(&spec),
+            _ => format_spec_as_text(&spec),
+        };
+        
+        Ok(SpecResults {
+            commandlet_name: commandlet_name.to_string(),
+            spec,
+            formatted_spec,
+        })
+    }
+    
+    fn generate_spec(&self) -> CommandletSpec {
+        CommandletSpec {
+            name: Commandlet::name(self).to_string(),
+            description: Some("Generates specification documents for available commandlets".to_string()),
+            behavior: "Retrieves and formats the specification of a commandlet".to_string(),
+            options: Vec::new(),
+            parameters: vec![
+                SpecField {
+                    name: "commandlet_name".to_string(),
+                    description: Some("Name of the commandlet to generate specification for".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "format".to_string(),
+                    description: Some("Format of the generated specification (text, json, markdown)".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: Some("text".to_string()),
+                },
+            ],
+            result_types: vec![
+                SpecField {
+                    name: "commandlet_name".to_string(),
+                    description: Some("Name of the commandlet the specification is for".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "spec".to_string(),
+                    description: Some("Full specification document structure".to_string()),
+                    field_type: "CommandletSpec".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "formatted_spec".to_string(),
+                    description: Some("Formatted specification in the requested format".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+            ],
+            errors: vec![
+                SpecError {
+                    code: "UNKNOWN_COMMANDLET".to_string(),
+                    description: "The requested commandlet was not found".to_string(),
+                },
+                SpecError {
+                    code: "SPEC_FORMAT_ERROR".to_string(),
+                    description: "Failed to format the specification document".to_string(),
+                },
+            ],
+        }
     }
 }
 

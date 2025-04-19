@@ -36,7 +36,8 @@ impl FromStr for OutputFormat {
     }
 }
 
-// Theme settings (can be expanded to allow different themes)
+/// UI Theme that controls colors and display preferences
+#[derive(Debug, Clone)]
 pub struct UITheme {
     pub heading_color: String,
     pub success_color: String,
@@ -62,6 +63,7 @@ impl Default for UITheme {
 }
 
 /// UI Manager for standardized output rendering
+#[derive(Debug, Clone)]
 pub struct UIManager {
     theme: UITheme,
     format: OutputFormat,

@@ -5,13 +5,15 @@ use async_trait::async_trait;
 use std::str::FromStr;
 
 use dougu_command_file::{FileArgs, FileCommandlet};
+use dougu_command_file::{FileCopyCommandlet, FileMoveCommandlet, FileListCommandlet};
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer};
+use dougu_foundation_run::{SpecCommandlet, SpecParams};
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
-use dougu_foundation_ui::{UIManager, OutputFormat};
+use dougu_foundation_ui::OutputFormat;
 
 // Keep the i18n module for potential future use
 mod i18n;
@@ -51,6 +53,19 @@ enum Commands {
     
     /// Show version information
     Version,
+    
+    /// Generate specification for a commandlet
+    Spec(SpecCommandArgs),
+}
+
+#[derive(Parser)]
+pub struct SpecCommandArgs {
+    /// Name of the commandlet to generate specification for
+    commandlet_name: Option<String>,
+    
+    /// Format of the specification (text, json, markdown)
+    #[arg(short, long, value_parser = ["text", "json", "markdown"], default_value = "text")]
+    format: String,
 }
 
 // File command layer using new commandlet architecture
@@ -66,15 +81,9 @@ impl LauncherLayer for FileCommandletLayer {
         if let Some(args_str) = ctx.get_data("file_args") {
             info!("{}", log_messages::COMMAND_START.replace("{}", "File"));
             
-            // Get output format from context
-            let default_format = "default".to_string();
-            let format_str = ctx.get_data("output_format").unwrap_or(&default_format);
-            let output_format = OutputFormat::from_str(format_str).unwrap_or(OutputFormat::Default);
-            
-            // Create the commandlet with UI manager
+            // Create the commandlet with UI manager from context directly
             let commandlet = FileCommandlet;
-            let ui = UIManager::with_format(output_format);
-            let runner = CommandRunner::with_ui(commandlet, ui);
+            let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
             
             // Add locale to the args if it's a JSON object
             let args_with_locale = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
@@ -113,19 +122,11 @@ impl LauncherLayer for FileCommandletLayer {
                 .map_err(|e| format!("File command execution failed: {}", e))?;
             
             // Handle output based on format
-            if output_format == OutputFormat::Json {
-                // Direct JSON output
-                println!("{}", result);
-            } else {
-                // Formatted output
-                let formatted_result = runner.format_results(&result)
-                    .map_err(|e| format!("Failed to format results: {}", e))?;
-                
-                // Display with appropriate UI formatting
-                let heading = runner.ui().heading(1, "File Operation Result");
-                runner.ui().print(&heading);
-                runner.ui().print(&formatted_result);
-            }
+            let formatted_result = runner.format_results(&result)
+                .map_err(|e| format!("Failed to format results: {}", e))?;
+            
+            // Print the formatted result
+            println!("{}", formatted_result);
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
         }
@@ -154,18 +155,17 @@ impl LauncherLayer for DropboxCommandLayer {
             
             info!("{}", log_messages::COMMAND_START.replace("{}", "Dropbox"));
             
-            // Create UI manager for formatted output
-            let ui = UIManager::default();
-            ui.print(&ui.heading(1, "Dropbox Operations"));
+            // Use UI manager from context directly
+            ctx.ui.print(&ctx.ui.heading(1, "Dropbox Operations"));
             
             match &args.command {
                 DropboxCommands::File(file_args) => {
-                    ui.print(&ui.heading(2, "File Operations"));
+                    ctx.ui.print(&ctx.ui.heading(2, "File Operations"));
                     
                     match &file_args.command {
                         DropboxFileCommands::List(list_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File List"));
-                            ui.print(&ui.info("Listing files from Dropbox..."));
+                            ctx.ui.print(&ctx.ui.info("Listing files from Dropbox..."));
                             
                             dougu_command_dropbox::execute_file_list(list_args, token).await
                                 .map_err(|e| format!("Dropbox file list failed: {}", e))?;
@@ -176,54 +176,54 @@ impl LauncherLayer for DropboxCommandLayer {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Download"));
                             // Create a local variable for the formatted message
                             let msg = format!("Downloading file: {}", download_args.path);
-                            ui.print(&ui.info(&msg));
+                            ctx.ui.print(&ctx.ui.info(&msg));
                             
                             dougu_command_dropbox::execute_file_download(download_args, token).await
                                 .map_err(|e| format!("Dropbox file download failed: {}", e))?;
                             
-                            ui.print(&ui.success("Download completed successfully"));
+                            ctx.ui.print(&ctx.ui.success("Download completed successfully"));
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Download"));
                         }
                         DropboxFileCommands::Upload(upload_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Upload"));
                             // Create a local variable for the formatted message
                             let msg = format!("Uploading file to: {}", upload_args.dropbox_path);
-                            ui.print(&ui.info(&msg));
+                            ctx.ui.print(&ctx.ui.info(&msg));
                             
                             dougu_command_dropbox::execute_file_upload(upload_args, token).await
                                 .map_err(|e| format!("Dropbox file upload failed: {}", e))?;
                             
-                            ui.print(&ui.success("Upload completed successfully"));
+                            ctx.ui.print(&ctx.ui.success("Upload completed successfully"));
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Upload"));
                         }
                     }
                 }
                 DropboxCommands::Folder(folder_args) => {
-                    ui.print(&ui.heading(2, "Folder Operations"));
+                    ctx.ui.print(&ctx.ui.heading(2, "Folder Operations"));
                     
                     match &folder_args.command {
                         dougu_command_dropbox::FolderCommands::Create(create_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Create"));
                             // Create a local variable for the formatted message
                             let msg = format!("Creating folder: {}", create_args.path);
-                            ui.print(&ui.info(&msg));
+                            ctx.ui.print(&ctx.ui.info(&msg));
                             
                             dougu_command_dropbox::execute_folder_create(create_args, token).await
                                 .map_err(|e| format!("Dropbox folder create failed: {}", e))?;
                             
-                            ui.print(&ui.success("Folder created successfully"));
+                            ctx.ui.print(&ctx.ui.success("Folder created successfully"));
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Create"));
                         }
                         dougu_command_dropbox::FolderCommands::Delete(delete_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Delete"));
                             // Create a local variable for the formatted message
                             let msg = format!("Deleting folder: {}", delete_args.path);
-                            ui.print(&ui.info(&msg));
+                            ctx.ui.print(&ctx.ui.info(&msg));
                             
                             dougu_command_dropbox::execute_folder_delete(delete_args, token).await
                                 .map_err(|e| format!("Dropbox folder delete failed: {}", e))?;
                             
-                            ui.print(&ui.success("Folder deleted successfully"));
+                            ctx.ui.print(&ctx.ui.success("Folder deleted successfully"));
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Delete"));
                         }
                     }
@@ -281,52 +281,51 @@ impl LauncherLayer for BuildCommandLayer {
                 
             info!("{}", log_messages::COMMAND_START.replace("{}", "Build"));
             
-            // Create UI manager for formatted output
-            let ui = UIManager::default();
-            ui.print(&ui.heading(1, "Build Operations"));
+            // Use UI manager from context directly
+            ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
             
             match &args.command {
                 dougu_command_build::BuildCommands::Package(package_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Package"));
-                    ui.print(&ui.heading(2, "Packaging Application"));
+                    ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
                     
                     // Get the output directory as a placeholder for package name
                     let package_name = package_args.output_dir.clone().unwrap_or_else(|| "default".to_string());
                     let msg = format!("Creating package in: {}", package_name);
-                    ui.print(&ui.info(&msg));
+                    ctx.ui.print(&ctx.ui.info(&msg));
                     
                     dougu_command_build::execute_package(package_args).await
                         .map_err(|e| format!("Build package failed: {}", e))?;
                     
-                    ui.print(&ui.success("Package created successfully"));
+                    ctx.ui.print(&ctx.ui.success("Package created successfully"));
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Package"));
                 }
                 dougu_command_build::BuildCommands::Test(test_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Test"));
-                    ui.print(&ui.heading(2, "Running Tests"));
+                    ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
                     
                     let test_filter = test_args.filter.clone().unwrap_or_else(|| "all tests".to_string());
                     let msg = format!("Running test suite with filter: {}", test_filter);
-                    ui.print(&ui.info(&msg));
+                    ctx.ui.print(&ctx.ui.info(&msg));
                     
                     dougu_command_build::execute_test(test_args).await
                         .map_err(|e| format!("Build test failed: {}", e))?;
                     
-                    ui.print(&ui.success("Tests completed successfully"));
+                    ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Test"));
                 }
                 dougu_command_build::BuildCommands::Compile(compile_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Compile"));
-                    ui.print(&ui.heading(2, "Compiling Project"));
+                    ctx.ui.print(&ctx.ui.heading(2, "Compiling Project"));
                     
                     let build_type = if compile_args.release { "release" } else { "debug" };
                     let msg = format!("Compiling with build type: {}", build_type);
-                    ui.print(&ui.info(&msg));
+                    ctx.ui.print(&ctx.ui.info(&msg));
                     
                     dougu_command_build::execute_compile(compile_args).await
                         .map_err(|e| format!("Build compile failed: {}", e))?;
                     
-                    ui.print(&ui.success("Compilation completed successfully"));
+                    ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
                 }
             }
@@ -338,48 +337,118 @@ impl LauncherLayer for BuildCommandLayer {
     }
 }
 
-// Replace VersionCommandLayerWithJson with VersionCommandLayerWithFormat
-struct VersionCommandLayerWithFormat(OutputFormat);
+// Replace VersionCommandLayerWithFormat with VersionCommandLayer
+struct VersionCommandLayer;
 
 #[async_trait]
-impl LauncherLayer for VersionCommandLayerWithFormat {
+impl LauncherLayer for VersionCommandLayer {
     fn name(&self) -> &str {
-        "VersionCommandLayerWithFormat"
+        "VersionCommandLayer"
     }
 
-    async fn run(&self, _ctx: &mut LauncherContext) -> Result<(), String> {
+    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         let commandlet = dougu_command_root::VersionCommandlet;
-        let ui = UIManager::with_format(self.0);
-        let runner = CommandRunner::with_ui(commandlet, ui);
+        let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
         let params = dougu_command_root::VersionParams {};
         let serialized_params = serde_json::to_string(&params)
             .map_err(|e| format!("Failed to serialize version params: {}", e))?;
         let result = runner.run(&serialized_params).await
             .map_err(|e| format!("Version command execution failed: {}", e))?;
         
-        match self.0 {
-            OutputFormat::Json => {
-                // Print raw JSON result
-                println!("{}", result);
-            },
-            OutputFormat::Markdown | OutputFormat::Default => {
-                let parsed_result: dougu_command_root::VersionResults = serde_json::from_str(&result)
-                    .map_err(|e| format!("Failed to parse version results: {}", e))?;
-                let ui = runner.ui();
-                let heading = ui.heading(1, "Dougu Version Information");
-                ui.print(&heading);
-                let headers = &["Property", "Value"];
-                let rows = vec![
-                    vec!["Version".to_string(), parsed_result.version],
-                    vec!["Rust Version".to_string(), parsed_result.rust_version],
-                    vec!["Build Target".to_string(), parsed_result.target],
-                    vec!["Build Profile".to_string(), parsed_result.profile],
-                    vec!["Build Timestamp".to_string(), parsed_result.timestamp],
-                ];
-                let table = ui.table(headers, &rows);
-                ui.print(&table);
-            }
+        // Format and print the result
+        let formatted_result = runner.format_results(&result)
+            .map_err(|e| format!("Failed to format version results: {}", e))?;
+        println!("{}", formatted_result);
+        
+        Ok(())
+    }
+}
+
+// Spec command layer
+struct SpecCommandletLayer;
+
+#[async_trait]
+impl LauncherLayer for SpecCommandletLayer {
+    fn name(&self) -> &str {
+        "SpecCommandLayer"
+    }
+    
+    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
+        if ctx.command_name != "spec" {
+            return Ok(());
         }
+        
+        // Create the spec commandlet and register all available commandlets
+        let mut spec_commandlet = SpecCommandlet::new();
+        
+        // Register all available commandlets
+        spec_commandlet.register_commandlet(FileCommandlet);
+        spec_commandlet.register_commandlet(dougu_command_root::VersionCommandlet);
+        
+        // Register file sub-commandlets
+        spec_commandlet.register_commandlet(FileCopyCommandlet);
+        spec_commandlet.register_commandlet(FileMoveCommandlet);
+        spec_commandlet.register_commandlet(FileListCommandlet);
+        
+        // Create commandlet runner with UI from context directly
+        let runner = CommandRunner::with_ui(spec_commandlet, ctx.ui.clone());
+        
+        // Get command arguments from context
+        let commandlet_name = ctx.get_data("commandlet_name").cloned();
+        let format = ctx.get_data("format").cloned().unwrap_or_else(|| "text".to_string());
+        
+        // Create params
+        let params = SpecParams {
+            commandlet_name,
+            format: Some(format),
+        };
+        
+        // Serialize params
+        let args_str = serde_json::to_string(&params)
+            .map_err(|e| format!("Failed to serialize spec parameters: {}", e))?;
+        
+        // Add locale to args if needed
+        let args_with_locale = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
+            // Parse the JSON, add locale, and reserialize
+            if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&args_str) {
+                if let Some(obj) = json.as_object_mut() {
+                    // Add context object with locale if it doesn't exist
+                    if !obj.contains_key("context") {
+                        let mut context = serde_json::Map::new();
+                        context.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
+                        obj.insert("context".to_string(), serde_json::Value::Object(context));
+                    } else if let Some(context) = obj.get_mut("context") {
+                        // Add locale to existing context
+                        if let Some(context_obj) = context.as_object_mut() {
+                            context_obj.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
+                        }
+                    }
+                    
+                    if let Ok(new_json) = serde_json::to_string(obj) {
+                        new_json
+                    } else {
+                        args_str.to_string()
+                    }
+                } else {
+                    args_str.to_string()
+                }
+            } else {
+                args_str.to_string()
+            }
+        } else {
+            args_str.to_string()
+        };
+        
+        // Run the commandlet with the serialized arguments
+        let result = runner.run(&args_with_locale).await
+            .map_err(|e| format!("Spec command execution failed: {}", e))?;
+        
+        // Handle output based on format
+        let formatted_result = runner.format_results(&result)
+            .map_err(|e| format!("Failed to format spec results: {}", e))?;
+        
+        // Print the formatted result
+        println!("{}", formatted_result);
         
         Ok(())
     }
@@ -452,12 +521,16 @@ async fn main() -> Result<()> {
         Commands::Obj(_) => "Obj",
         Commands::Build(_) => "Build",
         Commands::Version => "Version",
+        Commands::Spec(_) => "Spec",
     };
     
-    // Create context with command name, verbosity, and locale
-    let mut context = LauncherContext::with_locale(command_name.to_string(), cli.verbose, locale.clone());
-    // Propagate format option to context
-    context.set_data("output_format", cli.format.clone());
+    // Create context with command name, verbosity, locale and output format
+    let mut context = LauncherContext::with_ui_format(
+        command_name.to_string(), 
+        cli.verbose, 
+        locale.clone(), 
+        output_format
+    );
     
     // Add the I18nInitializerLayer as the first layer
     launcher.add_layer(I18nInitializerLayer::with_locale(locale));
@@ -489,7 +562,15 @@ async fn main() -> Result<()> {
             launcher.add_layer(BuildCommandLayer);
         }
         Commands::Version => {
-            launcher.add_layer(VersionCommandLayerWithFormat(output_format));
+            launcher.add_layer(VersionCommandLayer);
+        }
+        Commands::Spec(args) => {
+            context.command_name = "spec".to_string();
+            if let Some(name) = &args.commandlet_name {
+                context.set_data("commandlet_name", name.clone());
+            }
+            context.set_data("format", args.format.clone());
+            launcher.add_layer(SpecCommandletLayer);
         }
     }
     

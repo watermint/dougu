@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
-use dougu_foundation_run::{Commandlet, CommandletError};
-use dougu_foundation_i18n::{t, tf, vars, I18nCommandletError};
+use dougu_foundation_run::{Commandlet, CommandletError, CommandletSpec, SpecField, SpecError};
+use dougu_foundation_i18n::{tf, vars};
 
 pub mod resources;
 
@@ -119,6 +119,80 @@ impl Commandlet for FileCopyCommandlet {
             details: None,
         })
     }
+    
+    fn generate_spec(&self) -> CommandletSpec {
+        CommandletSpec {
+            name: self.name().to_string(),
+            description: Some("Copies a file from source to destination".to_string()),
+            behavior: "Copies a file from the specified source path to the destination path".to_string(),
+            options: vec![
+                SpecField {
+                    name: "force".to_string(),
+                    description: Some("Whether to overwrite destination if it exists".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: false,
+                    default_value: Some("false".to_string()),
+                },
+            ],
+            parameters: vec![
+                SpecField {
+                    name: "source".to_string(),
+                    description: Some("Path to the source file".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "destination".to_string(),
+                    description: Some("Path to the destination file".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+            ],
+            result_types: vec![
+                SpecField {
+                    name: "success".to_string(),
+                    description: Some("Whether the copy operation was successful".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "message".to_string(),
+                    description: Some("A human-readable message about the copy operation result".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "details".to_string(),
+                    description: Some("Additional details about the copy operation".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: None,
+                },
+            ],
+            errors: vec![
+                SpecError {
+                    code: "FILE_NOT_FOUND".to_string(),
+                    description: "The source file was not found".to_string(),
+                },
+                SpecError {
+                    code: "ACCESS_DENIED".to_string(),
+                    description: "Access to the source or destination file was denied".to_string(),
+                },
+                SpecError {
+                    code: "ALREADY_EXISTS".to_string(),
+                    description: "The destination file already exists and force option not specified".to_string(),
+                },
+                SpecError {
+                    code: "INVALID_PATH".to_string(),
+                    description: "The source or destination path is invalid".to_string(),
+                },
+            ],
+        }
+    }
 }
 
 // File move commandlet
@@ -151,6 +225,80 @@ impl Commandlet for FileMoveCommandlet {
             )),
             details: None,
         })
+    }
+    
+    fn generate_spec(&self) -> CommandletSpec {
+        CommandletSpec {
+            name: self.name().to_string(),
+            description: Some("Moves a file from source to destination".to_string()),
+            behavior: "Moves a file from the specified source path to the destination path".to_string(),
+            options: vec![
+                SpecField {
+                    name: "force".to_string(),
+                    description: Some("Whether to overwrite destination if it exists".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: false,
+                    default_value: Some("false".to_string()),
+                },
+            ],
+            parameters: vec![
+                SpecField {
+                    name: "source".to_string(),
+                    description: Some("Path to the source file".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "destination".to_string(),
+                    description: Some("Path to the destination file".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+            ],
+            result_types: vec![
+                SpecField {
+                    name: "success".to_string(),
+                    description: Some("Whether the move operation was successful".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "message".to_string(),
+                    description: Some("A human-readable message about the move operation result".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "details".to_string(),
+                    description: Some("Additional details about the move operation".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: None,
+                },
+            ],
+            errors: vec![
+                SpecError {
+                    code: "FILE_NOT_FOUND".to_string(),
+                    description: "The source file was not found".to_string(),
+                },
+                SpecError {
+                    code: "ACCESS_DENIED".to_string(),
+                    description: "Access to the source or destination file was denied".to_string(),
+                },
+                SpecError {
+                    code: "ALREADY_EXISTS".to_string(),
+                    description: "The destination file already exists and force option not specified".to_string(),
+                },
+                SpecError {
+                    code: "INVALID_PATH".to_string(),
+                    description: "The source or destination path is invalid".to_string(),
+                },
+            ],
+        }
     }
 }
 
@@ -185,6 +333,76 @@ impl Commandlet for FileListCommandlet {
             details: None,
         })
     }
+    
+    fn generate_spec(&self) -> CommandletSpec {
+        CommandletSpec {
+            name: self.name().to_string(),
+            description: Some("Lists files in a directory".to_string()),
+            behavior: "Lists files in the specified directory with optional formatting".to_string(),
+            options: vec![
+                SpecField {
+                    name: "all".to_string(),
+                    description: Some("Whether to show hidden files".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: false,
+                    default_value: Some("false".to_string()),
+                },
+                SpecField {
+                    name: "long".to_string(),
+                    description: Some("Whether to use long listing format".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: false,
+                    default_value: Some("false".to_string()),
+                },
+            ],
+            parameters: vec![
+                SpecField {
+                    name: "directory".to_string(),
+                    description: Some("Path to the directory to list".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: Some(".".to_string()),
+                },
+            ],
+            result_types: vec![
+                SpecField {
+                    name: "success".to_string(),
+                    description: Some("Whether the list operation was successful".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "message".to_string(),
+                    description: Some("A human-readable message about the list operation result".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "details".to_string(),
+                    description: Some("Additional details about the list operation, including file list".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: None,
+                },
+            ],
+            errors: vec![
+                SpecError {
+                    code: "DIRECTORY_NOT_FOUND".to_string(),
+                    description: "The specified directory was not found".to_string(),
+                },
+                SpecError {
+                    code: "ACCESS_DENIED".to_string(),
+                    description: "Access to the directory was denied".to_string(),
+                },
+                SpecError {
+                    code: "INVALID_PATH".to_string(),
+                    description: "The specified path is invalid or not a directory".to_string(),
+                },
+            ],
+        }
+    }
 }
 
 // Main file commandlet
@@ -213,6 +431,65 @@ impl Commandlet for FileCommandlet {
                 let commandlet = FileListCommandlet;
                 commandlet.execute(list_args.clone()).await
             }
+        }
+    }
+    
+    fn generate_spec(&self) -> CommandletSpec {
+        CommandletSpec {
+            name: self.name().to_string(),
+            description: Some("Performs file operations like copy, move, and list".to_string()),
+            behavior: "Delegates to sub-commandlets based on the operation requested".to_string(),
+            options: Vec::new(),
+            parameters: vec![
+                SpecField {
+                    name: "command".to_string(),
+                    description: Some("The file operation to perform".to_string()),
+                    field_type: "FileCommands enum".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+            ],
+            result_types: vec![
+                SpecField {
+                    name: "success".to_string(),
+                    description: Some("Whether the operation was successful".to_string()),
+                    field_type: "boolean".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "message".to_string(),
+                    description: Some("A human-readable message about the operation result".to_string()),
+                    field_type: "string".to_string(),
+                    required: true,
+                    default_value: None,
+                },
+                SpecField {
+                    name: "details".to_string(),
+                    description: Some("Additional details about the operation result".to_string()),
+                    field_type: "string".to_string(),
+                    required: false,
+                    default_value: None,
+                },
+            ],
+            errors: vec![
+                SpecError {
+                    code: "FILE_NOT_FOUND".to_string(),
+                    description: "The specified file was not found".to_string(),
+                },
+                SpecError {
+                    code: "ACCESS_DENIED".to_string(),
+                    description: "Access to the file was denied".to_string(),
+                },
+                SpecError {
+                    code: "ALREADY_EXISTS".to_string(),
+                    description: "The destination file already exists and force option not specified".to_string(),
+                },
+                SpecError {
+                    code: "INVALID_PATH".to_string(),
+                    description: "The specified path is invalid".to_string(),
+                },
+            ],
         }
     }
 }
