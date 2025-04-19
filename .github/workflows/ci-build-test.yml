@@ -30,7 +30,7 @@ jobs:
         run: |
           # Get executable path from build output
           cargo build --workspace --all-targets --message-format=json > build_output.json
-          EXECUTABLE=$(./target/debug/dougu obj query json -i build_output.json -q '.[] | select(.executable != null) | .executable' | head -n 1)
+          EXECUTABLE=$(./target/debug/dougu obj query json build_output.json '.[] | select(.executable != null) | .executable' | head -n 1)
           
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found in build output. Aborting." >&2
@@ -52,8 +52,8 @@ jobs:
             --output-dir target/dist)
           
           # Extract information from JSON output
-          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json -q '.path')
-          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json -q '.name')
+          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json - '.path')
+          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json - '.name')
           
           # Save information for use in upload step
           echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
