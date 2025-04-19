@@ -76,15 +76,18 @@ impl LauncherLayer for VersionCommandLayer {
         let heading = ui.heading(1, VERSION_HEADING);
         ui.print(&heading);
         
-        let pairs = [
-            ("Version", parsed_result.version.as_str()),
-            ("Rust Version", parsed_result.rust_version.as_str()),
-            ("Build Target", parsed_result.target.as_str()),
-            ("Build Profile", parsed_result.profile.as_str()),
-            ("Build Timestamp", parsed_result.timestamp.as_str()),
+        // Format as a table
+        let headers = &["Property", "Value"];
+        let rows = vec![
+            vec!["Version", &parsed_result.version],
+            vec!["Rust Version", &parsed_result.rust_version],
+            vec!["Build Target", &parsed_result.target],
+            vec!["Build Profile", &parsed_result.profile],
+            vec!["Build Timestamp", &parsed_result.timestamp],
         ];
         
-        ui.print(&ui.key_value_list(&pairs));
+        let table = ui.table(headers, &rows);
+        ui.print(&table);
         
         Ok(())
     }
