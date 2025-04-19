@@ -1,20 +1,20 @@
 [workspace]
 members = [
-    "crates/db",
-    "crates/essentials",
-    "crates/commands/file",
-    "crates/commands/dropbox",
+    "dougu",
+    "dougu-essentials-logger",
+    "dougu-essentials-i18n",
+    "dougu-domain-dropbox",
+    "dougu-command-file",
+    "dougu-command-dropbox",
 ]
-
-[workspace.package]
-version = "0.1.0"
-edition = "2024"
-authors = ["Takayuki Okazaki <watermint@users.noreply.github.com>"]
-license = "MIT"
+resolver = "3"
 
 [workspace.dependencies]
 clap = { version = "4.4", features = ["derive"] }
+env_logger = "0.10"
+log = "0.4"
 anyhow = "1.0"
-tracing = "0.1"
-tracing-subscriber = "0.3"
-essentials = { path = "crates/essentials" } 
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.33", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] } 

@@ -1,46 +1,55 @@
-# DB Command Line Tool
+# Dougu
 
-A multi-function command line tool written in Rust with a nested command structure.
+A multi-command command-line tool written in Rust 2024 with a nested command structure.
 
 ## Project Structure
 
-The project is organized as a Rust workspace with the following crates:
+This project is organized as a Cargo workspace with multiple crates:
 
-- `db`: Main executable
-- `essentials`: Shared library with common functionality
-- `db-file`: File command implementation
-- `db-dropbox`: Dropbox command implementation
+- `dougu`: Main binary crate that integrates all commands
+- `dougu-essentials-*`: Core libraries shared across the project
+  - `dougu-essentials-logger`: Logging utilities
+  - `dougu-essentials-i18n`: Internationalization support
+- `dougu-domain-*`: Domain-specific libraries
+  - `dougu-domain-dropbox`: Dropbox API client
+- `dougu-command-*`: Individual command implementations
+  - `dougu-command-file`: File operations
+  - `dougu-command-dropbox`: Dropbox operations
 
-## Command Examples
+## Usage Examples
 
 ```
 # File operations
-$ db file copy --source file1.txt --destination file2.txt
-$ db file list
+$ dougu file copy source.txt destination.txt
+$ dougu file move source.txt destination.txt
+$ dougu file list /path/to/directory
 
 # Dropbox operations
-$ db dropbox file list
-$ db dropbox file upload --source file.txt --destination /path/in/dropbox
-$ db dropbox file download --source /path/in/dropbox --destination local_file.txt
-$ db dropbox account info
-$ db dropbox account usage
+$ dougu dropbox file list
+$ dougu dropbox file download /path/to/file.txt
+$ dougu dropbox file upload local.txt /remote/path.txt
+$ dougu dropbox folder create /new/folder
+$ dougu dropbox folder delete /old/folder
 ```
 
-## Building
+## Building the Project
 
 ```
-cargo build --release
+cargo build
 ```
 
-The binary will be available at `target/release/db`.
+## Running Tests
 
-## Development
+```
+cargo test
+```
 
-To add new commands:
+## Technical Details
 
-1. Create a new crate in the `crates/commands` directory
-2. Implement the command interface
-3. Add the crate as a dependency in `crates/db/Cargo.toml`
-4. Update the main command enum in `crates/db/src/main.rs`
+- Built with Rust 2024 edition
+- Uses workspace resolver version 3
+- Follows modular crate design for better maintainability
 
+## License
 
+MIT 

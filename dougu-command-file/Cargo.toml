@@ -1,0 +1,10 @@
+[package]
+name = "dougu-command-file"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
+clap = { workspace = true }
+anyhow = { workspace = true }

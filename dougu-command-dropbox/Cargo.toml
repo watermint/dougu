@@ -1,0 +1,11 @@
+[package]
+name = "dougu-command-dropbox"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
+dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
+clap = { workspace = true }
+anyhow = { workspace = true }
