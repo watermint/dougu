@@ -6,8 +6,9 @@ use std::fs;
 use tokio::process::Command;
 use uuid::Uuid;
 use walkdir::WalkDir;
-use dougu_essentials_build::{BuildInfo, get_build_info};
-use serde_json::json;
+use dougu_essentials_build::get_build_info;
+use dougu_foundation_run::{SpecCommandlet, SpecParams, SpecResults, CommandletError, Commandlet};
+use dougu_foundation_ui::UIManager;
 
 mod resources;
 
@@ -30,6 +31,9 @@ pub enum BuildCommands {
 
     /// Create archive of the artifact
     Pack(PackArgs),
+    
+    /// Generate specification for a commandlet
+    Spec(SpecCommandArgs),
 }
 
 #[derive(Debug, Args, Serialize, Deserialize)]
@@ -102,6 +106,16 @@ pub struct PackArgs {
     /// Output directory for the archive
     #[arg(short, long)]
     pub output_dir: Option<String>,
+}
+
+#[derive(Debug, Args, Serialize, Deserialize)]
+pub struct SpecCommandArgs {
+    /// Name of the commandlet to generate specification for
+    pub commandlet_name: Option<String>,
+    
+    /// Format of the specification (text, json, markdown)
+    #[arg(short, long, value_parser = ["text", "json", "markdown"], default_value = "text")]
+    pub format: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -522,6 +536,28 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     };
     
     Ok(dougu_foundation_ui::format_commandlet_result(ui, &output))
+}
+
+/// Execute the spec command
+pub async fn execute_spec(args: &SpecCommandArgs, ui: &UIManager) -> Result<String, CommandletError> {
+    // Create the spec commandlet and register all available commandlets
+    let mut spec_commandlet = SpecCommandlet::new();
+    
+    // Register commandlets here - these would typically be imported at the module level
+    // Import other commandlets as needed
+    // Example: spec_commandlet.register_commandlet(FileCommandlet);
+    
+    // Create params
+    let params = SpecParams {
+        commandlet_name: args.commandlet_name.clone(),
+        format: Some(args.format.clone()),
+    };
+    
+    // Execute the commandlet
+    let results = spec_commandlet.execute(params).await?;
+    
+    // Return the formatted spec
+    Ok(results.formatted_spec)
 }
 
 pub fn add(left: u64, right: u64) -> u64 {

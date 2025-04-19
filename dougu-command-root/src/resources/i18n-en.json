@@ -73,5 +73,45 @@
     "source": "Build ID",
     "context": "Property label in version command output",
     "text": "Build ID"
+  },
+  "VERSION_PROPERTY_EXECUTABLE_NAME": {
+    "source": "Executable Name",
+    "context": "Property label in version command output",
+    "text": "Executable Name"
+  },
+  "HELP_GENERAL": {
+    "source": "Dougu CLI Help\n\nAvailable Commands:\n  file      - File operations\n  dropbox   - Dropbox operations\n  obj       - Object notation operations\n  build     - Build operations\n  version   - Show version information\n  help      - Display help information\n\nUse 'dougu help <command>' for help on a specific command.",
+    "context": "General help text",
+    "text": "Dougu CLI Help\n\nAvailable Commands:\n  file      - File operations\n  dropbox   - Dropbox operations\n  obj       - Object notation operations\n  build     - Build operations\n  version   - Show version information\n  help      - Display help information\n\nUse 'dougu help <command>' for help on a specific command."
+  },
+  "HELP_COMMAND_FILE": {
+    "source": "File Command Help\n\nPerforms operations on files in the local filesystem.\n\nSubcommands:\n  copy   - Copy a file from source to destination\n  move   - Move a file from source to destination\n  list   - List files in a directory",
+    "context": "Help text for file command",
+    "text": "File Command Help\n\nPerforms operations on files in the local filesystem.\n\nSubcommands:\n  copy   - Copy a file from source to destination\n  move   - Move a file from source to destination\n  list   - List files in a directory"
+  },
+  "HELP_COMMAND_DROPBOX": {
+    "source": "Dropbox Command Help\n\nPerforms operations with Dropbox cloud storage.\n\nSubcommands:\n  file    - File operations (list, download, upload)\n  folder  - Folder operations (create, delete)",
+    "context": "Help text for dropbox command",
+    "text": "Dropbox Command Help\n\nPerforms operations with Dropbox cloud storage.\n\nSubcommands:\n  file    - File operations (list, download, upload)\n  folder  - Folder operations (create, delete)"
+  },
+  "HELP_COMMAND_OBJ": {
+    "source": "Object Command Help\n\nOperations for working with structured data formats.\n\nSubcommands:\n  convert   - Convert between formats (JSON, BSON, XML, CBOR)\n  validate  - Validate data against a schema\n  query     - Query data using JSON Path or XPath",
+    "context": "Help text for obj command",
+    "text": "Object Command Help\n\nOperations for working with structured data formats.\n\nSubcommands:\n  convert   - Convert between formats (JSON, BSON, XML, CBOR)\n  validate  - Validate data against a schema\n  query     - Query data using JSON Path or XPath"
+  },
+  "HELP_COMMAND_BUILD": {
+    "source": "Build Command Help\n\nOperations for building and packaging applications.\n\nSubcommands:\n  package  - Package the application for distribution\n  test     - Run tests for the application\n  compile  - Build the application without packaging\n  pack     - Create archive of the artifact\n  spec     - Generate specification for a commandlet",
+    "context": "Help text for build command",
+    "text": "Build Command Help\n\nOperations for building and packaging applications.\n\nSubcommands:\n  package  - Package the application for distribution\n  test     - Run tests for the application\n  compile  - Build the application without packaging\n  pack     - Create archive of the artifact\n  spec     - Generate specification for a commandlet"
+  },
+  "HELP_COMMAND_VERSION": {
+    "source": "Version Command Help\n\nDisplays version information for the Dougu CLI application.",
+    "context": "Help text for version command",
+    "text": "Version Command Help\n\nDisplays version information for the Dougu CLI application."
+  },
+  "HELP_COMMAND_HELP": {
+    "source": "Help Command Help\n\nDisplays help information for Dougu CLI commands.\n\nUsage: dougu help [command]\n\nIf no command is specified, displays general help.",
+    "context": "Help text for help command",
+    "text": "Help Command Help\n\nDisplays help information for Dougu CLI commands.\n\nUsage: dougu help [command]\n\nIf no command is specified, displays general help."
   }
 } 

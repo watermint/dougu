@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use log::{info, LevelFilter};
 use async_trait::async_trait;
 use std::str::FromStr;
+use serde::{Serialize, Deserialize};
 
 use dougu_command_file::{FileArgs, FileCommandlet};
 use dougu_command_file::{FileCopyCommandlet, FileMoveCommandlet, FileListCommandlet};
@@ -10,16 +11,16 @@ use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as Dropbo
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer};
-use dougu_foundation_run::{SpecCommandlet, SpecParams};
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::OutputFormat;
+use dougu_command_root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer};
 
 // Keep the i18n module for potential future use
 mod i18n;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, disable_help_flag=true, disable_version_flag=true, disable_help_subcommand=true)]
 struct Cli {
     /// Set verbosity level (0-5)
     #[arg(long = "ui-verbose", default_value_t = 2, global = true)]
@@ -54,18 +55,14 @@ enum Commands {
     /// Show version information
     Version,
     
-    /// Generate specification for a commandlet
-    Spec(SpecCommandArgs),
+    /// Display help information
+    Help(HelpArgs),
 }
 
-#[derive(Parser)]
-pub struct SpecCommandArgs {
-    /// Name of the commandlet to generate specification for
-    commandlet_name: Option<String>,
-    
-    /// Format of the specification (text, json, markdown)
-    #[arg(short, long, value_parser = ["text", "json", "markdown"], default_value = "text")]
-    format: String,
+#[derive(Parser, Serialize, Deserialize)]
+pub struct HelpArgs {
+    /// Command to get help for
+    command: Option<String>,
 }
 
 // File command layer using new commandlet architecture
@@ -372,6 +369,25 @@ impl LauncherLayer for BuildCommandLayer {
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
                 }
+                dougu_command_build::BuildCommands::Spec(spec_args) => {
+                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Spec"));
+                    
+                    if ctx.ui.format() != OutputFormat::Json {
+                        ctx.ui.print(&ctx.ui.heading(2, "Generating Commandlet Specification"));
+                        
+                        let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");
+                        let msg = format!("Generating spec for: {}", commandlet_name);
+                        ctx.ui.print(&ctx.ui.info(&msg));
+                    }
+                    
+                    // Execute the spec command
+                    let result = dougu_command_build::execute_spec(spec_args, &ctx.ui).await
+                        .map_err(|e| format!("Build spec failed: {}", e))?;
+                    
+                    println!("{}", result);
+                    
+                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Spec"));
+                }
             }
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Build"));
@@ -402,96 +418,6 @@ impl LauncherLayer for VersionCommandLayer {
         // Format and print the result
         let formatted_result = runner.format_results(&result)
             .map_err(|e| format!("Failed to format version results: {}", e))?;
-        println!("{}", formatted_result);
-        
-        Ok(())
-    }
-}
-
-// Spec command layer
-struct SpecCommandletLayer;
-
-#[async_trait]
-impl LauncherLayer for SpecCommandletLayer {
-    fn name(&self) -> &str {
-        "SpecCommandLayer"
-    }
-    
-    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        if ctx.command_name != "spec" {
-            return Ok(());
-        }
-        
-        // Create the spec commandlet and register all available commandlets
-        let mut spec_commandlet = SpecCommandlet::new();
-        
-        // Register all available commandlets
-        spec_commandlet.register_commandlet(FileCommandlet);
-        spec_commandlet.register_commandlet(dougu_command_root::VersionCommandlet);
-        
-        // Register file sub-commandlets
-        spec_commandlet.register_commandlet(FileCopyCommandlet);
-        spec_commandlet.register_commandlet(FileMoveCommandlet);
-        spec_commandlet.register_commandlet(FileListCommandlet);
-        
-        // Create commandlet runner with UI from context directly
-        let runner = CommandRunner::with_ui(spec_commandlet, ctx.ui.clone());
-        
-        // Get command arguments from context
-        let commandlet_name = ctx.get_data("commandlet_name").cloned();
-        let format = ctx.get_data("format").cloned().unwrap_or_else(|| "text".to_string());
-        
-        // Create params
-        let params = SpecParams {
-            commandlet_name,
-            format: Some(format),
-        };
-        
-        // Serialize params
-        let args_str = serde_json::to_string(&params)
-            .map_err(|e| format!("Failed to serialize spec parameters: {}", e))?;
-        
-        // Add locale to args if needed
-        let args_with_locale = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
-            // Parse the JSON, add locale, and reserialize
-            if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&args_str) {
-                if let Some(obj) = json.as_object_mut() {
-                    // Add context object with locale if it doesn't exist
-                    if !obj.contains_key("context") {
-                        let mut context = serde_json::Map::new();
-                        context.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
-                        obj.insert("context".to_string(), serde_json::Value::Object(context));
-                    } else if let Some(context) = obj.get_mut("context") {
-                        // Add locale to existing context
-                        if let Some(context_obj) = context.as_object_mut() {
-                            context_obj.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
-                        }
-                    }
-                    
-                    if let Ok(new_json) = serde_json::to_string(obj) {
-                        new_json
-                    } else {
-                        args_str.to_string()
-                    }
-                } else {
-                    args_str.to_string()
-                }
-            } else {
-                args_str.to_string()
-            }
-        } else {
-            args_str.to_string()
-        };
-        
-        // Run the commandlet with the serialized arguments
-        let result = runner.run(&args_with_locale).await
-            .map_err(|e| format!("Spec command execution failed: {}", e))?;
-        
-        // Handle output based on format
-        let formatted_result = runner.format_results(&result)
-            .map_err(|e| format!("Failed to format spec results: {}", e))?;
-        
-        // Print the formatted result
         println!("{}", formatted_result);
         
         Ok(())
@@ -565,7 +491,7 @@ async fn main() -> Result<()> {
         Commands::Obj(_) => "Obj",
         Commands::Build(_) => "Build",
         Commands::Version => "Version",
-        Commands::Spec(_) => "Spec",
+        Commands::Help(_) => "Help",
     };
     
     // Create context with command name, verbosity, locale and output format
@@ -608,13 +534,11 @@ async fn main() -> Result<()> {
         Commands::Version => {
             launcher.add_layer(VersionCommandLayer);
         }
-        Commands::Spec(args) => {
-            context.command_name = "spec".to_string();
-            if let Some(name) = &args.commandlet_name {
-                context.set_data("commandlet_name", name.clone());
+        Commands::Help(help_args) => {
+            if let Some(cmd) = &help_args.command {
+                context.set_data("help_command", cmd.clone());
             }
-            context.set_data("format", args.format.clone());
-            launcher.add_layer(SpecCommandletLayer);
+            launcher.add_layer(HelpCommandLayer);
         }
     }
     
