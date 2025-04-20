@@ -117,8 +117,8 @@ impl ObjCommand {
         } else {
             match result {
                 Ok(val) => {
-                    ui.heading(1, "Query Result");
-                    ui.heading(2, "Query Output");
+                    ui.title("Query Result");
+                    ui.subtitle("Query Output");
                     ui.code(&val.to_string(), Some("json"));
                 },
                 Err(e) => {
@@ -171,14 +171,14 @@ impl ObjCommand {
         } else {
             match result {
                 Ok(val) => {
-                    ui.heading(1, "Format Conversion");
+                    ui.title("Format Conversion");
                     ui.key_value_list(&[
                         ("Input Format", &input_format_str),
                         ("Output Format", &output_format_str),
                         ("Input Size", &format!("{} bytes", input_size)),
                     ]);
                     
-                    ui.heading(2, "Conversion Result");
+                    ui.subtitle("Conversion Result");
                     
                     let (formatted, error_json) = self.format_output(&ui, val.clone())?;
                     if !formatted.is_empty() {

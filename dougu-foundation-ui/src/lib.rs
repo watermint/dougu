@@ -116,7 +116,56 @@ impl UIManager {
         self.format
     }
     
+    /// Create a title (equivalent to a level 1 heading) and print it
+    pub fn title(&self, text: &str) -> String {
+        let prefix = "#";
+        let output = match self.format {
+            OutputFormat::JsonLines => {
+                if let Ok(json) = serde_json::to_string(&serde_json::json!({
+                    "type": "title",
+                    "text": text
+                })) {
+                    json
+                } else {
+                    format!("{} {}", prefix, text)
+                }
+            },
+            OutputFormat::Markdown => format!("{} {}", prefix, text),
+            OutputFormat::Default => {
+                let colored_text = text.bold().color(&*self.theme.heading_color);
+                format!("{} {}", prefix, colored_text)
+            }
+        };
+        println!("{}", output);
+        output
+    }
+    
+    /// Create a subtitle (equivalent to a level 2 heading) and print it
+    pub fn subtitle(&self, text: &str) -> String {
+        let prefix = "##";
+        let output = match self.format {
+            OutputFormat::JsonLines => {
+                if let Ok(json) = serde_json::to_string(&serde_json::json!({
+                    "type": "subtitle",
+                    "text": text
+                })) {
+                    json
+                } else {
+                    format!("{} {}", prefix, text)
+                }
+            },
+            OutputFormat::Markdown => format!("{} {}", prefix, text),
+            OutputFormat::Default => {
+                let colored_text = text.color(&*self.theme.heading_color);
+                format!("{} {}", prefix, colored_text)
+            }
+        };
+        println!("{}", output);
+        output
+    }
+    
     /// Create a heading (Markdown-like # Heading) and print it
+    #[deprecated(since = "0.2.0", note = "Use title() or subtitle() instead")]
     pub fn heading(&self, level: u8, text: &str) -> String {
         let prefix = "#".repeat(std::cmp::min(level as usize, 6));
         let output = match self.format {
