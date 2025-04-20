@@ -28,15 +28,23 @@ jobs:
         id: build
         shell: bash
         run: |
-          # Build the project
-          cargo build --workspace --all-targets
+          # Build the project and capture the JSON output
+          cargo build --workspace --all-targets --message-format=json > build_output.json
           
-          # Find the executable
+          # First build would create the executable we need for the obj query command
+          
+          # Use grep to filter relevant JSON entries before passing to obj query
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            EXECUTABLE=$(find target/debug -maxdepth 1 -name "dougu.exe" -type f | head -n 1)
+            GREP_PATTERN="dougu.exe"
           else
-            EXECUTABLE=$(find target/debug -maxdepth 1 -name "dougu" -type f -executable | head -n 1)
+            GREP_PATTERN="\"dougu\""
           fi
+          
+          # Extract relevant JSON entries to a smaller file to avoid broken pipe issues
+          grep "$GREP_PATTERN" build_output.json > executable_entries.json
+          
+          # Use obj query command to extract the executable path
+          EXECUTABLE=$(./target/debug/dougu obj query json executable_entries.json 'select(.executable != null) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found. Aborting." >&2
