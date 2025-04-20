@@ -399,6 +399,15 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     // Get the semantic version (now automatically handles CI environment)
     let package_version = build_info.semantic_version();
     
+    // Get the expected executable name from build info
+    let expected_executable_name = if !build_info.executable_name.is_empty() {
+        build_info.executable_name.clone()
+    } else {
+        // Fail if the executable name is not found in build info
+        dougu_essentials_log::log_error(resources::log_messages::EXECUTABLE_NAME_MISSING_IN_BUILDINFO);
+        return Err(anyhow!(resources::log_messages::EXECUTABLE_NAME_MISSING_IN_BUILDINFO));
+    };
+    
     // Determine platform
     let platform = match args.platform.as_deref() {
         Some(platform) => platform.to_string(),
@@ -420,71 +429,30 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     let mut executable_path = None;
     let mut executable_name = None;
     
+    // Determine the default target directory based on build profile (implicitly release for pack)
+    let default_target_dir = PathBuf::from("./target/release");
+
     if let Some(cargo_output_path) = &args.cargo_output {
         // Parse cargo build output to find executable
         let file_content = fs::read_to_string(cargo_output_path)?;
         
-        // Parse JSON lines to find executable paths
-        // First pass: Look for release builds
+        // First pass: Look for the release 'dougu' binary
         for line in file_content.lines() {
             if let Ok(value) = serde_json::from_str::<Value>(line) {
-                // Look for compiler-artifact entries with binaries
-                if let Some(reason) = value.get("reason").and_then(|v| v.as_str()) {
-                    if reason == "compiler-artifact" {
-                        if let Some(target) = value.get("target") {
-                            // Check if it's a binary target
-                            if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
-                                if kind.iter().any(|k| k.as_str() == Some("bin")) {
-                                    // Check if it's a release build
-                                    if let Some(profile) = value.get("profile") {
-                                        let is_release = profile.get("opt-level").and_then(|o| o.as_str()).map_or(false, |level| level != "0");
-                                        let is_test = profile.get("test").and_then(|t| t.as_bool()).unwrap_or(false);
-                                        
-                                        // Skip test binaries, prefer release builds
-                                        if is_release && !is_test {
-                                            // Check if it has an executable path
-                                            if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
-                                                executable_path = Some(PathBuf::from(exec_path));
-                                                
-                                                // Extract name from target
-                                                if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
-                                                    executable_name = Some(name.to_string());
-                                                }
-                                                
-                                                // We found a release binary, no need to search further
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Second pass: If no release build found, look for any binary (not a test)
-        if executable_path.is_none() {
-            for line in file_content.lines() {
-                if let Ok(value) = serde_json::from_str::<Value>(line) {
-                    if let Some(reason) = value.get("reason").and_then(|v| v.as_str()) {
-                        if reason == "compiler-artifact" {
-                            if let Some(target) = value.get("target") {
-                                if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
-                                    if kind.iter().any(|k| k.as_str() == Some("bin")) {
-                                        // Skip test binaries
-                                        if let Some(profile) = value.get("profile") {
-                                            let is_test = profile.get("test").and_then(|t| t.as_bool()).unwrap_or(false);
-                                            
-                                            if !is_test {
-                                                if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
+                if value.get("reason").and_then(|v| v.as_str()) == Some("compiler-artifact") {
+                    if let Some(target) = value.get("target") {
+                        if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
+                            if kind.iter().any(|k| k.as_str() == Some("bin")) {
+                                if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
+                                    if let Some(target_name) = target.get("name").and_then(|n| n.as_str()) {
+                                        // Compare against the expected name from build_info
+                                        if target_name == expected_executable_name { 
+                                            if let Some(profile) = value.get("profile") {
+                                                let is_release = profile.get("opt-level").and_then(|o| o.as_str()).map_or(false, |level| level != "0");
+                                                let is_test = profile.get("test").and_then(|t| t.as_bool()).unwrap_or(false);
+                                                if is_release && !is_test {
                                                     executable_path = Some(PathBuf::from(exec_path));
-                                                    
-                                                    if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
-                                                        executable_name = Some(name.to_string());
-                                                    }
-                                                    
+                                                    executable_name = Some(target_name.to_string());
                                                     break;
                                                 }
                                             }
@@ -497,53 +465,65 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
                 }
             }
         }
-    } else if let Some(input_dir) = &args.input_dir {
-        // Abort if input_dir is a zip file (prevents nested zips)
-        let input_path = Path::new(input_dir);
-        if input_path.is_file() && input_path.extension().map_or(false, |ext| ext == "zip") {
-            dougu_essentials_log::log_error(resources::log_messages::INVALID_EXECUTABLE_TYPE);
-            return Err(anyhow!("Input directory is a zip file. This would create a nested archive."));
-        }
         
-        // Traditional scan for executables in input directory
-        for entry in WalkDir::new(input_dir).max_depth(1) {
-            let entry = entry?;
-            if entry.file_type().is_file() {
-                let path = entry.path();
-                
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Ok(metadata) = fs::metadata(path) {
-                        let is_executable = metadata.permissions().mode() & 0o111 != 0;
-                        if is_executable {
-                            let filename = path.file_name().unwrap().to_string_lossy().to_string();
-                            // Skip files that don't look like executables
-                            if !filename.ends_with(".d") && 
-                               !filename.ends_with(".rlib") && 
-                               !filename.ends_with(".o") && 
-                               !filename.ends_with(".json") && 
-                               !filename.ends_with(".lock") && 
-                               !filename.ends_with(".so") && 
-                               !filename.ends_with(".dll") && 
-                               !filename.ends_with(".dylib") &&
-                               !filename.ends_with(".zip") {
-                                executable_path = Some(path.to_path_buf());
-                                executable_name = Some(filename);
-                                break;
+        // Second pass: If no release build found, look for the non-test 'dougu' binary
+        if executable_path.is_none() {
+            for line in file_content.lines() {
+                if let Ok(value) = serde_json::from_str::<Value>(line) {
+                    if value.get("reason").and_then(|v| v.as_str()) == Some("compiler-artifact") {
+                        if let Some(target) = value.get("target") {
+                            if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
+                                if kind.iter().any(|k| k.as_str() == Some("bin")) {
+                                    if let Some(exec_path_str) = value.get("executable").and_then(|e| e.as_str()) {
+                                        if let Some(target_name) = target.get("name").and_then(|n| n.as_str()) {
+                                            // Compare against the expected name from build_info
+                                            if target_name == expected_executable_name {
+                                                if let Some(profile) = value.get("profile") {
+                                                    let is_test = profile.get("test").and_then(|t| t.as_bool()).unwrap_or(false);
+                                                    if !is_test {
+                                                        let potential_path = PathBuf::from(exec_path_str);
+                                                        if potential_path.extension().map_or(false, |ext| ext != "zip") {
+                                                            executable_path = Some(potential_path);
+                                                            executable_name = Some(target_name.to_string());
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                
-                #[cfg(windows)]
-                {
-                    let extension = path.extension().unwrap_or_default().to_string_lossy();
-                    if extension == "exe" {
-                        let filename = path.file_name().unwrap().to_string_lossy().to_string();
-                        executable_path = Some(path.to_path_buf());
-                        executable_name = Some(filename);
-                        break;
+            }
+        }
+    } else {
+        // If cargo_output is not provided, use input_dir or default to target/release
+        let input_dir_to_scan = args.input_dir.as_ref().map(PathBuf::from).unwrap_or(default_target_dir);
+
+        // Traditional scan for executables in input directory - SIMPLIFIED
+        // Use the executable name from build_info if available
+        let target_executable_name = if !build_info.executable_name.is_empty() {
+            build_info.executable_name.clone()
+        } else {
+            // Fallback if build_info doesn't have it (shouldn't usually happen for the main binary)
+             "app".to_string() // Or consider fetching from Cargo.toml directly?
+        };
+        let target_executable_name_exe = format!("{}.exe", target_executable_name);
+
+        for entry in WalkDir::new(&input_dir_to_scan).max_depth(1) {
+             if let Ok(entry) = entry {
+                if entry.file_type().is_file() {
+                    let path = entry.path();
+                    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                        // Look specifically for the target executable name
+                        if filename == target_executable_name || filename == target_executable_name_exe {
+                            executable_path = Some(path.to_path_buf());
+                            executable_name = Some(filename.to_string());
+                            break; // Found the target executable
+                        }
                     }
                 }
             }
