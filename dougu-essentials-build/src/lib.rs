@@ -55,19 +55,25 @@ impl BuildInfo {
             _ => 1,        // Other channels
         };
         
-        // For patch version: use 0 for CI, derive from timestamp for local
-        let patch = if self.build_type == "github" {
-            0
-        } else {
-            // Use day of year as patch for local builds
-            let now = Utc::now();
-            now.ordinal() as u32 % 1000 // Day of year mod 1000
-        };
-        
-        // For CI builds (github), don't include build metadata
+        // For CI builds (github), try to use GITHUB_RUN_NUMBER for patch version
         if self.build_type == "github" {
+            let patch = if let Ok(run_number) = std::env::var("GITHUB_RUN_NUMBER") {
+                run_number.parse::<u32>().unwrap_or(0)
+            } else if let Some(run_number) = option_env!("GITHUB_RUN_NUMBER") {
+                run_number.parse::<u32>().unwrap_or(0)
+            } else {
+                0 // Default if no run number available
+            };
+            
             format!("{}.{}.{}", self.build_release, minor, patch)
         } else {
+            // For non-CI builds, use day of year as patch
+            let patch = {
+                // Use day of year as patch for local builds
+                let now = Utc::now();
+                now.ordinal() as u32 % 1000 // Day of year mod 1000
+            };
+            
             // Create build metadata from build_type and timestamp for non-CI builds
             let build_metadata = format!("{}.{}", 
                 self.build_type,
@@ -89,7 +95,7 @@ impl BuildInfo {
     }
 
     /// Create a new BuildInfo with default values for local development
-    pub fn new_local() -> Self {
+    fn new_local() -> Self {
         let build_timestamp = Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
         let (repository_owner, repository_name) = detect_repository();
         // Use the major version from Cargo.toml as release
@@ -111,7 +117,7 @@ impl BuildInfo {
     }
 
     /// Create a new BuildInfo for CI builds
-    pub fn new_ci(_run_number: &str, build_release: u32) -> Self {
+    fn new_ci(_run_number: &str, build_release: u32) -> Self {
         let (repository_owner, repository_name) = detect_repository();
         
         // Use environment variables for copyright information if available
@@ -157,6 +163,77 @@ impl BuildInfo {
             executable_name,
         }
     }
+    
+    /// Factory function to create a new BuildInfo based on the environment
+    pub fn new() -> Self {
+        // Check if we're in a CI environment
+        if is_ci_environment() {
+            // CI environment detected
+            let build_release = {
+                if let Some(release) = option_env!("DOUGU_RELEASE") {
+                    release.parse::<u32>().unwrap_or(0)
+                } else if let Some(release) = option_env!("RELEASE") {
+                    release.parse::<u32>().unwrap_or(0)
+                } else if let Ok(release) = std::env::var("DOUGU_RELEASE") {
+                    release.parse::<u32>().unwrap_or(0)
+                } else if let Ok(release) = std::env::var("RELEASE") {
+                    release.parse::<u32>().unwrap_or(0)
+                } else {
+                    0
+                }
+            };
+
+            let run_number = if let Some(number) = option_env!("GITHUB_RUN_NUMBER") {
+                number.to_string()
+            } else if let Ok(number) = std::env::var("GITHUB_RUN_NUMBER") {
+                number
+            } else {
+                // Fallback for CI environments without run number
+                format!("ci-{}", Utc::now().format("%Y%m%dT%H%M%SZ"))
+            };
+
+            Self::new_ci(&run_number, build_release)
+        } else {
+            // If environment variables are set, use them to create a custom BuildInfo
+            if let (Some(release_str), Some(build_type), Some(timestamp)) = (
+                option_env!("DOUGU_RELEASE"),
+                option_env!("DOUGU_BUILD_TYPE"),
+                option_env!("DOUGU_BUILD_TIMESTAMP")
+            ) {
+                if let Ok(build_release) = release_str.parse::<u32>() {
+                    let (repository_owner, repository_name) = detect_repository();
+                    
+                    // Use environment variables for copyright information if available
+                    let copyright_owner = option_env!("DOUGU_COPYRIGHT_OWNER")
+                        .map(String::from)
+                        .unwrap_or_else(|| "Takayuki Okazaki".to_string());
+                    
+                    let copyright_year = option_env!("DOUGU_COPYRIGHT_YEAR")
+                        .and_then(|y| y.parse::<u32>().ok())
+                        .unwrap_or_else(|| Utc::now().year() as u32);
+                    
+                    let executable_name = option_env!("DOUGU_EXECUTABLE_NAME")
+                        .map(String::from)
+                        .unwrap_or_else(|| "dougu".to_string());
+                    
+                    return BuildInfo {
+                        build_release,
+                        build_type: build_type.to_string(),
+                        build_timestamp: timestamp.to_string(),
+                        repository_owner,
+                        repository_name,
+                        copyright_owner,
+                        copyright_year,
+                        copyright_start_year: 2025,
+                        executable_name,
+                    };
+                }
+            }
+            
+            // Default to local build
+            Self::new_local()
+        }
+    }
 }
 
 fn detect_repository() -> (String, String) {
@@ -195,69 +272,47 @@ fn is_ci_environment() -> bool {
 
 /// Get build information at runtime
 pub fn get_build_info() -> BuildInfo {
-    // Check if we're in a CI environment
-    if is_ci_environment() {
-        // CI environment detected
-        let build_release = {
-            if let Some(release) = option_env!("DOUGU_RELEASE") {
-                release.parse::<u32>().unwrap_or(0)
-            } else if let Some(release) = option_env!("RELEASE") {
-                release.parse::<u32>().unwrap_or(0)
-            } else if let Ok(release) = std::env::var("DOUGU_RELEASE") {
-                release.parse::<u32>().unwrap_or(0)
-            } else if let Ok(release) = std::env::var("RELEASE") {
-                release.parse::<u32>().unwrap_or(0)
-            } else {
-                0
-            }
-        };
+    BuildInfo::new()
+}
 
-        let run_number = if let Some(number) = option_env!("GITHUB_RUN_NUMBER") {
-            number.to_string()
-        } else if let Ok(number) = std::env::var("GITHUB_RUN_NUMBER") {
-            number
-        } else {
-            // Fallback for CI environments without run number
-            format!("ci-{}", Utc::now().format("%Y%m%dT%H%M%SZ"))
-        };
-
-        BuildInfo::new_ci(&run_number, build_release)
-    } else {
-        // If environment variables are set, use them
-        if let (Some(release_str), Some(build_type), Some(timestamp)) = (
-            option_env!("DOUGU_RELEASE"),
-            option_env!("DOUGU_BUILD_TYPE"),
-            option_env!("DOUGU_BUILD_TIMESTAMP")
-        ) {
-            if let Ok(build_release) = release_str.parse::<u32>() {
-                let (repository_owner, repository_name) = detect_repository();
-                
-                // Use environment variables for copyright information if available
-                let copyright_owner = option_env!("DOUGU_COPYRIGHT_OWNER")
-                    .map(String::from)
-                    .unwrap_or_else(|| "Takayuki Okazaki".to_string());
-                
-                let copyright_year = option_env!("DOUGU_COPYRIGHT_YEAR")
-                    .and_then(|y| y.parse::<u32>().ok())
-                    .unwrap_or_else(|| Utc::now().year() as u32);
-                
-                let executable_name = option_env!("DOUGU_EXECUTABLE_NAME")
-                    .map(String::from)
-                    .unwrap_or_else(|| "dougu".to_string());
-                
-                return BuildInfo {
-                    build_release,
-                    build_type: build_type.to_string(),
-                    build_timestamp: timestamp.to_string(),
-                    repository_owner,
-                    repository_name,
-                    copyright_owner,
-                    copyright_year,
-                    copyright_start_year: 2025,
-                    executable_name,
-                };
-            }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_semantic_version() {
+        // Create BuildInfo with test environment
+        let mut build_info = BuildInfo::new();
+        
+        // Force local mode for testing
+        build_info.build_type = "local".to_string();
+        
+        // Test local build
+        let semantic_version = build_info.semantic_version();
+        let parts: Vec<&str> = semantic_version.split('.').collect();
+        assert_eq!(parts[0], build_info.build_release.to_string());
+        assert_eq!(parts[1], "0"); // minor version for local builds
+        
+        // Test github build with run number environment variable
+        build_info.build_type = "github".to_string();
+        build_info.build_release = 7;
+        
+        // Mock environment - requires unsafe block since Rust 1.77
+        unsafe {
+            std::env::set_var("GITHUB_RUN_NUMBER", "42");
         }
-        BuildInfo::new_local()
+        
+        let ci_version = build_info.semantic_version();
+        let parts: Vec<&str> = ci_version.split('.').collect();
+        
+        // Should use build release as major
+        assert_eq!(parts[0], "7");
+        // Should use GitHub run number as patch
+        assert_eq!(parts[2], "42");
+        
+        // Clean up - requires unsafe block since Rust 1.77
+        unsafe {
+            std::env::remove_var("GITHUB_RUN_NUMBER");
+        }
     }
 } 

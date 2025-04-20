@@ -47,13 +47,13 @@ jobs:
             --ui-format jsonl
           
           # Read the artifact information from the plain text files
-          ARCHIVE_PATH=$(cat target/dist/artifact_path)
+          ARTIFACT_PATH=$(cat target/dist/artifact_path)
           ARTIFACT_NAME=$(cat target/dist/artifact_name)
           
-          echo "ARCHIVE_PATH: $ARCHIVE_PATH"
+          echo "ARTIFACT_PATH: $ARTIFACT_PATH"
           echo "ARTIFACT_NAME: $ARTIFACT_NAME"
           
-          echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
+          echo "artifact_path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
           echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
       
       # Upload artifact
@@ -61,4 +61,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.pack_artifact.outputs.artifact_name }}
-          path: ${{ steps.pack_artifact.outputs.archive_path }} 
+          path: target/dist/${{ steps.pack_artifact.outputs.artifact_path }} 

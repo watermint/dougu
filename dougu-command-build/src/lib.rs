@@ -395,7 +395,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     // Get build information
     let build_info = get_build_info();
     
-    // Get the semantic version from BuildInfo to match the version command
+    // Get the semantic version (now automatically handles CI environment)
     let package_version = build_info.semantic_version();
     
     // Determine platform
@@ -570,7 +570,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     
     dougu_essentials_log::log_info(resources::log_messages::PACK_COMPLETE);
     
-    // Write artifact information to plain text files
+    // Write artifact information to plain text files and standard location expected by CI
     let artifact_path_file = PathBuf::from(output_dir).join("artifact_path");
     let artifact_name_file = PathBuf::from(output_dir).join("artifact_name");
     
@@ -580,6 +580,18 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     
     fs::write(&artifact_path_file, &archive_filename_only)?;
     fs::write(&artifact_name_file, &artifact_name_str)?;
+    
+    // For GitHub Actions compatibility, also write the artifact to the expected location at the workspace root
+    if build_info.build_type == "github" {
+        if let Ok(workspace) = std::env::var("GITHUB_WORKSPACE") {
+            let github_root = PathBuf::from(workspace);
+            fs::copy(&archive_path, github_root.join(&archive_filename))?;
+            dougu_essentials_log::log_info(format!(
+                "Copied artifact to GitHub workspace root: {}",
+                github_root.join(&archive_filename).display()
+            ));
+        }
+    }
     
     dougu_essentials_log::log_info(format!(
         "Artifact information written to {} and {}. Artifact name: {}",
