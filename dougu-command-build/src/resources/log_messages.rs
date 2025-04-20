@@ -16,4 +16,4 @@ pub const PACK_COMPLETE: &str = "Artifact successfully packed";
 pub const EXECUTABLE_NOT_FOUND: &str = "No executable found in cargo output or input directory";
 pub const INVALID_EXECUTABLE_TYPE: &str = "Found a zip file instead of an executable. This would create a nested archive";
 pub const ADDING_EXECUTABLE_TO_ARCHIVE: &str = "Adding executable '{source}' to archive as '{target}'";
-pub const EXECUTABLE_NAME_MISSING_IN_BUILDINFO: &str = "Executable name is not defined in build information"; 
+pub const EXECUTABLE_NAME_MISSING_IN_BUILDINFO: &str = "Executable name is not defined in build information";

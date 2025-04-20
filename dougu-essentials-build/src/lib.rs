@@ -75,9 +75,9 @@ impl BuildInfo {
             
             format!("{}.{}.{}", self.build_release, minor, patch)
         } else {
-            // For non-CI builds, use days since 2020-01-01 as patch
+            // For non-CI builds, use days since 2025-01-01 as patch
             let patch = {
-                const EPOCH_YEAR: i32 = 2020;
+                const EPOCH_YEAR: i32 = 2025;
                 const EPOCH_MONTH: u32 = 1;
                 const EPOCH_DAY: u32 = 1;
                 
