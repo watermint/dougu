@@ -541,86 +541,75 @@ impl UIManager {
     }
     
     /// Create a title (H1) heading and print it
-    pub fn title(&self, text: &str) -> String {
+    pub fn title(&self, text: &str) {
         let output = self.formatter().title(text);
         println!("{}", output);
-        output
     }
     
     /// Create a subtitle (H2) heading and print it
-    pub fn subtitle(&self, text: &str) -> String {
+    pub fn subtitle(&self, text: &str) {
         let output = self.formatter().subtitle(text);
         println!("{}", output);
-        output
     }
     
     /// Create a heading with the specified level and print it
-    pub fn heading(&self, level: u8, text: &str) -> String {
+    pub fn heading(&self, level: u8, text: &str) {
         let output = self.formatter().heading(level, text);
         println!("{}", output);
-        output
     }
     
     /// Format and print plain text
-    pub fn text(&self, text: &str) -> String {
+    pub fn text(&self, text: &str) {
         let output = self.formatter().text(text);
         println!("{}", output);
-        output
     }
     
     /// Format and print a success message
-    pub fn success(&self, text: &str) -> String {
+    pub fn success(&self, text: &str) {
         let output = self.formatter().success(text);
         println!("{}", output);
-        output
     }
     
     /// Format and print an error message
-    pub fn error(&self, text: &str) -> String {
+    pub fn error(&self, text: &str) {
         let output = self.formatter().error(text);
         println!("{}", output);
-        output
     }
     
     /// Format and print an info message
-    pub fn info(&self, text: &str) -> String {
+    pub fn info(&self, text: &str) {
         let output = self.formatter().info(text);
         println!("{}", output);
-        output
     }
     
     /// Format and print a warning message
-    pub fn warning(&self, text: &str) -> String {
+    pub fn warning(&self, text: &str) {
         let output = self.formatter().warning(text);
         println!("{}", output);
-        output
     }
     
     /// Format text as a block/code block and print it
-    pub fn block(&self, text: &str) -> String {
+    pub fn block(&self, text: &str) {
         let output = self.formatter().block(text);
         println!("{}", output);
-        output
     }
     
     /// Format text as a code block with optional language and print it
-    pub fn code(&self, text: &str, language: Option<&str>) -> String {
+    pub fn code(&self, text: &str, language: Option<&str>) {
         let output = self.formatter().code(text, language);
         println!("{}", output);
-        output
     }
     
     /// Create a list with items and print it
-    pub fn list<T: Display>(&self, items: &[T], ordered: bool) -> String {
+    pub fn list<T: Display>(&self, items: &[T], ordered: bool) {
         // Convert items to strings first
         let string_items: Vec<String> = items.iter().map(|item| format!("{}", item)).collect();
         let output = self.formatter().list_string(&string_items, ordered);
         println!("{}", output);
-        output
     }
     
     /// Create a table from headers and rows and print it
-    pub fn table<T: Display>(&self, headers: &[&str], rows: &[Vec<T>]) -> String {
+    pub fn table<T: Display>(&self, headers: &[&str], rows: &[Vec<T>]) {
         // Convert rows to strings first
         let string_rows: Vec<Vec<String>> = rows
             .iter()
@@ -629,14 +618,12 @@ impl UIManager {
         
         let output = self.formatter().table_string(headers, &string_rows);
         println!("{}", output);
-        output
     }
     
     /// Print a horizontal rule
-    pub fn hr(&self) -> String {
+    pub fn hr(&self) {
         let output = self.formatter().hr();
         println!("{}", output);
-        output
     }
     
     /// Print a line break (just a newline)
@@ -667,15 +654,95 @@ impl UIManager {
     }
     
     /// Format and print a key-value list
-    pub fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
+    pub fn key_value_list(&self, pairs: &[(&str, &str)]) {
         let output = self.formatter().key_value_list(pairs);
         println!("{}", output);
-        output
     }
     
     /// Wrap text to the configured width
     pub fn wrap_text(&self, text: &str) -> String {
         wrap(text, self.theme.wrapped_width).join("\n")
+    }
+}
+
+/// Add formatter methods that just return formatted strings without printing
+impl UIManager {
+    /// Format text as a title (H1) heading without printing
+    fn format_title(&self, text: &str) -> String {
+        self.formatter().title(text)
+    }
+    
+    /// Format text as a subtitle (H2) heading without printing
+    fn format_subtitle(&self, text: &str) -> String {
+        self.formatter().subtitle(text)
+    }
+    
+    /// Format text as a heading with specified level without printing
+    fn format_heading(&self, level: u8, text: &str) -> String {
+        self.formatter().heading(level, text)
+    }
+    
+    /// Format plain text without printing
+    fn format_text(&self, text: &str) -> String {
+        self.formatter().text(text)
+    }
+    
+    /// Format a success message without printing
+    fn format_success(&self, text: &str) -> String {
+        self.formatter().success(text)
+    }
+    
+    /// Format an error message without printing
+    fn format_error(&self, text: &str) -> String {
+        self.formatter().error(text)
+    }
+    
+    /// Format an info message without printing
+    fn format_info(&self, text: &str) -> String {
+        self.formatter().info(text)
+    }
+    
+    /// Format a warning message without printing
+    fn format_warning(&self, text: &str) -> String {
+        self.formatter().warning(text)
+    }
+    
+    /// Format text as a block without printing
+    fn format_block(&self, text: &str) -> String {
+        self.formatter().block(text)
+    }
+    
+    /// Format text as a code block with optional language without printing
+    fn format_code(&self, text: &str, language: Option<&str>) -> String {
+        self.formatter().code(text, language)
+    }
+    
+    /// Create a list with items without printing
+    fn format_list<T: Display>(&self, items: &[T], ordered: bool) -> String {
+        // Convert items to strings first
+        let string_items: Vec<String> = items.iter().map(|item| format!("{}", item)).collect();
+        self.formatter().list_string(&string_items, ordered)
+    }
+    
+    /// Create a table from headers and rows without printing
+    fn format_table<T: Display>(&self, headers: &[&str], rows: &[Vec<T>]) -> String {
+        // Convert rows to strings first
+        let string_rows: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| row.iter().map(|cell| format!("{}", cell)).collect())
+            .collect();
+        
+        self.formatter().table_string(headers, &string_rows)
+    }
+    
+    /// Format a horizontal rule without printing
+    fn format_hr(&self) -> String {
+        self.formatter().hr()
+    }
+    
+    /// Format a key-value list without printing
+    fn format_key_value_list(&self, pairs: &[(&str, &str)]) -> String {
+        self.formatter().key_value_list(pairs)
     }
 }
 
@@ -791,22 +858,41 @@ pub fn format_commandlet_result<T: Serialize>(ui: &UIManager, result: &T) -> Str
 }
 
 /// Common UI helper for displaying a success message with details
-pub fn format_success(ui: &UIManager, message: &str, details: Option<&str>) -> String {
-    let mut output = vec![ui.success(message)];
+pub fn display_success(ui: &UIManager, message: &str, details: Option<&str>) {
+    ui.success(message);
     
     if let Some(detail_text) = details {
-        output.push(ui.block(detail_text));
+        ui.block(detail_text);
+    }
+}
+
+/// Common UI helper for displaying an error message with details
+pub fn display_error(ui: &UIManager, message: &str, details: Option<&str>) {
+    ui.error(message);
+    
+    if let Some(detail_text) = details {
+        ui.block(detail_text);
+    }
+}
+
+// Keep the old format functions for compatibility, but mark them as deprecated
+#[deprecated(since = "1.1.0", note = "Use display_success instead")]
+pub fn format_success(ui: &UIManager, message: &str, details: Option<&str>) -> String {
+    let mut output = vec![ui.format_success(message)];
+    
+    if let Some(detail_text) = details {
+        output.push(ui.format_block(detail_text));
     }
     
     output.join("\n")
 }
 
-/// Common UI helper for displaying an error message with details
+#[deprecated(since = "1.1.0", note = "Use display_error instead")]
 pub fn format_error(ui: &UIManager, message: &str, details: Option<&str>) -> String {
-    let mut output = vec![ui.error(message)];
+    let mut output = vec![ui.format_error(message)];
     
     if let Some(detail_text) = details {
-        output.push(ui.block(detail_text));
+        output.push(ui.format_block(detail_text));
     }
     
     output.join("\n")

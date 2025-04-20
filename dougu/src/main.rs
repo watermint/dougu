@@ -15,7 +15,7 @@ use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::OutputFormat;
 use dougu_foundation_ui::resources::ui_messages;
-use dougu_command_root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer};
+use dougu_command_root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer, LicenseCommandLayer};
 
 // Keep the i18n module for potential future use
 mod i18n;
@@ -62,6 +62,9 @@ enum Commands {
     
     /// Display help information
     Help(HelpArgs),
+    
+    /// Display license information
+    License,
 }
 
 #[derive(Parser, Serialize, Deserialize)]
@@ -123,12 +126,9 @@ impl LauncherLayer for FileCommandletLayer {
             let result = runner.run(&args_with_locale).await
                 .map_err(|e| format!("File command execution failed: {}", e))?;
             
-            // Handle output based on format
-            let formatted_result = runner.format_results(&result)
+            // Format results using CommandRunner
+            runner.format_results(&result)
                 .map_err(|e| format!("Failed to format results: {}", e))?;
-            
-            // Print the formatted result
-            ctx.ui.text(&formatted_result);
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
         }
@@ -359,18 +359,9 @@ impl LauncherLayer for BuildCommandLayer {
                     let result = dougu_command_build::execute_pack(pack_args, &ctx.ui).await
                         .map_err(|e| format!("Build pack failed: {}", e))?;
                     
-                    // Print the result directly - it's already formatted by the execute_pack function
-                    match ctx.ui.format() {
-                        OutputFormat::JsonLines => {
-                            // For JSON, just print the raw result without any additional formatting
-                            ctx.ui.text(&result);
-                        },
-                        _ => {
-                            // For other formats, show success message and the result
-                            ctx.ui.success("Archive created successfully");
-                            ctx.ui.text(&result);
-                        }
-                    }
+                    // Format results using CommandRunner
+                    runner.format_results(&result)
+                        .map_err(|e| format!("Failed to format results: {}", e))?;
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
                 }
@@ -389,7 +380,9 @@ impl LauncherLayer for BuildCommandLayer {
                     let result = dougu_command_build::execute_spec(spec_args, &ctx.ui).await
                         .map_err(|e| format!("Build spec failed: {}", e))?;
                     
-                    ctx.ui.text(&result);
+                    // Format results using CommandRunner
+                    runner.format_results(&result)
+                        .map_err(|e| format!("Failed to format results: {}", e))?;
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Spec"));
                 }
@@ -420,10 +413,9 @@ impl LauncherLayer for VersionCommandLayer {
         let result = runner.run(&serialized_params).await
             .map_err(|e| format!("Version command execution failed: {}", e))?;
         
-        // Format and print the result
-        let formatted_result = runner.format_results(&result)
+        // Format results using CommandRunner
+        runner.format_results(&result)
             .map_err(|e| format!("Failed to format version results: {}", e))?;
-        ctx.ui.text(&formatted_result);
         
         Ok(())
     }
@@ -494,6 +486,7 @@ async fn main() -> Result<()> {
         Commands::Build(_) => "Build",
         Commands::Version => "Version",
         Commands::Help(_) => "Help",
+        Commands::License => "License",
     };
     
     let mut context = LauncherContext::with_ui_format(
@@ -558,6 +551,9 @@ async fn main() -> Result<()> {
                 context.set_data("help_command", cmd.clone());
             }
             launcher.add_layer(HelpCommandLayer);
+        }
+        Commands::License => {
+            launcher.add_layer(LicenseCommandLayer);
         }
     }
     

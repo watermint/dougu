@@ -1,6 +1,7 @@
 use dougu_foundation_ui::{UIManager, OutputFormat};
 use dougu_essentials_build::get_build_info;
 use serde::{Serialize, Deserialize};
+use crate::resources::copyright::{COPYRIGHT_SINGLE_YEAR_FORMAT, COPYRIGHT_YEAR_RANGE_FORMAT, LICENSE_TEXT};
 
 /// Application info for JSON serialization
 #[derive(Serialize, Deserialize)]
@@ -37,20 +38,15 @@ pub fn display_app_info(ui: &UIManager, _verbose: bool) {
     // Format the copyright information using the start and current year
     // If start year equals current year, show only one year
     let copyright = if build_info.copyright_start_year == build_info.copyright_year {
-        format!("© {} {}", 
-            build_info.copyright_year, 
-            build_info.copyright_owner
-        )
+        COPYRIGHT_SINGLE_YEAR_FORMAT
+            .replace("{year}", &build_info.copyright_year.to_string())
+            .replace("{owner}", &build_info.copyright_owner)
     } else {
-        format!("© {}-{} {}", 
-            build_info.copyright_start_year,
-            build_info.copyright_year, 
-            build_info.copyright_owner
-        )
+        COPYRIGHT_YEAR_RANGE_FORMAT
+            .replace("{start_year}", &build_info.copyright_start_year.to_string())
+            .replace("{end_year}", &build_info.copyright_year.to_string())
+            .replace("{owner}", &build_info.copyright_owner)
     };
-    
-    // License information
-    let license = "Licensed under open source licenses. Use the `license` command for more detail.";
     
     // Check if we should output in JSON format
     if ui.format() == OutputFormat::JsonLines {
@@ -59,7 +55,7 @@ pub fn display_app_info(ui: &UIManager, _verbose: bool) {
             app_name: build_info.executable_name.clone(),
             version: build_info.semantic_version(),
             copyright: copyright.clone(),
-            license: license.to_string(),
+            license: LICENSE_TEXT.to_string(),
             banner_type: "app_info".to_string()
         };
         
@@ -73,7 +69,7 @@ pub fn display_app_info(ui: &UIManager, _verbose: bool) {
         ui.text(&separator);
         ui.line_break(); // Empty line for spacing
         ui.text(&copyright);
-        ui.text(license);
+        ui.text(LICENSE_TEXT);
         ui.line_break(); // Add break line after the app info
     }
 } 

@@ -293,7 +293,24 @@ impl<C: Commandlet> CommandRunner<C> {
     }
     
     /// Format the serialized results for display
-    pub fn format_results(&self, serialized_results: &str) -> Result<String, CommandletError> {
+    pub fn format_results(&self, serialized_results: &str) -> Result<(), CommandletError> {
+        // Parse the serialized JSON to any value
+        let parsed_value: serde_json::Value = serde_json::from_str(serialized_results)
+            .map_err(|e| CommandletError::with_details(
+                "RESULT_PARSE_ERROR", 
+                "Failed to parse results for formatting", 
+                &e.to_string()
+            ))?;
+        
+        let formatted = format_commandlet_result(&self.ui, &parsed_value);
+        self.ui.text(&formatted);
+        
+        Ok(())
+    }
+    
+    /// Format the serialized results to a string (without displaying)
+    #[deprecated(since = "1.1.0", note = "Use format_results instead")]
+    pub fn format_results_to_string(&self, serialized_results: &str) -> Result<String, CommandletError> {
         // Parse the serialized JSON to any value
         let parsed_value: serde_json::Value = serde_json::from_str(serialized_results)
             .map_err(|e| CommandletError::with_details(

@@ -29,7 +29,6 @@ impl Commandlet for HelpCommandlet {
     }
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
-        // Generate help content based on the command
         let content = match params.command.as_deref() {
             Some("file") => t(HELP_COMMAND_FILE),
             Some("dropbox") => t(HELP_COMMAND_DROPBOX),
@@ -37,11 +36,12 @@ impl Commandlet for HelpCommandlet {
             Some("build") => t(HELP_COMMAND_BUILD),
             Some("version") => t(HELP_COMMAND_VERSION),
             Some("help") => t(HELP_COMMAND_HELP),
+            Some("license") => t(HELP_COMMAND_LICENSE),
             Some(cmd) => return Err(CommandletError::new(
                 "UNKNOWN_COMMAND", 
                 &format!("Unknown command: {}", cmd)
             )),
-            None => t(HELP_GENERAL),
+            None => t(HELP_GENERAL)
         };
         
         Ok(HelpResults { content })

@@ -64,16 +64,16 @@ impl Commandlet for VersionCommandlet {
     }
 }
 
-// Custom formatter for version results
-pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Result<String, CommandletError> {
-    // Create a formatted version output
-    let mut output = ui.heading(1, &t(VERSION_HEADING));
-    output.push_str("\n\n");
+// Display version results directly with UI methods
+pub fn display_version_results(ui: &UIManager, results: &VersionResults) -> Result<(), CommandletError> {
+    // Display version heading
+    ui.heading(1, &t(VERSION_HEADING));
+    ui.line_break();
     
     // Create a table with properties and values
     let mut table_data = Vec::<Vec<String>>::new();
     
-    // Create all the strings we need to avoid temporary value issues
+    // Create all the strings we need
     let prop_build_release = t(VERSION_PROPERTY_BUILD_RELEASE);
     let prop_build_timestamp = t(VERSION_PROPERTY_BUILD_TIMESTAMP);
     let prop_build_type = t(VERSION_PROPERTY_BUILD_TYPE);
@@ -126,16 +126,11 @@ pub fn format_version_results(ui: &UIManager, results: &VersionResults) -> Resul
         results.version.clone()
     ]);
     
-    // Convert table data to the format expected by ui.table
-    let str_table_data: Vec<Vec<&str>> = table_data.iter()
-        .map(|row| row.iter().map(|s| s.as_str()).collect())
-        .collect();
-    
-    // Add the table to the output
+    // Display the table
     let headers = &[prop_header.as_str(), value_header.as_str()];
-    output.push_str(&ui.table(headers, &str_table_data));
+    ui.table(headers, &table_data);
     
-    Ok(output)
+    Ok(())
 }
 
 // Version command layer for the launcher
@@ -165,12 +160,13 @@ impl LauncherLayer for VersionCommandLayer {
         let result = runner.run(&serialized_params).await
             .map_err(|e| format!("{}: {}", t(VERSION_ERROR_EXECUTION), e))?;
         
-        // Format the results using the runner
-        let formatted_result = runner.format_results(&result)
-            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_FORMAT), e))?;
+        // Parse the results
+        let version_results: VersionResults = serde_json::from_str(&result)
+            .map_err(|e| format!("Failed to parse version results: {}", e))?;
         
-        // Display the formatted result
-        ctx.ui.text(&formatted_result);
+        // Display the results directly
+        display_version_results(&ctx.ui, &version_results)
+            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_FORMAT), e))?;
         
         Ok(())
     }

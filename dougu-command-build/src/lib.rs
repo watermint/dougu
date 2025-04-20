@@ -265,7 +265,23 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
 
 /// Execute the test command
 pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) -> Result<()> {
-    dougu_essentials_logger::log_info(resources::log_messages::RUNNING_TESTS);
+    // Determine test type based on args
+    let test_type = if args.unit && !args.integration {
+        "lib"
+    } else if args.integration && !args.unit {
+        "tests"
+    } else {
+        "all"
+    };
+    
+    dougu_essentials_logger::log_info(resources::log_messages::RUNNING_TESTS
+        .replace("{type}", test_type));
+    
+    // If filter is specified, log it
+    if let Some(filter) = &args.filter {
+        dougu_essentials_logger::log_info(resources::log_messages::TEST_FILTER
+            .replace("{filter}", filter));
+    }
     
     // Build cargo command
     let mut cmd = Command::new("cargo");
@@ -275,20 +291,20 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
         cmd.arg("--release");
     }
     
-    // Apply test filter if specified
-    if let Some(filter) = &args.filter {
-        cmd.arg(filter);
-    }
-    
-    // Unit or integration tests
-    match (args.unit, args.integration) {
-        (true, false) => {
+    // Set test type
+    match test_type {
+        "lib" => {
             cmd.arg("--lib");
         },
-        (false, true) => {
-            cmd.arg("--test=*");
+        "tests" => {
+            cmd.arg("--tests");
         },
-        _ => {}, // Run all tests
+        _ => {} // No flags needed for "all"
+    }
+    
+    // Add filter if specified
+    if let Some(filter) = &args.filter {
+        cmd.arg(filter);
     }
     
     // Execute cargo test command
@@ -300,10 +316,8 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
     }
     
     if !output.stderr.is_empty() {
-        // For stderr, we still want to use the error stream
-        // but format it using UI manager
-        let error_text = ui.error(&String::from_utf8_lossy(&output.stderr));
-        eprintln!("{}", error_text);
+        // For stderr, we display it directly using the UI manager's error method
+        ui.error(&String::from_utf8_lossy(&output.stderr));
     }
     
     if !output.status.success() {
@@ -349,10 +363,8 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     }
     
     if !output.stderr.is_empty() {
-        // For stderr, we still want to use the error stream
-        // but format it using UI manager
-        let error_text = ui.error(&String::from_utf8_lossy(&output.stderr));
-        eprintln!("{}", error_text);
+        // For stderr, we display it directly using the UI manager's error method
+        ui.error(&String::from_utf8_lossy(&output.stderr));
     }
     
     if !output.status.success() {

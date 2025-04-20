@@ -82,7 +82,7 @@
   "HELP_GENERAL": {
     "source": "Dougu CLI Help\n\nAvailable Commands:\n  file      - File operations\n  dropbox   - Dropbox operations\n  obj       - Object notation operations\n  build     - Build operations\n  version   - Show version information\n  help      - Display help information\n\nUse 'dougu help <command>' for help on a specific command.",
     "context": "General help text",
-    "text": "Dougu CLI Help\n\nAvailable Commands:\n  file      - File operations\n  dropbox   - Dropbox operations\n  obj       - Object notation operations\n  build     - Build operations\n  version   - Show version information\n  help      - Display help information\n\nUse 'dougu help <command>' for help on a specific command."
+    "text": "Dougu CLI Help\n\nAvailable Commands:\n  file      - File operations\n  dropbox   - Dropbox operations\n  obj       - Object notation operations\n  build     - Build operations\n  version   - Show version information\n  license   - Display license information\n  help      - Display help information\n\nUse 'dougu help <command>' for help on a specific command."
   },
   "HELP_COMMAND_FILE": {
     "source": "File Command Help\n\nPerforms operations on files in the local filesystem.\n\nSubcommands:\n  copy   - Copy a file from source to destination\n  move   - Move a file from source to destination\n  list   - List files in a directory",
@@ -113,5 +113,35 @@
     "source": "Help Command Help\n\nDisplays help information for Dougu CLI commands.\n\nUsage: dougu help [command]\n\nIf no command is specified, displays general help.",
     "context": "Help text for help command",
     "text": "Help Command Help\n\nDisplays help information for Dougu CLI commands.\n\nUsage: dougu help [command]\n\nIf no command is specified, displays general help."
+  },
+  "LICENSE_HEADING": {
+    "source": "Dougu License Information",
+    "context": "Title for license command output",
+    "text": "Dougu License Information"
+  },
+  "LICENSE_TEXT": {
+    "source": "Copyright © {start_year}-{current_year} {copyright_owner}\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\nhttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.",
+    "context": "Full text of the Apache 2.0 license",
+    "text": "Copyright © {start_year}-{current_year} {copyright_owner}\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\nhttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License."
+  },
+  "LICENSE_ERROR_SERIALIZE": {
+    "source": "Failed to serialize license params",
+    "context": "Error message",
+    "text": "Failed to serialize license params"
+  },
+  "LICENSE_ERROR_EXECUTION": {
+    "source": "License command execution failed",
+    "context": "Error message",
+    "text": "License command execution failed"
+  },
+  "LICENSE_ERROR_FORMAT": {
+    "source": "Failed to format license results",
+    "context": "Error message",
+    "text": "Failed to format license results"
+  },
+  "HELP_COMMAND_LICENSE": {
+    "source": "License Command Help\n\nDisplays license information for the Dougu CLI application.",
+    "context": "Help text for license command",
+    "text": "License Command Help\n\nDisplays license information for the Dougu CLI application."
   }
 } 
