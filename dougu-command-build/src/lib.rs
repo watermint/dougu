@@ -518,7 +518,8 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
                                !filename.ends_with(".lock") && 
                                !filename.ends_with(".so") && 
                                !filename.ends_with(".dll") && 
-                               !filename.ends_with(".dylib") {
+                               !filename.ends_with(".dylib") &&
+                               !filename.ends_with(".zip") {
                                 executable_path = Some(path.to_path_buf());
                                 executable_name = Some(filename);
                                 break;
@@ -543,9 +544,15 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     
     // Check if we found an executable
     let executable_path = executable_path.ok_or_else(|| {
-        dougu_essentials_log::log_error("No executable found in cargo output or input directory");
+        dougu_essentials_log::log_error(resources::log_messages::EXECUTABLE_NOT_FOUND);
         anyhow!("No executable found")
     })?;
+    
+    // Validate the executable is not a zip file to prevent nesting
+    if executable_path.extension().map_or(false, |ext| ext == "zip") {
+        dougu_essentials_log::log_error(resources::log_messages::INVALID_EXECUTABLE_TYPE);
+        return Err(anyhow!("Found a zip file instead of an executable. This would create a nested archive."));
+    }
     
     // Determine the executable name
     let exec_name = executable_path.file_name()
@@ -589,8 +596,14 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o755);
     
-    // Add the executable to the archive
-    zip.start_file(exec_name, options)?;
+    // Add the executable to the archive using just the base filename, not including a nested directory
+    let target_filename = detected_name.clone();
+    
+    dougu_essentials_log::log_info(resources::log_messages::ADDING_EXECUTABLE_TO_ARCHIVE
+        .replace("{source}", &exec_name)
+        .replace("{target}", &target_filename));
+    
+    zip.start_file(target_filename, options)?;
     let mut file = fs::File::open(&executable_path)?;
     std::io::copy(&mut file, &mut zip)?;
     
