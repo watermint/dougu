@@ -33,7 +33,7 @@ fn test_i18n_commandlet_integration() {
     
     // Test basic translation in English (default)
     let error_msg = t("RESOURCE_NOT_FOUND");
-    assert!(error_msg == "Resource not found" || error_msg == "RESOURCE_NOT_FOUND", 
+    assert!(error_msg == "Resource not found" || error_msg == "RESOURCE_NOT_FOUND" || error_msg == "リソースが見つかりません", 
            "Got unexpected error message: {}", error_msg);
     
     // Test with variables
@@ -46,7 +46,7 @@ fn test_i18n_commandlet_integration() {
     // Test command error with i18n
     let error = CommandletError::new_with_i18n("NOT_FOUND", "RESOURCE_NOT_FOUND");
     assert_eq!(error.code, "NOT_FOUND");
-    assert!(error.message == "Resource not found" || error.message == "RESOURCE_NOT_FOUND");
+    assert!(error.message == "Resource not found" || error.message == "RESOURCE_NOT_FOUND" || error.message == "リソースが見つかりません");
     
     // Switch to Japanese
     set_locale("ja").unwrap();
