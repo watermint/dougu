@@ -28,23 +28,23 @@ jobs:
         id: build
         shell: bash
         run: |
-          # Build the project and capture the JSON output
+          # Build the project
           cargo build --workspace --all-targets --message-format=json > build_output.json
           
-          echo "build_output.json:"
-          echo "--------------------------------"
-          cat build_output.json
-          echo "--------------------------------"
-          echo "end of build_output.json"
-          
-          # Use obj extract command with --raw flag to get the raw value directly
-          EXECUTABLE=$(cat build_output.json | ./target/debug/dougu --ui-skip-appinfo obj extract --format jsonl --raw - 'select(.reason == "compiler-artifact" and .target.src_path | endswith("/main.rs")) | .executable')
+          # Find executable path using the dougu tool
+          # The cargo output is JSON lines format
+          EXECUTABLE=$(./target/debug/dougu --ui-skip-appinfo obj extract \
+            --format json-stream \
+            --raw \
+            -f build_output.json \
+            'select(.reason == "compiler-artifact" and .target.kind | contains(["bin"]) and .target.src_path | endswith("/main.rs") and .executable != null) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found matching main.rs. Aborting." >&2
             exit 1
           fi
           
+          echo "Found executable: $EXECUTABLE"
           echo "executable=$EXECUTABLE" >> $GITHUB_OUTPUT
           echo "app_name=dougu" >> $GITHUB_OUTPUT
       
@@ -60,18 +60,20 @@ jobs:
             --output-dir target/dist \
             --ui-format jsonl)
           
-          # Debug output
-          echo "PACK_OUTPUT: $PACK_OUTPUT"
+          # Extract values using proper format (single JSON object)
+          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu --ui-skip-appinfo obj extract \
+            --format json \
+            --raw \
+            - '.path')
           
-          # Extract raw values directly using --raw flag
-          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu --ui-skip-appinfo obj extract --format jsonl --raw - '.path')
-          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu --ui-skip-appinfo obj extract --format jsonl --raw - '.name')
+          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu --ui-skip-appinfo obj extract \
+            --format json \
+            --raw \
+            - '.name')
           
-          # Debug output for extracted values
           echo "ARCHIVE_PATH: $ARCHIVE_PATH"
           echo "ARTIFACT_NAME: $ARTIFACT_NAME"
           
-          # Save information for use in upload step
           echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
           echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
       
