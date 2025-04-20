@@ -88,16 +88,22 @@ impl Decoder {
             },
             
             Format::Jsonl => {
-                // JSONL format expects T to be a collection type
-                // This implementation assumes the first valid line is the object to deserialize
                 let s = std::str::from_utf8(input)
                     .with_context(|| ERROR_DECODE_FAILED)?;
-                if let Some(line) = s.lines().next() {
-                    serde_json::from_str(line)
-                        .with_context(|| ERROR_DECODE_FAILED)
-                } else {
-                    Err(anyhow!(ERROR_DECODE_FAILED))
-                }
+                
+                let values: Vec<Value> = s
+                    .lines()
+                    .filter(|line| !line.trim().is_empty())
+                    .map(|line| serde_json::from_str(line))
+                    .collect::<Result<Vec<Value>, _>>()
+                    .with_context(|| ERROR_DECODE_FAILED)?;
+                
+                // Convert the Vec<Value> into a single Value::Array
+                let jsonl_array = Value::Array(values);
+                
+                // Attempt to deserialize the Value::Array into the target type T
+                serde_json::from_value(jsonl_array)
+                    .with_context(|| format!("Failed to deserialize JSONL array into target type: {}", std::any::type_name::<T>()))
             },
         }
     }
@@ -111,25 +117,6 @@ impl Decoder {
 
     pub fn decode_to_value(input: &[u8], format: Format) -> Result<Value> {
         Self::decode(input, format)
-    }
-    
-    pub fn decode_jsonl_all<T>(input: &[u8]) -> Result<Vec<T>>
-    where
-        T: DeserializeOwned,
-    {
-        let s = std::str::from_utf8(input)
-            .with_context(|| ERROR_DECODE_FAILED)?;
-            
-        let mut results = Vec::new();
-        for line in s.lines() {
-            if !line.trim().is_empty() {
-                let item: T = serde_json::from_str(line)
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                results.push(item);
-            }
-        }
-        
-        Ok(results)
     }
 }
 
@@ -307,7 +294,7 @@ mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
     struct TestData {
         name: String,
         value: i32,
@@ -372,10 +359,11 @@ mod tests {
             value: 42,
         };
         
-        let jsonl = Encoder::encode(&data, Format::Jsonl).unwrap();
-        let decoded: TestData = Decoder::decode(&jsonl, Format::Jsonl).unwrap();
+        let jsonl = Encoder::encode_jsonl_all(&[data.clone()]).unwrap();
+        let decoded: Vec<TestData> = Decoder::decode(&jsonl, Format::Jsonl).unwrap();
         
-        assert_eq!(data, decoded);
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0], data);
     }
     
     #[test]
@@ -383,13 +371,16 @@ mod tests {
         let data = vec![
             TestData { name: "test1".to_string(), value: 1 },
             TestData { name: "test2".to_string(), value: 2 },
-            TestData { name: "test3".to_string(), value: 3 },
         ];
         
         let jsonl = Encoder::encode_jsonl_all(&data).unwrap();
-        let decoded: Vec<TestData> = Decoder::decode_jsonl_all(&jsonl).unwrap();
+        let decoded: Vec<TestData> = Decoder::decode(&jsonl, Format::Jsonl).unwrap();
         
-        assert_eq!(data, decoded);
+        assert_eq!(decoded.len(), 2);
+        assert_eq!(decoded[0].name, "test1");
+        assert_eq!(decoded[0].value, 1);
+        assert_eq!(decoded[1].name, "test2");
+        assert_eq!(decoded[1].value, 2);
     }
 }
 
