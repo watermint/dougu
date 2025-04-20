@@ -1,7 +1,7 @@
 pub mod resources;
 
 use colored::Colorize;
-use log::{debug, trace};
+use log::{debug, trace, info};
 use prettytable::{Table, Row, Cell, format};
 use resources::ui_messages;
 use serde::Serialize;

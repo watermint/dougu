@@ -122,7 +122,7 @@ impl LauncherLayer for BuildCommandLayer {
                     let result = execute_spec(spec_args, &ctx.ui).await
                         .map_err(|e| format!("Build spec failed: {}", e))?;
                     
-                    println!("{}", result);
+                    ctx.ui.print(&result);
                 }
             }
         }

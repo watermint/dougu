@@ -30,13 +30,13 @@ impl LauncherLayer for FileCommandLayer {
         
         // Parse and display the result
         if let Ok(result) = serde_json::from_str::<FileCommandResult>(&command_result) {
-            println!("{}", result.message);
+            ctx.ui.print(&result.message);
             if let Some(details) = result.details {
-                println!("\n{}", details);
+                ctx.ui.print(&format!("\n{}", details));
             }
         } else {
             // It's probably an error message
-            println!("{}", command_result);
+            ctx.ui.print(&command_result);
         }
         
         Ok(())

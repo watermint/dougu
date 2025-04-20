@@ -105,8 +105,14 @@ impl ObjCommand {
         })();
         if json_mode {
             match result {
-                Ok(val) => println!("{}", serde_json::to_string_pretty(&val).unwrap()),
-                Err(e) => println!("{}", serde_json::json!({"error": e.to_string()})),
+                Ok(val) => {
+                    let json_string = serde_json::to_string_pretty(&val).unwrap();
+                    ui.print(&json_string);
+                },
+                Err(e) => {
+                    let error_json = serde_json::json!({"error": e.to_string()}).to_string();
+                    ui.print(&error_json);
+                },
             }
         } else {
             match result {
@@ -150,8 +156,14 @@ impl ObjCommand {
         })();
         if json_mode {
             match result {
-                Ok(val) => println!("{}", serde_json::to_string_pretty(&val).unwrap()),
-                Err(e) => println!("{}", serde_json::json!({"error": e.to_string()})),
+                Ok(val) => {
+                    let json_string = serde_json::to_string_pretty(&val).unwrap();
+                    ui.print(&json_string);
+                },
+                Err(e) => {
+                    let error_json = serde_json::json!({"error": e.to_string()}).to_string();
+                    ui.print(&error_json);
+                },
             }
         } else {
             match result {

@@ -175,7 +175,7 @@ impl LauncherLayer for VersionCommandLayer {
             command_result
         };
         
-        println!("{}", formatted_result);
+        ctx.ui.print(&formatted_result);
         
         Ok(())
     }

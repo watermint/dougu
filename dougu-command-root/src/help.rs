@@ -77,10 +77,10 @@ impl LauncherLayer for HelpCommandLayer {
         
         // Parse and print the result
         if let Ok(results) = serde_json::from_str::<HelpResults>(&command_result) {
-            println!("{}", results.content);
+            ctx.ui.print(&results.content);
         } else {
             // It's probably an error message
-            println!("{}", command_result);
+            ctx.ui.print(&command_result);
         }
         
         Ok(())

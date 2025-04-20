@@ -123,7 +123,7 @@ impl LauncherLayer for FileCommandletLayer {
                 .map_err(|e| format!("Failed to format results: {}", e))?;
             
             // Print the formatted result
-            println!("{}", formatted_result);
+            ctx.ui.print(&formatted_result);
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
         }
@@ -358,7 +358,7 @@ impl LauncherLayer for BuildCommandLayer {
                     match ctx.ui.format() {
                         OutputFormat::JsonLines => {
                             // For JSON, just print the raw result without any additional formatting
-                            println!("{}", result);
+                            ctx.ui.print(&result);
                         },
                         _ => {
                             // For other formats, show success message and the result
@@ -384,7 +384,7 @@ impl LauncherLayer for BuildCommandLayer {
                     let result = dougu_command_build::execute_spec(spec_args, &ctx.ui).await
                         .map_err(|e| format!("Build spec failed: {}", e))?;
                     
-                    println!("{}", result);
+                    ctx.ui.print(&result);
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Spec"));
                 }
@@ -418,7 +418,7 @@ impl LauncherLayer for VersionCommandLayer {
         // Format and print the result
         let formatted_result = runner.format_results(&result)
             .map_err(|e| format!("Failed to format version results: {}", e))?;
-        println!("{}", formatted_result);
+        ctx.ui.print(&formatted_result);
         
         Ok(())
     }
