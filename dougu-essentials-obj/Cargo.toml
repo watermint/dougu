@@ -17,6 +17,8 @@ jaq-parse = { workspace = true }
 jaq-interpret = { workspace = true }
 jaq-syn = { workspace = true }
 hex = { workspace = true }
+serde_yaml = "0.9.34"
+toml = "0.8.20"
 
 [features]
 examples = []

@@ -5,6 +5,8 @@ use jaq_parse::parse;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::io::Cursor;
+use serde_yaml;
+use toml;
 
 mod resources;
 use resources::errors::*;
@@ -16,6 +18,8 @@ pub enum Format {
     Bson,
     Cbor,
     Xml,
+    Yaml,
+    Toml,
 }
 
 impl Format {
@@ -25,6 +29,8 @@ impl Format {
             FORMAT_BSON => Ok(Format::Bson),
             FORMAT_CBOR => Ok(Format::Cbor),
             FORMAT_XML => Ok(Format::Xml),
+            FORMAT_YAML => Ok(Format::Yaml),
+            FORMAT_TOML => Ok(Format::Toml),
             _ => Err(anyhow!(ERROR_UNSUPPORTED_FORMAT)),
         }
     }
@@ -35,6 +41,8 @@ impl Format {
             Format::Bson => FORMAT_BSON,
             Format::Cbor => FORMAT_CBOR,
             Format::Xml => FORMAT_XML,
+            Format::Yaml => FORMAT_YAML,
+            Format::Toml => FORMAT_TOML,
         }
     }
 }
@@ -61,6 +69,18 @@ impl Decoder {
             
             Format::Xml => {
                 quick_xml::de::from_reader(input)
+                    .with_context(|| ERROR_DECODE_FAILED)
+            },
+
+            Format::Yaml => {
+                serde_yaml::from_slice(input)
+                    .with_context(|| ERROR_DECODE_FAILED)
+            },
+
+            Format::Toml => {
+                let s = std::str::from_utf8(input)
+                    .with_context(|| ERROR_DECODE_FAILED)?;
+                toml::from_str(s)
                     .with_context(|| ERROR_DECODE_FAILED)
             },
         }
@@ -111,6 +131,18 @@ impl Encoder {
                     .with_context(|| ERROR_ENCODE_FAILED)?;
                 Ok(buf.into_bytes())
             },
+
+            Format::Yaml => {
+                let s = serde_yaml::to_string(value)
+                    .with_context(|| ERROR_ENCODE_FAILED)?;
+                Ok(s.into_bytes())
+            },
+
+            Format::Toml => {
+                let s = toml::to_string(value)
+                    .with_context(|| ERROR_ENCODE_FAILED)?;
+                Ok(s.into_bytes())
+            },
         }
     }
 
@@ -127,6 +159,16 @@ impl Encoder {
                 quick_xml::se::to_writer(&mut buf, value)
                     .with_context(|| ERROR_ENCODE_FAILED)?;
                 Ok(buf)
+            },
+
+            Format::Yaml => {
+                serde_yaml::to_string(value)
+                    .with_context(|| ERROR_ENCODE_FAILED)
+            },
+
+            Format::Toml => {
+                toml::to_string(value)
+                    .with_context(|| ERROR_ENCODE_FAILED)
             },
             
             _ => {
@@ -222,6 +264,32 @@ mod tests {
     }
 
     #[test]
+    fn test_yaml_roundtrip() {
+        let data = TestData {
+            name: "test".to_string(),
+            value: 42,
+        };
+        
+        let yaml = Encoder::encode(&data, Format::Yaml).unwrap();
+        let decoded: TestData = Decoder::decode(&yaml, Format::Yaml).unwrap();
+        
+        assert_eq!(data, decoded);
+    }
+
+    #[test]
+    fn test_toml_roundtrip() {
+        let data = TestData {
+            name: "test".to_string(),
+            value: 42,
+        };
+        
+        let toml = Encoder::encode(&data, Format::Toml).unwrap();
+        let decoded: TestData = Decoder::decode(&toml, Format::Toml).unwrap();
+        
+        assert_eq!(data, decoded);
+    }
+
+    #[test]
     fn test_query() {
         let data = TestData {
             name: "test".to_string(),
@@ -261,11 +329,15 @@ pub mod examples {
         let bson = Encoder::encode(&person, Format::Bson)?;
         let cbor = Encoder::encode(&person, Format::Cbor)?;
         let xml = Encoder::encode(&person, Format::Xml)?;
+        let yaml = Encoder::encode(&person, Format::Yaml)?;
+        let toml = Encoder::encode(&person, Format::Toml)?;
 
         println!("JSON: {}", String::from_utf8_lossy(&json));
         println!("BSON (hex): {}", hex::encode(&bson));
         println!("CBOR (hex): {}", hex::encode(&cbor));
         println!("XML: {}", String::from_utf8_lossy(&xml));
+        println!("YAML: {}", String::from_utf8_lossy(&yaml));
+        println!("TOML: {}", String::from_utf8_lossy(&toml));
 
         // Query the data
         let query = Query::compile(".hobbies[0]")?;
@@ -276,6 +348,14 @@ pub mod examples {
         let xml_from_json = Converter::convert::<serde_json::Value, serde_json::Value>(
             &json, Format::Json, Format::Xml)?;
         println!("XML converted from JSON: {}", String::from_utf8_lossy(&xml_from_json));
+
+        let yaml_from_json = Converter::convert::<serde_json::Value, serde_json::Value>(
+            &json, Format::Json, Format::Yaml)?;
+        println!("YAML converted from JSON: {}", String::from_utf8_lossy(&yaml_from_json));
+
+        let toml_from_yaml = Converter::convert::<serde_json::Value, serde_json::Value>(
+            &yaml, Format::Yaml, Format::Toml)?;
+        println!("TOML converted from YAML: {}", String::from_utf8_lossy(&toml_from_yaml));
 
         Ok(())
     }
