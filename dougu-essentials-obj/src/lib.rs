@@ -20,6 +20,7 @@ pub enum Format {
     Xml,
     Yaml,
     Toml,
+    Jsonl,
 }
 
 impl Format {
@@ -31,6 +32,7 @@ impl Format {
             FORMAT_XML => Ok(Format::Xml),
             FORMAT_YAML => Ok(Format::Yaml),
             FORMAT_TOML => Ok(Format::Toml),
+            FORMAT_JSONL => Ok(Format::Jsonl),
             _ => Err(anyhow!(ERROR_UNSUPPORTED_FORMAT)),
         }
     }
@@ -43,6 +45,7 @@ impl Format {
             Format::Xml => FORMAT_XML,
             Format::Yaml => FORMAT_YAML,
             Format::Toml => FORMAT_TOML,
+            Format::Jsonl => FORMAT_JSONL,
         }
     }
 }
@@ -83,6 +86,19 @@ impl Decoder {
                 toml::from_str(s)
                     .with_context(|| ERROR_DECODE_FAILED)
             },
+            
+            Format::Jsonl => {
+                // JSONL format expects T to be a collection type
+                // This implementation assumes the first valid line is the object to deserialize
+                let s = std::str::from_utf8(input)
+                    .with_context(|| ERROR_DECODE_FAILED)?;
+                if let Some(line) = s.lines().next() {
+                    serde_json::from_str(line)
+                        .with_context(|| ERROR_DECODE_FAILED)
+                } else {
+                    Err(anyhow!(ERROR_DECODE_FAILED))
+                }
+            },
         }
     }
 
@@ -95,6 +111,25 @@ impl Decoder {
 
     pub fn decode_to_value(input: &[u8], format: Format) -> Result<Value> {
         Self::decode(input, format)
+    }
+    
+    pub fn decode_jsonl_all<T>(input: &[u8]) -> Result<Vec<T>>
+    where
+        T: DeserializeOwned,
+    {
+        let s = std::str::from_utf8(input)
+            .with_context(|| ERROR_DECODE_FAILED)?;
+            
+        let mut results = Vec::new();
+        for line in s.lines() {
+            if !line.trim().is_empty() {
+                let item: T = serde_json::from_str(line)
+                    .with_context(|| ERROR_DECODE_FAILED)?;
+                results.push(item);
+            }
+        }
+        
+        Ok(results)
     }
 }
 
@@ -143,6 +178,14 @@ impl Encoder {
                     .with_context(|| ERROR_ENCODE_FAILED)?;
                 Ok(s.into_bytes())
             },
+            
+            Format::Jsonl => {
+                // For single object, encode as JSON with a newline
+                let mut json = serde_json::to_vec(value)
+                    .with_context(|| ERROR_ENCODE_FAILED)?;
+                json.push(b'\n');
+                Ok(json)
+            },
         }
     }
 
@@ -171,11 +214,31 @@ impl Encoder {
                     .with_context(|| ERROR_ENCODE_FAILED)
             },
             
+            Format::Jsonl => {
+                let json = serde_json::to_string(value)
+                    .with_context(|| ERROR_ENCODE_FAILED)?;
+                Ok(format!("{}\n", json))
+            },
+            
             _ => {
                 let bytes = Self::encode(value, format)?;
                 Ok(hex::encode(bytes))
             }
         }
+    }
+    
+    pub fn encode_jsonl_all<T>(values: &[T]) -> Result<Vec<u8>>
+    where
+        T: Serialize,
+    {
+        let mut result = Vec::new();
+        for value in values {
+            let mut json = serde_json::to_vec(value)
+                .with_context(|| ERROR_ENCODE_FAILED)?;
+            json.push(b'\n');
+            result.extend_from_slice(&json);
+        }
+        Ok(result)
     }
 }
 
@@ -301,6 +364,33 @@ mod tests {
         
         assert_eq!(result.to_string(), "\"test\"");
     }
+
+    #[test]
+    fn test_jsonl_roundtrip() {
+        let data = TestData {
+            name: "test".to_string(),
+            value: 42,
+        };
+        
+        let jsonl = Encoder::encode(&data, Format::Jsonl).unwrap();
+        let decoded: TestData = Decoder::decode(&jsonl, Format::Jsonl).unwrap();
+        
+        assert_eq!(data, decoded);
+    }
+    
+    #[test]
+    fn test_jsonl_multiple() {
+        let data = vec![
+            TestData { name: "test1".to_string(), value: 1 },
+            TestData { name: "test2".to_string(), value: 2 },
+            TestData { name: "test3".to_string(), value: 3 },
+        ];
+        
+        let jsonl = Encoder::encode_jsonl_all(&data).unwrap();
+        let decoded: Vec<TestData> = Decoder::decode_jsonl_all(&jsonl).unwrap();
+        
+        assert_eq!(data, decoded);
+    }
 }
 
 // Add an example to demonstrate functionality
@@ -331,6 +421,7 @@ pub mod examples {
         let xml = Encoder::encode(&person, Format::Xml)?;
         let yaml = Encoder::encode(&person, Format::Yaml)?;
         let toml = Encoder::encode(&person, Format::Toml)?;
+        let jsonl = Encoder::encode(&person, Format::Jsonl)?;
 
         println!("JSON: {}", String::from_utf8_lossy(&json));
         println!("BSON (hex): {}", hex::encode(&bson));
@@ -338,6 +429,24 @@ pub mod examples {
         println!("XML: {}", String::from_utf8_lossy(&xml));
         println!("YAML: {}", String::from_utf8_lossy(&yaml));
         println!("TOML: {}", String::from_utf8_lossy(&toml));
+        println!("JSONL: {}", String::from_utf8_lossy(&jsonl));
+
+        // JSONL multiple items example
+        let people = vec![
+            Person {
+                name: "Alice".to_string(),
+                age: 30,
+                hobbies: vec!["reading".to_string(), "coding".to_string()],
+            },
+            Person {
+                name: "Bob".to_string(),
+                age: 25,
+                hobbies: vec!["gaming".to_string(), "hiking".to_string()],
+            },
+        ];
+
+        let jsonl_multi = Encoder::encode_jsonl_all(&people)?;
+        println!("JSONL multiple items:\n{}", String::from_utf8_lossy(&jsonl_multi));
 
         // Query the data
         let query = Query::compile(".hobbies[0]")?;
