@@ -285,7 +285,7 @@ async fn test_build_pack_with_cargo_output() -> Result<()> {
         r#"{{"reason":"compiler-artifact", "target":{{"kind":["bin"], "name":"test_executable", "src_path":"main.rs"}}, "profile":{{"opt-level":"0", "debuginfo":2, "debug-assertions":true, "overflow-checks":true, "test":false}}, "executable":"{}"}}"#,
         mock_executable_absolute.to_string_lossy().replace("\\", "\\\\") // Escape backslashes for Windows paths in JSON
     );
-    fs::write(&cargo_output_path, cargo_output_content)?;
+    fs::write(&cargo_output_path, cargo_output_content.clone())?;
     
     // Print paths for debugging
     println!("Mock executable path: {}", mock_executable_absolute.display());

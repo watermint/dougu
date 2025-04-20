@@ -33,7 +33,8 @@ fn test_i18n_commandlet_integration() {
     
     // Test basic translation in English (default)
     let error_msg = t("RESOURCE_NOT_FOUND");
-    assert!(error_msg == "Resource not found" || error_msg == "RESOURCE_NOT_FOUND");
+    assert!(error_msg == "Resource not found" || error_msg == "RESOURCE_NOT_FOUND", 
+           "Got unexpected error message: {}", error_msg);
     
     // Test with variables
     let layer_msg = tf("LAYER_EXECUTION", vars!("" => "TestLayer"));
