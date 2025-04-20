@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use uuid::Uuid;
 use walkdir::WalkDir;
+use dougu_essentials_log;
 
 mod resources;
 mod launcher;
@@ -141,7 +142,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     let mode = if args.release { "release" } else { "debug" };
     let build_id = args.build_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     
-    dougu_essentials_logger::log_info(resources::log_messages::PACKAGING_APP
+    dougu_essentials_log::log_info(resources::log_messages::PACKAGING_APP
         .replace("{target}", target)
         .replace("{mode}", mode)
         .replace("{output}", output));
@@ -158,7 +159,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     
     // Check if README.md exists
     if !Path::new("README.md").exists() {
-        dougu_essentials_logger::log_error(resources::log_messages::README_MISSING);
+        dougu_essentials_log::log_error(resources::log_messages::README_MISSING);
         return Err(anyhow!("README.md not found"));
     }
     
@@ -204,19 +205,19 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     }
     
     if executables.is_empty() {
-        dougu_essentials_logger::log_error(resources::log_messages::EXECUTABLE_SEARCH_FAILED
+        dougu_essentials_log::log_error(resources::log_messages::EXECUTABLE_SEARCH_FAILED
             .replace("{dir}", &target_dir));
         return Err(anyhow!("No executables found in {}", target_dir));
     }
     
-    dougu_essentials_logger::log_info(resources::log_messages::FOUND_EXECUTABLES
+    dougu_essentials_log::log_info(resources::log_messages::FOUND_EXECUTABLES
         .replace("{count}", &executables.len().to_string()));
     
     // Create package directory
     let package_dir = PathBuf::from(format!("{}/artifacts-{}", output, build_id));
     fs::create_dir_all(&package_dir)?;
     
-    dougu_essentials_logger::log_info(resources::log_messages::CREATING_PACKAGE_DIR
+    dougu_essentials_log::log_info(resources::log_messages::CREATING_PACKAGE_DIR
         .replace("{dir}", &package_dir.to_string_lossy()));
     
     // Copy executables and README to package directory
@@ -231,7 +232,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     fs::copy("README.md", package_dir.join("README.md"))?;
     copied_count += 1;
     
-    dougu_essentials_logger::log_info(resources::log_messages::COPIED_FILES
+    dougu_essentials_log::log_info(resources::log_messages::COPIED_FILES
         .replace("{count}", &copied_count.to_string()));
     
     // Create zip archive
@@ -260,10 +261,10 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     
     zip.finish()?;
     
-    dougu_essentials_logger::log_info(resources::log_messages::PACKAGE_CREATED
+    dougu_essentials_log::log_info(resources::log_messages::PACKAGE_CREATED
         .replace("{path}", &zip_path.to_string_lossy()));
     
-    dougu_essentials_logger::log_info(resources::log_messages::BUILD_COMPLETE);
+    dougu_essentials_log::log_info(resources::log_messages::BUILD_COMPLETE);
     
     Ok(())
 }
@@ -279,12 +280,12 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
         "all"
     };
     
-    dougu_essentials_logger::log_info(resources::log_messages::RUNNING_TESTS
+    dougu_essentials_log::log_info(resources::log_messages::RUNNING_TESTS
         .replace("{type}", test_type));
     
     // If filter is specified, log it
     if let Some(filter) = &args.filter {
-        dougu_essentials_logger::log_info(resources::log_messages::TEST_FILTER
+        dougu_essentials_log::log_info(resources::log_messages::TEST_FILTER
             .replace("{filter}", filter));
     }
     
@@ -327,12 +328,12 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
     
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
-        dougu_essentials_logger::log_error(resources::log_messages::CARGO_TEST_FAILED
+        dougu_essentials_log::log_error(resources::log_messages::CARGO_TEST_FAILED
             .replace("{code}", &code.to_string()));
         return Err(anyhow!("Tests failed with exit code {}", code));
     }
     
-    dougu_essentials_logger::log_info(resources::log_messages::BUILD_COMPLETE);
+    dougu_essentials_log::log_info(resources::log_messages::BUILD_COMPLETE);
     
     Ok(())
 }
@@ -342,7 +343,7 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     let output = args.output_dir.as_deref().unwrap_or("./target");
     let mode = if args.release { "release" } else { "debug" };
     
-    dougu_essentials_logger::log_info(resources::log_messages::COMPILING_APP
+    dougu_essentials_log::log_info(resources::log_messages::COMPILING_APP
         .replace("{mode}", mode)
         .replace("{output}", output));
     
@@ -374,12 +375,12 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
-        dougu_essentials_logger::log_error(resources::log_messages::CARGO_BUILD_FAILED
+        dougu_essentials_log::log_error(resources::log_messages::CARGO_BUILD_FAILED
             .replace("{code}", &code.to_string()));
         return Err(anyhow!("Build failed with exit code {}", code));
     }
     
-    dougu_essentials_logger::log_info(resources::log_messages::BUILD_COMPLETE);
+    dougu_essentials_log::log_info(resources::log_messages::BUILD_COMPLETE);
     
     Ok(())
 }
@@ -498,7 +499,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     
     // Check if we found an executable
     let executable_path = executable_path.ok_or_else(|| {
-        dougu_essentials_logger::log_error("No executable found in cargo output or input directory");
+        dougu_essentials_log::log_error("No executable found in cargo output or input directory");
         anyhow!("No executable found")
     })?;
     
@@ -532,7 +533,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     let archive_filename = format!("{}.zip", artifact_name);
     let archive_path = PathBuf::from(output_dir).join(&archive_filename);
     
-    dougu_essentials_logger::log_info(resources::log_messages::PACKING_ARTIFACT
+    dougu_essentials_log::log_info(resources::log_messages::PACKING_ARTIFACT
         .replace("{name}", &archive_filename));
     
     // Create the zip file
@@ -564,10 +565,10 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     
     zip.finish()?;
     
-    dougu_essentials_logger::log_info(resources::log_messages::PACKAGE_CREATED
+    dougu_essentials_log::log_info(resources::log_messages::PACKAGE_CREATED
         .replace("{path}", &archive_path.to_string_lossy()));
     
-    dougu_essentials_logger::log_info(resources::log_messages::PACK_COMPLETE);
+    dougu_essentials_log::log_info(resources::log_messages::PACK_COMPLETE);
     
     // Write artifact information to plain text files
     let artifact_path_file = PathBuf::from(output_dir).join("artifact_path");
@@ -580,7 +581,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     fs::write(&artifact_path_file, &archive_filename_only)?;
     fs::write(&artifact_name_file, &artifact_name_str)?;
     
-    dougu_essentials_logger::log_info(format!(
+    dougu_essentials_log::log_info(format!(
         "Artifact information written to {} and {}. Artifact name: {}",
         artifact_path_file.display(),
         artifact_name_file.display(),

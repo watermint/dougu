@@ -355,14 +355,14 @@ impl LauncherLayer for BuildCommandLayer {
                         ctx.ui.info(&msg);
                     }
                     
-                    dougu_essentials_logger::log_info(format!("Running build pack command with args: {:?}", pack_args));
+                    dougu_essentials_log::log_info(format!("Running build pack command with args: {:?}", pack_args));
                     
                     // Pass UI context to execute_pack
                     let result = dougu_command_build::execute_pack(pack_args, &ctx.ui).await
                         .map_err(|e| format!("Build pack failed: {}", e))?;
                     
                     // Log the result instead of printing
-                    dougu_essentials_logger::log_info(format!("Build pack result: {}", result));
+                    dougu_essentials_log::log_info(format!("Build pack result: {}", result));
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
                 }
@@ -440,7 +440,7 @@ async fn main() -> Result<()> {
     };
     
     info!("{}", log_messages::SETTING_VERBOSITY.replace("{}", &level.to_string()));
-    dougu_essentials_logger::init(level)?;
+    dougu_essentials_log::init(level)?;
     
     // Determine locale from command-line or environment variable
     let locale = if cli.locale != "en" {

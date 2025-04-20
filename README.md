@@ -8,7 +8,7 @@ This project is organized as a Cargo workspace with multiple crates:
 
 - `dougu`: Main binary crate that integrates all commands
 - `dougu-essentials-*`: Core libraries shared across the project
-  - `dougu-essentials-logger`: Logging utilities
+  - `dougu-essentials-log`: Logging utilities
   - `dougu-essentials-i18n`: Internationalization support
 - `dougu-domain-*`: Domain-specific libraries
   - `dougu-domain-dropbox`: Dropbox API client

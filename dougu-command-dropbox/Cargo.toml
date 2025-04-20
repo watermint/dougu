@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-essentials-log = { path = "../dougu-essentials-log" }
 dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
 dougu-foundation-run = { path = "../dougu-foundation-run" }

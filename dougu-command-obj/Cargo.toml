@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 dougu-essentials-obj = { path = "../dougu-essentials-obj" }
-dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-essentials-log = { path = "../dougu-essentials-log" }
 dougu-foundation-run = { path = "../dougu-foundation-run" }
 log = { workspace = true }
 anyhow = { workspace = true }

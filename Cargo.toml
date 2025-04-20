@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "dougu",
-    "dougu-essentials-logger",
+    "dougu-essentials-log",
     "dougu-essentials-i18n",
     "dougu-essentials-obj",
     "dougu-command-file",

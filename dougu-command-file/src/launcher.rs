@@ -28,7 +28,7 @@ impl LauncherLayer for FileCommandLayer {
 
             match file_args.command {
                 FileCommands::Copy(copy_args) => {
-                    dougu_essentials_logger::log_info(format!("Running file copy command with args: {:?}", copy_args));
+                    dougu_essentials_log::log_info(format!("Running file copy command with args: {:?}", copy_args));
                     
                     let commandlet = FileCopyCommandlet;
                     let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
@@ -53,7 +53,7 @@ impl LauncherLayer for FileCommandLayer {
                 },
                 FileCommands::Move(move_args) => {
                     // Similar implementation for move command
-                    dougu_essentials_logger::log_info(format!("Running file move command with args: {:?}", move_args));
+                    dougu_essentials_log::log_info(format!("Running file move command with args: {:?}", move_args));
                     
                     let commandlet = FileMoveCommandlet;
                     let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
@@ -77,7 +77,7 @@ impl LauncherLayer for FileCommandLayer {
                     }
                 },
                 FileCommands::List(list_args) => {
-                    dougu_essentials_logger::log_info(format!("Running file list command with args: {:?}", list_args));
+                    dougu_essentials_log::log_info(format!("Running file list command with args: {:?}", list_args));
                     
                     let commandlet = FileListCommandlet;
                     let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());

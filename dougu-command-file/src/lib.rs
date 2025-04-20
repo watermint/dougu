@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 use dougu_foundation_run::{Commandlet, CommandletError, CommandletSpec, SpecField, SpecError};
 use dougu_foundation_i18n::{tf, vars};
+use dougu_essentials_log;
 
 pub mod resources;
 mod launcher;
@@ -105,7 +106,7 @@ impl Commandlet for FileCopyCommandlet {
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
         // Use the i18n system for the log message
-        dougu_essentials_logger::log_info(tf("FILE_COPY_START", vars!(
+        dougu_essentials_log::log_info(tf("FILE_COPY_START", vars!(
             "source" => &params.source,
             "destination" => &params.destination
         )));
@@ -212,7 +213,7 @@ impl Commandlet for FileMoveCommandlet {
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
         // Use the i18n system for the log message
-        dougu_essentials_logger::log_info(tf("FILE_MOVE_START", vars!(
+        dougu_essentials_log::log_info(tf("FILE_MOVE_START", vars!(
             "source" => &params.source,
             "destination" => &params.destination
         )));
@@ -321,7 +322,7 @@ impl Commandlet for FileListCommandlet {
         let dir = params.directory.as_deref().unwrap_or(".");
         
         // Use the i18n system for the log message
-        dougu_essentials_logger::log_info(tf("FILE_LIST_START", vars!(
+        dougu_essentials_log::log_info(tf("FILE_LIST_START", vars!(
             "directory" => dir
         )));
         

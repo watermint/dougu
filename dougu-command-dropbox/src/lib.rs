@@ -117,7 +117,7 @@ pub async fn execute_file_list(args: &ListFileArgs, token: &str, ui: &dougu_foun
     let client = DropboxClient::new(token.to_string());
     let path = args.path.clone().unwrap_or_else(|| "/".to_string());
     
-    dougu_essentials_logger::log_info(format!("Listing Dropbox files in: {}", path));
+    dougu_essentials_log::log_info(format!("Listing Dropbox files in: {}", path));
     
     let result = client.list_files(&path).await?;
     
@@ -134,7 +134,7 @@ pub async fn execute_file_list(args: &ListFileArgs, token: &str, ui: &dougu_foun
 pub async fn execute_file_download(args: &DownloadFileArgs, token: &str) -> Result<()> {
     let _client = DropboxClient::new(token.to_string());
     
-    dougu_essentials_logger::log_info(format!("Downloading file from Dropbox: {}", args.path));
+    dougu_essentials_log::log_info(format!("Downloading file from Dropbox: {}", args.path));
     
     // Pseudo implementation
     // In a real app, this would download the file
@@ -146,7 +146,7 @@ pub async fn execute_file_download(args: &DownloadFileArgs, token: &str) -> Resu
 pub async fn execute_file_upload(args: &UploadFileArgs, token: &str) -> Result<()> {
     let _client = DropboxClient::new(token.to_string());
     
-    dougu_essentials_logger::log_info(format!("Uploading file to Dropbox: {}", args.dropbox_path));
+    dougu_essentials_log::log_info(format!("Uploading file to Dropbox: {}", args.dropbox_path));
     
     // Pseudo implementation
     // In a real app, this would upload the file
@@ -158,7 +158,7 @@ pub async fn execute_file_upload(args: &UploadFileArgs, token: &str) -> Result<(
 pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Result<()> {
     let _client = DropboxClient::new(token.to_string());
     
-    dougu_essentials_logger::log_info(format!("Creating Dropbox folder: {}", args.path));
+    dougu_essentials_log::log_info(format!("Creating Dropbox folder: {}", args.path));
     
     // Pseudo implementation
     // In a real app, this would create the folder
@@ -170,7 +170,7 @@ pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Resu
 pub async fn execute_folder_delete(args: &DeleteFolderArgs, token: &str) -> Result<()> {
     let _client = DropboxClient::new(token.to_string());
     
-    dougu_essentials_logger::log_info(format!("Deleting Dropbox folder: {}", args.path));
+    dougu_essentials_log::log_info(format!("Deleting Dropbox folder: {}", args.path));
     
     // Pseudo implementation
     // In a real app, this would delete the folder

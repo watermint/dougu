@@ -39,7 +39,7 @@ impl DropboxClient {
         // This is a pseudo implementation
         // In a real application, this would make actual API calls to Dropbox
         
-        dougu_essentials_logger::log_info(format!("Listing files from path: {}", path));
+        dougu_essentials_log::log_info(format!("Listing files from path: {}", path));
         
         // For demo purposes, return dummy data
         Ok(DropboxListResult {
@@ -65,7 +65,7 @@ impl DropboxClient {
     /// Download a file from Dropbox
     pub async fn download_file(&self, path: &str) -> Result<Vec<u8>> {
         // Pseudo implementation
-        dougu_essentials_logger::log_info(format!("Downloading file: {}", path));
+        dougu_essentials_log::log_info(format!("Downloading file: {}", path));
         
         // In a real app, this would perform the actual download
         Err(anyhow!("Not implemented yet"))
@@ -74,7 +74,7 @@ impl DropboxClient {
     /// Upload a file to Dropbox
     pub async fn upload_file(&self, path: &str, content: Vec<u8>) -> Result<DropboxFile> {
         // Pseudo implementation
-        dougu_essentials_logger::log_info(format!("Uploading file to: {}", path));
+        dougu_essentials_log::log_info(format!("Uploading file to: {}", path));
         
         // In a real app, this would perform the actual upload
         Err(anyhow!("Not implemented yet"))

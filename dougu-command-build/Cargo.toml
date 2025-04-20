@@ -11,7 +11,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full", "process"] }
 async-trait = { workspace = true }
-dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-essentials-log = { path = "../dougu-essentials-log" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 dougu-foundation-run = { path = "../dougu-foundation-run" }

@@ -12,7 +12,7 @@ readme = "../README.md"
 build = "build.rs"
 
 [dependencies]
-dougu-essentials-logger = { path = "../dougu-essentials-logger" }
+dougu-essentials-log = { path = "../dougu-essentials-log" }
 dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
 dougu-command-file = { path = "../dougu-command-file" }

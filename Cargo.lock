@@ -615,7 +615,7 @@ dependencies = [
  "dougu-command-root",
  "dougu-essentials-build",
  "dougu-essentials-i18n",
- "dougu-essentials-logger",
+ "dougu-essentials-log",
  "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
@@ -633,7 +633,7 @@ dependencies = [
  "async-trait",
  "clap",
  "dougu-essentials-build",
- "dougu-essentials-logger",
+ "dougu-essentials-log",
  "dougu-foundation-run",
  "dougu-foundation-ui",
  "log",
@@ -655,7 +655,7 @@ dependencies = [
  "clap",
  "dougu-domain-dropbox",
  "dougu-essentials-i18n",
- "dougu-essentials-logger",
+ "dougu-essentials-log",
  "dougu-foundation-run",
  "dougu-foundation-ui",
  "log",
@@ -671,7 +671,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
- "dougu-essentials-logger",
+ "dougu-essentials-log",
  "dougu-foundation-i18n",
  "dougu-foundation-run",
  "serde",
@@ -689,7 +689,7 @@ dependencies = [
  "bson",
  "ciborium",
  "clap",
- "dougu-essentials-logger",
+ "dougu-essentials-log",
  "dougu-essentials-obj",
  "dougu-foundation-run",
  "dougu-foundation-ui",
@@ -727,7 +727,7 @@ name = "dougu-domain-dropbox"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "dougu-essentials-logger",
+ "dougu-essentials-log",
  "reqwest",
  "serde",
  "serde_json",
@@ -793,7 +793,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dougu-essentials-logger"
+name = "dougu-essentials-log"
 version = "1.0.0"
 dependencies = [
  "anyhow",
