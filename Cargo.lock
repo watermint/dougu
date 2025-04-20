@@ -634,6 +634,7 @@ dependencies = [
  "clap",
  "dougu-essentials-build",
  "dougu-essentials-log",
+ "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
  "log",

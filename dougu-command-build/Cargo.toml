@@ -14,7 +14,8 @@ async-trait = { workspace = true }
 dougu-essentials-log = { path = "../dougu-essentials-log" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
-dougu-foundation-run = { path = "../dougu-foundation-run" }
+dougu-foundation-run = { path = "../dougu-foundation-run", features = ["i18n"] }
+dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
 uuid = { version = "1.4", features = ["v4"] }
 walkdir = "2.3"
 zip = "0.6"

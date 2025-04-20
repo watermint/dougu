@@ -3,6 +3,7 @@ use clap::{Args, Subcommand};
 use dougu_essentials_build::get_build_info;
 use dougu_foundation_run::{SpecCommandlet, SpecParams, CommandletError, Commandlet};
 use dougu_foundation_ui::UIManager;
+use dougu_foundation_i18n;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::fs;

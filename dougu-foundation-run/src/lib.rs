@@ -10,6 +10,7 @@ use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
 use dougu_foundation_ui::{UIManager, format_commandlet_result, OutputFormat};
 use std::str::FromStr;
+use dougu_foundation_i18n;
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
@@ -238,7 +239,7 @@ impl CommandLauncher {
         info!("{}", log_messages::LAUNCHER_START);
         
         for layer in &self.layers {
-            debug!("{}", format!("{}", log_messages::LAYER_EXECUTION).replace("{}", layer.name()));
+            debug!("{}", dougu_foundation_i18n::tf("LAYER_EXECUTION", dougu_foundation_i18n::vars!("layer" => layer.name())));
             layer.run(ctx).await?;
         }
         
