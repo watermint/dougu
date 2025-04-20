@@ -1,6 +1,14 @@
 use serde::{Deserialize, Serialize};
 use chrono::{Utc, Datelike};
 
+// Minor version constants
+const MINOR_VERSION_GITHUB_MAIN: u32 = 8;
+const MINOR_VERSION_GITHUB_CURRENT: u32 = 7;
+const MINOR_VERSION_GITHUB_OTHER: u32 = 6;
+const MINOR_VERSION_GITHUB_DEFAULT: u32 = 4;
+const MINOR_VERSION_LOCAL: u32 = 0;
+const MINOR_VERSION_OTHER_CHANNELS: u32 = 1;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildInfo {
     pub build_release: u32,
@@ -33,26 +41,26 @@ impl BuildInfo {
                 // Check the branch from GITHUB_REF environment variable
                 if let Ok(github_ref) = std::env::var("GITHUB_REF") {
                     if github_ref.contains("/main") {
-                        8 // Main branch
+                        MINOR_VERSION_GITHUB_MAIN // Main branch
                     } else if github_ref.contains("/current") {
-                        7 // Current branch
+                        MINOR_VERSION_GITHUB_CURRENT // Current branch
                     } else {
-                        6 // Other branches
+                        MINOR_VERSION_GITHUB_OTHER // Other branches
                     }
                 } else if let Some(github_ref) = option_env!("GITHUB_REF") {
                     if github_ref.contains("/main") {
-                        8 // Main branch
+                        MINOR_VERSION_GITHUB_MAIN // Main branch
                     } else if github_ref.contains("/current") {
-                        7 // Current branch
+                        MINOR_VERSION_GITHUB_CURRENT // Current branch
                     } else {
-                        6 // Other branches
+                        MINOR_VERSION_GITHUB_OTHER // Other branches
                     }
                 } else {
-                    4 // Default for github builds without branch info
+                    MINOR_VERSION_GITHUB_DEFAULT // Default for github builds without branch info
                 }
             },
-            "local" => 0,  // Development channel
-            _ => 1,        // Other channels
+            "local" => MINOR_VERSION_LOCAL,  // Development channel
+            _ => MINOR_VERSION_OTHER_CHANNELS,        // Other channels
         };
         
         // For CI builds (github), try to use GITHUB_RUN_NUMBER for patch version
@@ -77,7 +85,7 @@ impl BuildInfo {
             // Create build metadata from build_type and timestamp for non-CI builds
             let build_metadata = format!("{}.{}", 
                 self.build_type,
-                self.build_timestamp.replace(" ", "").replace(":", "").replace("-", "")
+                self.build_timestamp.replace("T", "").replace(":", "").replace("-", "").replace("Z", "")
             );
             
             format!("{}.{}.{}+{}", self.build_release, minor, patch, build_metadata)
@@ -96,7 +104,7 @@ impl BuildInfo {
 
     /// Create a new BuildInfo with default values for local development
     fn new_local() -> Self {
-        let build_timestamp = Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
+        let build_timestamp = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
         let (repository_owner, repository_name) = detect_repository();
         // Use the major version from Cargo.toml as release
         let version_str = env!("CARGO_PKG_VERSION");
@@ -154,7 +162,7 @@ impl BuildInfo {
         Self {
             build_release,
             build_type: "github".to_string(),
-            build_timestamp: Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+            build_timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             repository_owner,
             repository_name,
             copyright_owner,
@@ -169,17 +177,24 @@ impl BuildInfo {
         // Check if we're in a CI environment
         if is_ci_environment() {
             // CI environment detected
+            // Try to get release from environment variables first,
+            // then from CARGO_PKG_VERSION, default to 1 (instead of 0)
             let build_release = {
                 if let Some(release) = option_env!("DOUGU_RELEASE") {
-                    release.parse::<u32>().unwrap_or(0)
+                    release.parse::<u32>().unwrap_or(1)
                 } else if let Some(release) = option_env!("RELEASE") {
-                    release.parse::<u32>().unwrap_or(0)
+                    release.parse::<u32>().unwrap_or(1)
                 } else if let Ok(release) = std::env::var("DOUGU_RELEASE") {
-                    release.parse::<u32>().unwrap_or(0)
+                    release.parse::<u32>().unwrap_or(1)
                 } else if let Ok(release) = std::env::var("RELEASE") {
                     release.parse::<u32>().unwrap_or(0)
                 } else {
-                    0
+                    // Try to get from Cargo.toml version
+                    let version_str = env!("CARGO_PKG_VERSION");
+                    version_str.split('.')
+                        .next()
+                        .and_then(|s| s.parse::<u32>().ok())
+                        .unwrap_or(0) // Default to 0 if we can't parse version, to recognize error
                 }
             };
 
