@@ -220,7 +220,14 @@ impl ObjCommand {
     /// This replaces the need for the `tr -d '"\\''` command
     fn process_raw_value(value: &Value) -> String {
         match value {
-            Value::String(s) => s.clone(),
+            Value::String(s) => {
+                // Replace escaped quotes with actual quotes 
+                s.replace("\\\"", "\"")
+                  .replace("\\\\", "\\")
+                  .replace("\\n", "\n")
+                  .replace("\\r", "\r")
+                  .replace("\\t", "\t")
+            },
             Value::Number(n) => n.to_string(),
             Value::Bool(b) => b.to_string(),
             Value::Null => String::new(),
