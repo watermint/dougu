@@ -10,7 +10,7 @@ use dougu_command_file::{FileCopyCommandlet, FileMoveCommandlet, FileListCommand
 use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
 use dougu_command_obj::ObjCommand;
 use dougu_command_build::BuildArgs;
-use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer};
+use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer, display_app_info};
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::OutputFormat;
@@ -481,10 +481,7 @@ async fn main() -> Result<()> {
         }
     };
     
-    // Create CommandLauncher
-    let mut launcher = CommandLauncher::new();
-    
-    // Create context with command name and verbosity
+    // Create context with command name, verbosity, locale and output format
     let command_name = match &cli.command {
         Commands::File(_) => "File",
         Commands::Dropbox(_) => "Dropbox",
@@ -494,7 +491,6 @@ async fn main() -> Result<()> {
         Commands::Help(_) => "Help",
     };
     
-    // Create context with command name, verbosity, locale and output format
     let mut context = LauncherContext::with_ui_format(
         command_name.to_string(), 
         cli.verbose, 
@@ -502,8 +498,24 @@ async fn main() -> Result<()> {
         output_format
     );
     
-    // Add the I18nInitializerLayer as the first layer
-    launcher.add_layer(I18nInitializerLayer::with_locale(locale));
+    // Create CommandLauncher
+    let mut launcher = CommandLauncher::new();
+    
+    // Add the I18nInitializerLayer as the first layer and initialize it first
+    // to ensure translations are loaded before we display app info
+    let i18n_layer = I18nInitializerLayer::with_locale(locale.clone());
+    let mut i18n_context = LauncherContext::with_ui_format(
+        "i18n_init".to_string(),
+        cli.verbose,
+        locale.clone(),
+        output_format
+    );
+    i18n_layer.run(&mut i18n_context).await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize i18n: {}", e))?;
+    launcher.add_layer(i18n_layer);
+    
+    // Now display application information banner with i18n initialized
+    display_app_info(&context.ui, cli.verbose >= 2);
     
     // Add appropriate command layers based on the command
     match &cli.command {

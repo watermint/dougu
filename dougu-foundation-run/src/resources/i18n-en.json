@@ -77,5 +77,27 @@
     "context": "Log message with language codes",
     "comments": "Variables: {requested} is requested language, {fallback} is fallback language",
     "text": "Language {requested} is unsupported, using: {fallback}"
+  },
+  "APP_INFO_NAME": {
+    "source": "Dougu - Multi-utility Command Line Tool",
+    "context": "Application name for startup banner",
+    "text": "dougu {version}"
+  },
+  "APP_INFO_COPYRIGHT": {
+    "source": "Copyright (C) {year} {owner}",
+    "context": "Copyright notice for startup banner",
+    "comments": "Variables: {year} is copyright year, {owner} is copyright owner",
+    "text": "© 2016-{year} {owner}"
+  },
+  "APP_INFO_LICENSE": {
+    "source": "Licensed under open source licenses",
+    "context": "License information for startup banner",
+    "text": "Licensed under open source licenses. Use the `license` command for more detail."
+  },
+  "APP_INFO_VERSION": {
+    "source": "Version {version}",
+    "context": "Version info for startup banner",
+    "comments": "Variable {version} is the app version",
+    "text": "Version {version}"
   }
 } 

@@ -76,6 +76,28 @@
     "source": "Language {requested} is unsupported, using: {fallback}",
     "context": "Log message with language codes",
     "comments": "Variables: {requested} is requested language, {fallback} is fallback language",
-    "text": "言語 {requested} はサポートされていません。代わりに {fallback} を使用しています"
+    "text": "言語 {requested} はサポートされていないため、{fallback} を使用します"
+  },
+  "APP_INFO_NAME": {
+    "source": "Dougu - Multi-utility Command Line Tool",
+    "context": "Application name for startup banner",
+    "text": "dougu {version}"
+  },
+  "APP_INFO_COPYRIGHT": {
+    "source": "Copyright (C) {year} {owner}",
+    "context": "Copyright notice for startup banner",
+    "comments": "Variables: {year} is copyright year, {owner} is copyright owner",
+    "text": "© 2016-{year} {owner}"
+  },
+  "APP_INFO_LICENSE": {
+    "source": "Licensed under open source licenses",
+    "context": "License information for startup banner",
+    "text": "オープンソースライセンスに基づいています。詳細は `license` コマンドを使用してください。"
+  },
+  "APP_INFO_VERSION": {
+    "source": "Version {version}",
+    "context": "Version info for startup banner",
+    "comments": "Variable {version} is the app version",
+    "text": "バージョン {version}"
   }
 } 

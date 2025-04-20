@@ -10,6 +10,7 @@ pub struct BuildInfo {
     pub repository_owner: String,
     pub copyright_owner: String,
     pub copyright_year: u32,
+    pub copyright_start_year: u32,
     pub executable_name: String,
 }
 
@@ -99,6 +100,7 @@ impl BuildInfo {
             repository_name,
             copyright_owner: "Takayuki Okazaki".to_string(),
             copyright_year: Utc::now().year() as u32,
+            copyright_start_year: 2025,
             executable_name: "dougu".to_string(),
         }
     }
@@ -146,6 +148,7 @@ impl BuildInfo {
             repository_name,
             copyright_owner,
             copyright_year,
+            copyright_start_year: 2025,
             executable_name,
         }
     }
@@ -245,6 +248,7 @@ pub fn get_build_info() -> BuildInfo {
                     repository_name,
                     copyright_owner,
                     copyright_year,
+                    copyright_start_year: 2025,
                     executable_name,
                 };
             }

@@ -253,6 +253,11 @@ impl UIManager {
     pub fn print(&self, text: &str) {
         println!("{}", text);
     }
+    
+    /// Print a line break directly
+    pub fn line_break(&self) {
+        println!();
+    }
 }
 
 /// Format a commandlet result in a standardized way

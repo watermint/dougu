@@ -1,5 +1,6 @@
 pub mod resources;
 pub mod i18n_adapter;
+pub mod app_info;
 
 use resources::error_messages;
 use resources::log_messages;
@@ -727,4 +728,7 @@ pub fn abort_if_resource_missing(resource: Option<&str>) -> Result<(), String> {
         return Err(error_messages::RESOURCE_NOT_FOUND.to_string());
     }
     Ok(())
-} 
+}
+
+// Public re-exports
+pub use app_info::display_app_info; 
