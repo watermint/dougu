@@ -31,20 +31,14 @@ jobs:
           # Build the project and capture the JSON output
           cargo build --workspace --all-targets --message-format=json > build_output.json
           
-          # First build would create the executable we need for the obj query command
-          
-          # Use grep to filter relevant JSON entries before passing to obj query
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            GREP_PATTERN="dougu.exe"
-          else
-            GREP_PATTERN="\"dougu\""
-          fi
-          
-          # Extract relevant JSON entries to a smaller file to avoid broken pipe issues
-          grep "$GREP_PATTERN" build_output.json > executable_entries.json
+          echo "build_output.json:"
+          echo "--------------------------------"
+          cat build_output.json
+          echo "--------------------------------"
+          echo "end of build_output.json"
           
           # Use obj query command to extract the executable path
-          EXECUTABLE=$(./target/debug/dougu obj query json executable_entries.json 'select(.executable != null) | .executable')
+          EXECUTABLE=$(./target/debug/dougu obj query json build_output.json 'select(.executable != null) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found. Aborting." >&2
