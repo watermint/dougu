@@ -37,11 +37,11 @@ jobs:
           echo "--------------------------------"
           echo "end of build_output.json"
           
-          # Use obj query command to extract the executable path
-          EXECUTABLE=$(./target/debug/dougu obj query json build_output.json 'select(.executable != null) | .executable')
+          # Use obj query command to extract the executable path based on main.rs
+          EXECUTABLE=$(./target/debug/dougu obj query json build_output.json 'select(.reason == "compiler-artifact" and .target.src_path | endswith("/main.rs")) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
-            echo "No executable found. Aborting." >&2
+            echo "No executable found matching main.rs. Aborting." >&2
             exit 1
           fi
           
