@@ -45,10 +45,10 @@ impl LauncherLayer for FileCommandLayer {
                     let parsed_result: FileCommandResult = serde_json::from_str(&result)
                         .map_err(|e| format!("Failed to parse result: {}", e))?;
                     
-                    // Display the result message and details
+                    // Display the result message and details - these are now void functions
                     ctx.ui.text(&parsed_result.message);
                     if let Some(details) = parsed_result.details {
-                        ctx.ui.text(&format!("\n{}", details));
+                        ctx.ui.text(&details);
                     }
                 },
                 FileCommands::Move(move_args) => {
@@ -70,10 +70,10 @@ impl LauncherLayer for FileCommandLayer {
                     let parsed_result: FileCommandResult = serde_json::from_str(&result)
                         .map_err(|e| format!("Failed to parse result: {}", e))?;
                     
-                    // Display the result message and details
+                    // Display the result message and details - these are now void functions
                     ctx.ui.text(&parsed_result.message);
                     if let Some(details) = parsed_result.details {
-                        ctx.ui.text(&format!("\n{}", details));
+                        ctx.ui.text(&details);
                     }
                 },
                 FileCommands::List(list_args) => {
@@ -90,12 +90,9 @@ impl LauncherLayer for FileCommandLayer {
                     let result = runner.run(&params).await
                         .map_err(|e| format!("File list execution failed: {}", e))?;
                     
-                    // Format the command result
-                    let command_result = runner.format_results(&result)
+                    // Format and display results directly using the runner
+                    runner.format_results(&result)
                         .map_err(|e| format!("Failed to format results: {}", e))?;
-                    
-                    // Display the formatted result
-                    ctx.ui.text(&command_result);
                 }
             }
         }

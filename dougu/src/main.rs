@@ -355,13 +355,14 @@ impl LauncherLayer for BuildCommandLayer {
                         ctx.ui.info(&msg);
                     }
                     
+                    dougu_essentials_logger::log_info(format!("Running build pack command with args: {:?}", pack_args));
+                    
                     // Pass UI context to execute_pack
                     let result = dougu_command_build::execute_pack(pack_args, &ctx.ui).await
                         .map_err(|e| format!("Build pack failed: {}", e))?;
                     
-                    // Format results using CommandRunner
-                    runner.format_results(&result)
-                        .map_err(|e| format!("Failed to format results: {}", e))?;
+                    // Format results for display
+                    ctx.ui.text(&result);
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
                 }
@@ -380,9 +381,8 @@ impl LauncherLayer for BuildCommandLayer {
                     let result = dougu_command_build::execute_spec(spec_args, &ctx.ui).await
                         .map_err(|e| format!("Build spec failed: {}", e))?;
                     
-                    // Format results using CommandRunner
-                    runner.format_results(&result)
-                        .map_err(|e| format!("Failed to format results: {}", e))?;
+                    // Format results for display
+                    ctx.ui.text(&result);
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Spec"));
                 }
