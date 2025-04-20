@@ -51,7 +51,7 @@ jobs:
           PACK_OUTPUT=$(./target/debug/dougu build pack \
             --input-dir target/debug \
             --output-dir target/dist \
-            --ui-format json)
+            --ui-format jsonl)
           
           # Debug output
           echo "PACK_OUTPUT: $PACK_OUTPUT"
