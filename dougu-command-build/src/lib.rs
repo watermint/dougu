@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use clap::{Parser, Args, Subcommand};
+use clap::{Args, Subcommand};
 use dougu_essentials_build::get_build_info;
 use dougu_foundation_run::{SpecCommandlet, SpecParams, CommandletError, Commandlet};
 use dougu_foundation_ui::UIManager;
@@ -511,13 +511,16 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     // If executable name wasn't found in cargo output, use the actual file name
     let executable_name = executable_name.unwrap_or_else(|| exec_name.clone());
     
-    // Use build_info for name detection
-    let detected_name = if !build_info.executable_name.is_empty() {
-        build_info.executable_name.clone()
-    } else if let Some(name) = &args.name {
+    // Determine the package name - prioritize explicitly provided name
+    let detected_name = if let Some(name) = &args.name {
         name.clone()
-    } else {
+    } else if !executable_name.is_empty() {
         executable_name.clone()
+    } else if !build_info.executable_name.is_empty() {
+        build_info.executable_name.clone()
+    } else {
+        // Fallback to a generic name if nothing else is available
+        "app".to_string()
     };
     
     // Use the semantic version from BuildInfo to match the version command
@@ -596,9 +599,9 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
 }
 
 /// Execute the spec command
-pub async fn execute_spec(args: &SpecCommandArgs, ui: &UIManager) -> Result<String, CommandletError> {
+pub async fn execute_spec(args: &SpecCommandArgs, _ui: &UIManager) -> Result<String, CommandletError> {
     // Create the spec commandlet and register all available commandlets
-    let mut spec_commandlet = SpecCommandlet::new();
+    let spec_commandlet = SpecCommandlet::new();
     
     // Register commandlets here - these would typically be imported at the module level
     // Import other commandlets as needed
