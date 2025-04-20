@@ -62,52 +62,471 @@ impl Default for UITheme {
     }
 }
 
+/// Formatter trait for UI output (non-generic methods only)
+pub trait UIFormatter: Send + Sync {
+    fn title(&self, text: &str) -> String;
+    fn subtitle(&self, text: &str) -> String;
+    fn heading(&self, level: u8, text: &str) -> String;
+    fn text(&self, text: &str) -> String;
+    fn success(&self, text: &str) -> String;
+    fn error(&self, text: &str) -> String;
+    fn info(&self, text: &str) -> String;
+    fn warning(&self, text: &str) -> String;
+    fn block(&self, text: &str) -> String;
+    fn code(&self, text: &str, language: Option<&str>) -> String;
+    fn hr(&self) -> String;
+    fn key_value_list(&self, pairs: &[(&str, &str)]) -> String;
+    
+    // Methods for handling generic types with type erasure - using String for Display
+    fn list_string(&self, items: &[String], ordered: bool) -> String;
+    fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String;
+    
+    // Methods for serialization using serde_json::Value
+    fn json_value(&self, value: &serde_json::Value) -> Result<String, String>;
+    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String>;
+}
+
+/// Default formatter implementation
+#[derive(Clone)]
+pub struct DefaultFormatter {
+    theme: UITheme,
+}
+
+impl DefaultFormatter {
+    pub fn new(theme: UITheme) -> Self {
+        Self { theme }
+    }
+}
+
+impl UIFormatter for DefaultFormatter {
+    fn title(&self, text: &str) -> String {
+        let prefix = "#";
+        let colored_text = text.bold().color(&*self.theme.heading_color);
+        format!("{} {}", prefix, colored_text)
+    }
+
+    fn subtitle(&self, text: &str) -> String {
+        let prefix = "##";
+        let colored_text = text.color(&*self.theme.heading_color);
+        format!("{} {}", prefix, colored_text)
+    }
+
+    fn heading(&self, level: u8, text: &str) -> String {
+        let prefix = "#".repeat(std::cmp::min(level as usize, 6));
+        let colored_text = match level {
+            1 => text.bold().color(&*self.theme.heading_color),
+            _ => text.color(&*self.theme.heading_color),
+        };
+        format!("{} {}", prefix, colored_text)
+    }
+
+    fn text(&self, text: &str) -> String {
+        text.to_string()
+    }
+
+    fn success(&self, text: &str) -> String {
+        text.color(&*self.theme.success_color).to_string()
+    }
+
+    fn error(&self, text: &str) -> String {
+        text.color(&*self.theme.error_color).to_string()
+    }
+
+    fn info(&self, text: &str) -> String {
+        text.color(&*self.theme.info_color).to_string()
+    }
+
+    fn warning(&self, text: &str) -> String {
+        text.color(&*self.theme.warning_color).to_string()
+    }
+
+    fn block(&self, text: &str) -> String {
+        text.lines()
+            .map(|line| format!("    {}", line))
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    fn code(&self, text: &str, language: Option<&str>) -> String {
+        let lang = language.unwrap_or("");
+        format!("```{}\n{}\n```", lang, text)
+    }
+
+    fn hr(&self) -> String {
+        "-".repeat(self.theme.wrapped_width)
+    }
+
+    fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
+        pairs
+            .iter()
+            .map(|(key, value)| format!("{}: {}", key.bold(), value))
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+    
+    fn list_string(&self, items: &[String], ordered: bool) -> String {
+        items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                if ordered {
+                    format!("{}. {}", i + 1, item)
+                } else {
+                    format!("• {}", item)
+                }
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+    
+    fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String {
+        let mut table = Table::new();
+        table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+        
+        // Add header row
+        let header_cells: Vec<Cell> = headers
+            .iter()
+            .map(|h| Cell::new(h).with_style(prettytable::Attr::ForegroundColor(
+                match self.theme.table_header_color.as_str() {
+                    "blue" => prettytable::color::BLUE,
+                    "green" => prettytable::color::GREEN,
+                    "red" => prettytable::color::RED,
+                    "cyan" => prettytable::color::CYAN,
+                    "yellow" => prettytable::color::YELLOW,
+                    "magenta" => prettytable::color::MAGENTA,
+                    _ => prettytable::color::CYAN,
+                }
+            )))
+            .collect();
+        
+        table.add_row(Row::new(header_cells));
+        
+        // Add data rows
+        for row in rows {
+            let cells: Vec<Cell> = row
+                .iter()
+                .map(|cell| Cell::new(cell))
+                .collect();
+            table.add_row(Row::new(cells));
+        }
+        
+        format!("{}", table)
+    }
+    
+    fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {
+        serde_json::to_string_pretty(value)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_FORMATTING, e))
+    }
+    
+    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String> {
+        serde_json::to_string(value)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSONL_FORMATTING, e))
+    }
+}
+
+/// JSON Lines formatter implementation
+#[derive(Clone)]
+pub struct JsonLinesFormatter;
+
+impl JsonLinesFormatter {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    fn json_wrap(&self, json_type: &str, data: serde_json::Value) -> String {
+        let mut obj = serde_json::Map::new();
+        obj.insert("type".to_string(), serde_json::Value::String(json_type.to_string()));
+        
+        match data {
+            serde_json::Value::Object(map) => {
+                for (k, v) in map {
+                    obj.insert(k, v);
+                }
+            },
+            _ => {
+                obj.insert("data".to_string(), data);
+            }
+        }
+        
+        serde_json::to_string(&serde_json::Value::Object(obj))
+            .unwrap_or_else(|_| format!("{{\"type\":\"{}\"}}", json_type))
+    }
+}
+
+impl UIFormatter for JsonLinesFormatter {
+    fn title(&self, text: &str) -> String {
+        self.json_wrap("title", serde_json::json!({ "text": text }))
+    }
+
+    fn subtitle(&self, text: &str) -> String {
+        self.json_wrap("subtitle", serde_json::json!({ "text": text }))
+    }
+
+    fn heading(&self, level: u8, text: &str) -> String {
+        self.json_wrap("heading", serde_json::json!({
+            "level": level,
+            "text": text
+        }))
+    }
+
+    fn text(&self, text: &str) -> String {
+        self.json_wrap("text", serde_json::json!({ "text": text }))
+    }
+
+    fn success(&self, text: &str) -> String {
+        self.json_wrap("success", serde_json::json!({ "text": text }))
+    }
+
+    fn error(&self, text: &str) -> String {
+        self.json_wrap("error", serde_json::json!({ "text": text }))
+    }
+
+    fn info(&self, text: &str) -> String {
+        self.json_wrap("info", serde_json::json!({ "text": text }))
+    }
+
+    fn warning(&self, text: &str) -> String {
+        self.json_wrap("warning", serde_json::json!({ "text": text }))
+    }
+
+    fn block(&self, text: &str) -> String {
+        self.json_wrap("block", serde_json::json!({ "text": text }))
+    }
+
+    fn code(&self, text: &str, language: Option<&str>) -> String {
+        self.json_wrap("code", serde_json::json!({
+            "text": text,
+            "language": language
+        }))
+    }
+
+    fn hr(&self) -> String {
+        self.json_wrap("hr", serde_json::json!({}))
+    }
+
+    fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
+        let mut map = serde_json::Map::new();
+        for (key, value) in pairs {
+            map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
+        }
+        self.json_wrap("key_value_list", serde_json::Value::Object(map))
+    }
+    
+    fn list_string(&self, items: &[String], ordered: bool) -> String {
+        self.json_wrap("list", serde_json::json!({
+            "ordered": ordered,
+            "items": items
+        }))
+    }
+    
+    fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String {
+        let headers_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
+        
+        self.json_wrap("table", serde_json::json!({
+            "headers": headers_vec,
+            "rows": rows
+        }))
+    }
+    
+    fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {
+        serde_json::to_string(value)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_FORMATTING, e))
+    }
+    
+    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String> {
+        self.json_value(value)
+    }
+}
+
+/// Markdown formatter implementation
+#[derive(Clone)]
+pub struct MarkdownFormatter;
+
+impl MarkdownFormatter {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl UIFormatter for MarkdownFormatter {
+    fn title(&self, text: &str) -> String {
+        format!("# {}", text)
+    }
+
+    fn subtitle(&self, text: &str) -> String {
+        format!("## {}", text)
+    }
+
+    fn heading(&self, level: u8, text: &str) -> String {
+        let level = std::cmp::min(level as usize, 6);
+        format!("{} {}", "#".repeat(level), text)
+    }
+
+    fn text(&self, text: &str) -> String {
+        text.to_string()
+    }
+
+    fn success(&self, text: &str) -> String {
+        format!("> ✅ {}", text)
+    }
+
+    fn error(&self, text: &str) -> String {
+        format!("> ❌ {}", text)
+    }
+
+    fn info(&self, text: &str) -> String {
+        format!("> ℹ️ {}", text)
+    }
+
+    fn warning(&self, text: &str) -> String {
+        format!("> ⚠️ {}", text)
+    }
+
+    fn block(&self, text: &str) -> String {
+        format!("```\n{}\n```", text)
+    }
+
+    fn code(&self, text: &str, language: Option<&str>) -> String {
+        let lang = language.unwrap_or("");
+        format!("```{}\n{}\n```", lang, text)
+    }
+
+    fn hr(&self) -> String {
+        "---".to_string()
+    }
+
+    fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
+        pairs
+            .iter()
+            .map(|(key, value)| format!("**{}**: {}", key, value))
+            .collect::<Vec<String>>()
+            .join("\n\n")
+    }
+    
+    fn list_string(&self, items: &[String], ordered: bool) -> String {
+        items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                if ordered {
+                    format!("{}. {}", i + 1, item)
+                } else {
+                    format!("- {}", item)
+                }
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+    
+    fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String {
+        let mut md_table = String::new();
+        
+        // Add headers
+        md_table.push_str("|");
+        for header in headers {
+            md_table.push_str(&format!(" {} |", header));
+        }
+        md_table.push_str("\n|");
+        
+        // Add separator row
+        for _ in headers {
+            md_table.push_str(" --- |");
+        }
+        md_table.push_str("\n");
+        
+        // Add data rows
+        for row in rows {
+            md_table.push_str("|");
+            for cell in row {
+                md_table.push_str(&format!(" {} |", cell));
+            }
+            md_table.push_str("\n");
+        }
+        
+        md_table
+    }
+    
+    fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {
+        Ok(format!("```json\n{}\n```", 
+            serde_json::to_string_pretty(value)
+                .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_FORMATTING, e))?
+        ))
+    }
+    
+    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String> {
+        serde_json::to_string(value)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSONL_FORMATTING, e))
+    }
+}
+
 /// UI Manager for standardized output rendering
-#[derive(Debug, Clone)]
 pub struct UIManager {
     theme: UITheme,
     format: OutputFormat,
+    formatter: Box<dyn UIFormatter>,
+}
+
+impl Clone for UIManager {
+    fn clone(&self) -> Self {
+        let formatter: Box<dyn UIFormatter> = match self.format {
+            OutputFormat::JsonLines => Box::new(JsonLinesFormatter::new()),
+            OutputFormat::Markdown => Box::new(MarkdownFormatter::new()),
+            _ => Box::new(DefaultFormatter::new(self.theme.clone())),
+        };
+        
+        Self {
+            theme: self.theme.clone(),
+            format: self.format,
+            formatter,
+        }
+    }
 }
 
 impl Default for UIManager {
     fn default() -> Self {
+        let theme = UITheme::default();
         Self {
-            theme: UITheme::default(),
-            format: OutputFormat::Default,
+            theme: theme.clone(),
+            format: OutputFormat::default(),
+            formatter: Box::new(DefaultFormatter::new(theme)),
         }
     }
 }
 
 impl UIManager {
-    /// Create a new UI Manager with custom theme
+    /// Create a new UI Manager with the given theme
     pub fn new(theme: UITheme) -> Self {
-        Self { 
-            theme,
+        Self {
+            theme: theme.clone(),
             format: OutputFormat::Default,
+            formatter: Box::new(DefaultFormatter::new(theme)),
         }
     }
     
-    /// Create a UIManager with a specific output format
+    /// Create a new UI Manager with the given format
     pub fn with_format(format: OutputFormat) -> Self {
+        match format {
+            OutputFormat::JsonLines => Self::json_mode(),
+            OutputFormat::Markdown => Self::markdown_mode(),
+            _ => Self::default(),
+        }
+    }
+    
+    /// Create a new UI Manager in JSON Lines mode
+    pub fn json_mode() -> Self {
         Self {
             theme: UITheme::default(),
-            format,
-        }
-    }
-    
-    /// Create a UIManager that outputs only JSON (no formatting)
-    pub fn json_mode() -> Self {
-        Self { 
-            theme: UITheme::default(),
             format: OutputFormat::JsonLines,
+            formatter: Box::new(JsonLinesFormatter::new()),
         }
     }
     
-    /// Create a UIManager that outputs markdown
+    /// Create a new UI Manager in Markdown mode
     pub fn markdown_mode() -> Self {
         Self {
             theme: UITheme::default(),
             format: OutputFormat::Markdown,
+            formatter: Box::new(MarkdownFormatter::new()),
         }
     }
     
@@ -116,455 +535,147 @@ impl UIManager {
         self.format
     }
     
-    /// Create a title (equivalent to a level 1 heading) and print it
+    /// Get the formatter based on current format
+    fn formatter(&self) -> &dyn UIFormatter {
+        &*self.formatter
+    }
+    
+    /// Create a title (H1) heading and print it
     pub fn title(&self, text: &str) -> String {
-        let prefix = "#";
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "title",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    format!("{} {}", prefix, text)
-                }
-            },
-            OutputFormat::Markdown => format!("{} {}", prefix, text),
-            OutputFormat::Default => {
-                let colored_text = text.bold().color(&*self.theme.heading_color);
-                format!("{} {}", prefix, colored_text)
-            }
-        };
+        let output = self.formatter().title(text);
         println!("{}", output);
         output
     }
     
-    /// Create a subtitle (equivalent to a level 2 heading) and print it
+    /// Create a subtitle (H2) heading and print it
     pub fn subtitle(&self, text: &str) -> String {
-        let prefix = "##";
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "subtitle",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    format!("{} {}", prefix, text)
-                }
-            },
-            OutputFormat::Markdown => format!("{} {}", prefix, text),
-            OutputFormat::Default => {
-                let colored_text = text.color(&*self.theme.heading_color);
-                format!("{} {}", prefix, colored_text)
-            }
-        };
+        let output = self.formatter().subtitle(text);
         println!("{}", output);
         output
     }
     
-    /// Create a heading (Markdown-like # Heading) and print it
-    #[deprecated(since = "0.2.0", note = "Use title() or subtitle() instead")]
+    /// Create a heading with the specified level and print it
     pub fn heading(&self, level: u8, text: &str) -> String {
-        let prefix = "#".repeat(std::cmp::min(level as usize, 6));
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "heading",
-                    "level": level,
-                    "text": text
-                })) {
-                    json
-                } else {
-                    format!("{} {}", prefix, text)
-                }
-            },
-            OutputFormat::Markdown => format!("{} {}", prefix, text),
-            OutputFormat::Default => {
-                let colored_text = match level {
-                    1 => text.bold().color(&*self.theme.heading_color),
-                    _ => text.color(&*self.theme.heading_color),
-                };
-                format!("{} {}", prefix, colored_text)
-            }
-        };
+        let output = self.formatter().heading(level, text);
         println!("{}", output);
         output
     }
     
-    /// Create a text block (simple text output) and print it
+    /// Format and print plain text
     pub fn text(&self, text: &str) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "text",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            _ => text.to_string()
-        };
+        let output = self.formatter().text(text);
         println!("{}", output);
         output
     }
     
-    /// Create and print a success message
+    /// Format and print a success message
     pub fn success(&self, text: &str) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "success",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            OutputFormat::Markdown => format!("✅ {}", text),
-            OutputFormat::Default => text.color(&*self.theme.success_color).to_string()
-        };
+        let output = self.formatter().success(text);
         println!("{}", output);
         output
     }
     
-    /// Create and print an error message
+    /// Format and print an error message
     pub fn error(&self, text: &str) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "error",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            OutputFormat::Markdown => format!("❌ {}", text),
-            OutputFormat::Default => text.color(&*self.theme.error_color).to_string()
-        };
+        let output = self.formatter().error(text);
         println!("{}", output);
         output
     }
     
-    /// Create and print an info message
+    /// Format and print an info message
     pub fn info(&self, text: &str) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "info",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            OutputFormat::Markdown => format!("ℹ️ {}", text),
-            OutputFormat::Default => text.color(&*self.theme.info_color).to_string()
-        };
+        let output = self.formatter().info(text);
         println!("{}", output);
         output
     }
     
-    /// Create and print a warning message
+    /// Format and print a warning message
     pub fn warning(&self, text: &str) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "warning",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            OutputFormat::Markdown => format!("⚠️ {}", text),
-            OutputFormat::Default => text.color(&*self.theme.warning_color).to_string()
-        };
+        let output = self.formatter().warning(text);
         println!("{}", output);
         output
     }
     
-    /// Create a block (indented block of text) and print it
+    /// Format text as a block/code block and print it
     pub fn block(&self, text: &str) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "block",
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            OutputFormat::Markdown => format!("> {}", text.replace("\n", "\n> ")),
-            OutputFormat::Default => {
-                text.lines()
-                    .map(|line| format!("    {}", line))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            }
-        };
+        let output = self.formatter().block(text);
         println!("{}", output);
         output
     }
     
-    /// Create and print a code block (```code```)
+    /// Format text as a code block with optional language and print it
     pub fn code(&self, text: &str, language: Option<&str>) -> String {
-        let lang = language.unwrap_or("");
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "code",
-                    "language": lang,
-                    "text": text
-                })) {
-                    json
-                } else {
-                    text.to_string()
-                }
-            },
-            OutputFormat::Markdown => format!("```{}\n{}\n```", lang, text),
-            OutputFormat::Default => format!("```{}\n{}\n```", lang, text)
-        };
+        let output = self.formatter().code(text, language);
         println!("{}", output);
         output
     }
     
     /// Create a list with items and print it
     pub fn list<T: Display>(&self, items: &[T], ordered: bool) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                let items_vec: Vec<String> = items.iter().map(|item| format!("{}", item)).collect();
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "list",
-                    "ordered": ordered,
-                    "items": items_vec
-                })) {
-                    json
-                } else {
-                    items.iter()
-                        .enumerate()
-                        .map(|(i, item)| {
-                            if ordered {
-                                format!("{}. {}", i + 1, item)
-                            } else {
-                                format!("• {}", item)
-                            }
-                        })
-                        .collect::<Vec<String>>()
-                        .join("\n")
-                }
-            },
-            OutputFormat::Markdown | OutputFormat::Default => {
-                items
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| {
-                        if ordered {
-                            format!("{}. {}", i + 1, item)
-                        } else {
-                            format!("• {}", item)
-                        }
-                    })
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            }
-        };
+        // Convert items to strings first
+        let string_items: Vec<String> = items.iter().map(|item| format!("{}", item)).collect();
+        let output = self.formatter().list_string(&string_items, ordered);
         println!("{}", output);
         output
     }
     
     /// Create a table from headers and rows and print it
     pub fn table<T: Display>(&self, headers: &[&str], rows: &[Vec<T>]) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                let headers_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
-                let rows_vec: Vec<Vec<String>> = rows.iter()
-                    .map(|row| row.iter().map(|cell| format!("{}", cell)).collect())
-                    .collect();
-                
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "table",
-                    "headers": headers_vec,
-                    "rows": rows_vec
-                })) {
-                    json
-                } else {
-                    format!("{}", Table::new()) // Empty table as fallback
-                }
-            },
-            OutputFormat::Markdown => {
-                let mut md_table = String::new();
-                
-                // Add headers
-                md_table.push_str("|");
-                for header in headers {
-                    md_table.push_str(&format!(" {} |", header));
-                }
-                md_table.push_str("\n|");
-                
-                // Add separator row
-                for _ in headers {
-                    md_table.push_str(" --- |");
-                }
-                md_table.push_str("\n");
-                
-                // Add data rows
-                for row in rows {
-                    md_table.push_str("|");
-                    for cell in row {
-                        md_table.push_str(&format!(" {} |", cell));
-                    }
-                    md_table.push_str("\n");
-                }
-                
-                md_table
-            },
-            OutputFormat::Default => {
-                let mut table = Table::new();
-                table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-                
-                // Add header row
-                let header_cells: Vec<Cell> = headers
-                    .iter()
-                    .map(|h| Cell::new(h).with_style(prettytable::Attr::ForegroundColor(
-                        match self.theme.table_header_color.as_str() {
-                            "blue" => prettytable::color::BLUE,
-                            "green" => prettytable::color::GREEN,
-                            "red" => prettytable::color::RED,
-                            "cyan" => prettytable::color::CYAN,
-                            "yellow" => prettytable::color::YELLOW,
-                            "magenta" => prettytable::color::MAGENTA,
-                            _ => prettytable::color::CYAN,
-                        }
-                    )))
-                    .collect();
-                
-                table.add_row(Row::new(header_cells));
-                
-                // Add data rows
-                for row in rows {
-                    let cells: Vec<Cell> = row
-                        .iter()
-                        .map(|cell| Cell::new(&format!("{}", cell)))
-                        .collect();
-                    table.add_row(Row::new(cells));
-                }
-                
-                format!("{}", table)
-            }
-        };
+        // Convert rows to strings first
+        let string_rows: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| row.iter().map(|cell| format!("{}", cell)).collect())
+            .collect();
+        
+        let output = self.formatter().table_string(headers, &string_rows);
         println!("{}", output);
         output
     }
     
-    /// Print a horizontal rule (Markdown-like ---)
+    /// Print a horizontal rule
     pub fn hr(&self) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "hr"
-                })) {
-                    json
-                } else {
-                    "-".repeat(self.theme.wrapped_width)
-                }
-            },
-            OutputFormat::Markdown => "---".to_string(),
-            OutputFormat::Default => "-".repeat(self.theme.wrapped_width)
-        };
+        let output = self.formatter().hr();
         println!("{}", output);
         output
     }
     
-    /// Print a blank line
+    /// Print a line break (just a newline)
     pub fn line_break(&self) {
-        match self.format {
-            OutputFormat::JsonLines => {
-                if let Ok(json) = serde_json::to_string(&serde_json::json!({
-                    "type": "line_break"
-                })) {
-                    println!("{}", json);
-                } else {
-                    println!();
-                }
-            },
-            _ => println!()
-        }
+        println!();
     }
     
     /// Format JSON (or other serializable data) into a pretty string and print it
     pub fn json<T: Serialize>(&self, data: &T) -> Result<String, String> {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                serde_json::to_string(data)
-                    .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_FORMATTING, e))
-            },
-            _ => serde_json::to_string_pretty(data)
-                .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_FORMATTING, e))
-        }?;
+        // Convert to serde_json::Value first
+        let value = serde_json::to_value(data)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_CONVERSION, e))?;
+        
+        let output = self.formatter().json_value(&value)?;
         println!("{}", output);
         Ok(output)
     }
     
     /// Format data as a single JSON line (compact format, no indentation) and print it
     pub fn jsonl<T: Serialize>(&self, data: &T) -> Result<String, String> {
-        let output = serde_json::to_string(data)
-            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSONL_FORMATTING, e))?;
+        // Convert to serde_json::Value first
+        let value = serde_json::to_value(data)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_CONVERSION, e))?;
+        
+        let output = self.formatter().jsonl_value(&value)?;
         println!("{}", output);
         Ok(output)
     }
     
-    /// Show key-value pairs in a structured format and print them
+    /// Format and print a key-value list
     pub fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
-        let output = match self.format {
-            OutputFormat::JsonLines => {
-                let mut map = serde_json::Map::new();
-                for (key, value) in pairs {
-                    map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
-                }
-                if let Ok(json) = serde_json::to_string(&serde_json::Value::Object(map)) {
-                    json
-                } else {
-                    pairs
-                        .iter()
-                        .map(|(key, value)| format!("{}: {}", key, value))
-                        .collect::<Vec<String>>()
-                        .join("\n")
-                }
-            },
-            OutputFormat::Markdown => {
-                pairs
-                    .iter()
-                    .map(|(key, value)| format!("**{}**: {}", key, value))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            },
-            OutputFormat::Default => {
-                pairs
-                    .iter()
-                    .map(|(key, value)| format!("{}: {}", key.bold(), value))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            }
-        };
+        let output = self.formatter().key_value_list(pairs);
         println!("{}", output);
         output
     }
     
-    /// Wraps text to fit within theme's wrapped_width
+    /// Wrap text to the configured width
     pub fn wrap_text(&self, text: &str) -> String {
-        wrap(text, self.theme.wrapped_width)
-            .join("\n")
+        wrap(text, self.theme.wrapped_width).join("\n")
     }
 }
 
@@ -612,7 +723,7 @@ pub fn format_commandlet_result<T: Serialize>(ui: &UIManager, result: &T) -> Str
                 } else {
                     // If it's not an object, just format as JSON with markdown code block
                     match ui.json(result) {
-                        Ok(formatted_json) => format!("```json\n{}\n```", formatted_json),
+                        Ok(formatted_json) => formatted_json,
                         Err(e) => {
                             debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
                             format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
@@ -622,7 +733,7 @@ pub fn format_commandlet_result<T: Serialize>(ui: &UIManager, result: &T) -> Str
             } else {
                 // Fallback to JSON if we can't convert to a value
                 match ui.json(result) {
-                    Ok(formatted_json) => format!("```json\n{}\n```", formatted_json),
+                    Ok(formatted_json) => formatted_json,
                     Err(e) => {
                         debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
                         format!("{}", ui_messages::ERROR_RESULT_FALLBACK)

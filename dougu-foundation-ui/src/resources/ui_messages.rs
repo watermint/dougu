@@ -5,6 +5,7 @@ pub const SUCCESS_DATA_DISPLAYED: &str = "Data displayed successfully";
 // Error messages
 pub const ERROR_JSON_FORMATTING: &str = "Error formatting JSON";
 pub const ERROR_JSONL_FORMATTING: &str = "Error formatting JSON Lines";
+pub const ERROR_JSON_CONVERSION: &str = "Error converting to JSON";
 pub const ERROR_FORMATTING_RESULT: &str = "Error formatting result";
 pub const ERROR_RESULT_FALLBACK: &str = "Unable to format result, showing raw data";
 pub const ERROR_THEME_INVALID: &str = "Invalid theme setting";
