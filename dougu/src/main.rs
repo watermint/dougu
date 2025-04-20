@@ -361,8 +361,8 @@ impl LauncherLayer for BuildCommandLayer {
                     let result = dougu_command_build::execute_pack(pack_args, &ctx.ui).await
                         .map_err(|e| format!("Build pack failed: {}", e))?;
                     
-                    // Format results for display
-                    ctx.ui.text(&result);
+                    // Log the result instead of printing
+                    dougu_essentials_logger::log_info(format!("Build pack result: {}", result));
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
                 }

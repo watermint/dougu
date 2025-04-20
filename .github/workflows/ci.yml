@@ -37,8 +37,8 @@ jobs:
           echo "--------------------------------"
           echo "end of build_output.json"
           
-          # Use obj query command with jsonl format to extract the executable path based on main.rs, piping from stdin
-          EXECUTABLE=$(cat build_output.json | ./target/debug/dougu obj query jsonl - 'select(.reason == "compiler-artifact" and .target.src_path | endswith("/main.rs")) | .executable')
+          # Use obj extract command with --raw flag to get the raw value directly
+          EXECUTABLE=$(cat build_output.json | ./target/debug/dougu --ui-skip-appinfo obj extract --format jsonl --raw - 'select(.reason == "compiler-artifact" and .target.src_path | endswith("/main.rs")) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found matching main.rs. Aborting." >&2
@@ -55,18 +55,17 @@ jobs:
         run: |
           # Build the artifact using the build pack command
           mkdir -p target/dist
-          PACK_OUTPUT=$(./target/debug/dougu build pack \
+          PACK_OUTPUT=$(./target/debug/dougu --ui-skip-appinfo build pack \
             --input-dir target/debug \
             --output-dir target/dist \
-            --ui-skip-appinfo        \
             --ui-format jsonl)
           
           # Debug output
           echo "PACK_OUTPUT: $PACK_OUTPUT"
           
-          # Extract information from JSON output
-          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json - '.path')
-          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu obj query json - '.name')
+          # Extract raw values directly using --raw flag
+          ARCHIVE_PATH=$(echo "$PACK_OUTPUT" | ./target/debug/dougu --ui-skip-appinfo obj extract --format jsonl --raw - '.path')
+          ARTIFACT_NAME=$(echo "$PACK_OUTPUT" | ./target/debug/dougu --ui-skip-appinfo obj extract --format jsonl --raw - '.name')
           
           # Debug output for extracted values
           echo "ARCHIVE_PATH: $ARCHIVE_PATH"
