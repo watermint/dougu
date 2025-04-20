@@ -19,6 +19,6 @@ dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
 uuid = { version = "1.4", features = ["v4"] }
 walkdir = "2.3"
 zip = "0.6"
+tempfile = "3.10.0"
 
 [dev-dependencies]
-tempfile = "3.10.0"

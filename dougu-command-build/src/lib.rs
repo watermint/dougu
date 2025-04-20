@@ -11,6 +11,7 @@ use tokio::process::Command;
 use uuid::Uuid;
 use walkdir::WalkDir;
 use dougu_essentials_log;
+use tempfile;
 
 mod resources;
 mod launcher;
@@ -587,27 +588,14 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     dougu_essentials_log::log_info(resources::log_messages::PACKING_ARTIFACT
         .replace("{name}", &archive_filename));
     
-    // Create the zip file
-    let zip_file = fs::File::create(&archive_path)?;
-    let mut zip = zip::ZipWriter::new(zip_file);
+    // Create a temporary directory to build the archive contents
+    let temp_dir = tempfile::tempdir()?;
     
-    // Set file options (executable permissions for binaries)
-    let options = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated)
-        .unix_permissions(0o755);
+    // Copy the executable to the temporary directory with the correct name
+    let temp_exec_path = temp_dir.path().join(&detected_name);
+    fs::copy(&executable_path, &temp_exec_path)?;
     
-    // Add the executable to the archive using just the base filename, not including a nested directory
-    let target_filename = detected_name.clone();
-    
-    dougu_essentials_log::log_info(resources::log_messages::ADDING_EXECUTABLE_TO_ARCHIVE
-        .replace("{source}", &exec_name)
-        .replace("{target}", &target_filename));
-    
-    zip.start_file(target_filename, options)?;
-    let mut file = fs::File::open(&executable_path)?;
-    std::io::copy(&mut file, &mut zip)?;
-    
-    // Generate a VERSION.txt with build info
+    // Create VERSION.txt in the temporary directory
     let version_content = format!(
         "Name: {}\nRelease: {}\nBuild Type: {}\nBuild Date: {}\nRepository: {}/{}",
         detected_name,
@@ -617,8 +605,33 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         build_info.repository_owner,
         build_info.repository_name
     );
-    zip.start_file("VERSION.txt", options)?;
-    std::io::copy(&mut std::io::Cursor::new(version_content.into_bytes()), &mut zip)?;
+    fs::write(temp_dir.path().join("VERSION.txt"), version_content)?;
+    
+    // Create the zip file
+    let zip_file = fs::File::create(&archive_path)?;
+    let mut zip = zip::ZipWriter::new(zip_file);
+    
+    // Set file options (executable permissions for binaries)
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o755);
+    
+    // Add all files from the temporary directory to the archive
+    for entry in WalkDir::new(temp_dir.path()) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            let path = entry.path();
+            let name = path.strip_prefix(temp_dir.path())?
+                .to_string_lossy()
+                .into_owned();
+            
+            dougu_essentials_log::log_info(format!("Adding file to archive: {}", name));
+            
+            zip.start_file(name, options)?;
+            let mut file = fs::File::open(path)?;
+            std::io::copy(&mut file, &mut zip)?;
+        }
+    }
     
     zip.finish()?;
     
