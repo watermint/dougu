@@ -34,9 +34,9 @@ jobs:
           # Find executable path using the dougu tool
           # The cargo output is JSON lines format
           EXECUTABLE=$(./target/debug/dougu --ui-skip-appinfo obj extract \
-            --format json-stream \
+            --format json \
             --raw \
-            -f build_output.json \
+            build_output.json \
             'select(.reason == "compiler-artifact" and .target.kind | contains(["bin"]) and .target.src_path | endswith("/main.rs") and .executable != null) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
