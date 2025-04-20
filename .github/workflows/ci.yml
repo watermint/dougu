@@ -28,12 +28,18 @@ jobs:
         id: build
         shell: bash
         run: |
-          # Get executable path from build output
-          cargo build --workspace --all-targets --message-format=json > build_output.json
-          EXECUTABLE=$(./target/debug/dougu obj query json build_output.json '.[] | select(.executable != null) | .executable' | head -n 1)
+          # Build the project
+          cargo build --workspace --all-targets
+          
+          # Find the executable
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            EXECUTABLE=$(find target/debug -maxdepth 1 -name "dougu.exe" -type f | head -n 1)
+          else
+            EXECUTABLE=$(find target/debug -maxdepth 1 -name "dougu" -type f -executable | head -n 1)
+          fi
           
           if [ -z "$EXECUTABLE" ]; then
-            echo "No executable found in build output. Aborting." >&2
+            echo "No executable found. Aborting." >&2
             exit 1
           fi
           
@@ -50,6 +56,7 @@ jobs:
           PACK_OUTPUT=$(./target/debug/dougu build pack \
             --input-dir target/debug \
             --output-dir target/dist \
+            --ui-skip-appinfo        \
             --ui-format jsonl)
           
           # Debug output
