@@ -498,6 +498,13 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
             }
         }
     } else if let Some(input_dir) = &args.input_dir {
+        // Abort if input_dir is a zip file (prevents nested zips)
+        let input_path = Path::new(input_dir);
+        if input_path.is_file() && input_path.extension().map_or(false, |ext| ext == "zip") {
+            dougu_essentials_log::log_error(resources::log_messages::INVALID_EXECUTABLE_TYPE);
+            return Err(anyhow!("Input directory is a zip file. This would create a nested archive."));
+        }
+        
         // Traditional scan for executables in input directory
         for entry in WalkDir::new(input_dir).max_depth(1) {
             let entry = entry?;
