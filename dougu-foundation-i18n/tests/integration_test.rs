@@ -37,7 +37,7 @@ fn test_i18n_commandlet_integration() {
            "Got unexpected error message: {}", error_msg);
     
     // Test with variables
-    let layer_msg = tf("LAYER_EXECUTION", vars!("" => "TestLayer"));
+    let layer_msg = tf("LAYER_EXECUTION", vars!("layer" => "TestLayer"));
     assert!(layer_msg == "Executing layer: TestLayer" || 
             layer_msg == "Executing layer: {layer}" || 
             layer_msg.contains("TestLayer") ||
@@ -56,7 +56,7 @@ fn test_i18n_commandlet_integration() {
     assert!(error_msg == "リソースが見つかりません" || error_msg == "RESOURCE_NOT_FOUND");
     
     // Test with variables in Japanese
-    let layer_msg = tf("LAYER_EXECUTION", vars!("" => "TestLayer"));
+    let layer_msg = tf("LAYER_EXECUTION", vars!("layer" => "TestLayer"));
     assert!(layer_msg == "レイヤーを実行中: TestLayer" ||
            layer_msg == "レイヤーを実行中: {layer}" ||
            layer_msg.contains("TestLayer") ||
