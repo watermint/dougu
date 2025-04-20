@@ -424,6 +424,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         let file_content = fs::read_to_string(cargo_output_path)?;
         
         // Parse JSON lines to find executable paths
+        // First pass: Look for release builds
         for line in file_content.lines() {
             if let Ok(value) = serde_json::from_str::<Value>(line) {
                 // Look for compiler-artifact entries with binaries
@@ -433,17 +434,60 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
                             // Check if it's a binary target
                             if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
                                 if kind.iter().any(|k| k.as_str() == Some("bin")) {
-                                    // Check if it has an executable path
-                                    if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
-                                        executable_path = Some(PathBuf::from(exec_path));
+                                    // Check if it's a release build
+                                    if let Some(profile) = value.get("profile") {
+                                        let is_release = profile.get("opt-level").and_then(|o| o.as_str()).map_or(false, |level| level != "0");
+                                        let is_test = profile.get("test").and_then(|t| t.as_bool()).unwrap_or(false);
                                         
-                                        // Extract name from target
-                                        if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
-                                            executable_name = Some(name.to_string());
+                                        // Skip test binaries, prefer release builds
+                                        if is_release && !is_test {
+                                            // Check if it has an executable path
+                                            if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
+                                                executable_path = Some(PathBuf::from(exec_path));
+                                                
+                                                // Extract name from target
+                                                if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
+                                                    executable_name = Some(name.to_string());
+                                                }
+                                                
+                                                // We found a release binary, no need to search further
+                                                break;
+                                            }
                                         }
-                                        
-                                        // We found what we need, no need to process further
-                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Second pass: If no release build found, look for any binary (not a test)
+        if executable_path.is_none() {
+            for line in file_content.lines() {
+                if let Ok(value) = serde_json::from_str::<Value>(line) {
+                    if let Some(reason) = value.get("reason").and_then(|v| v.as_str()) {
+                        if reason == "compiler-artifact" {
+                            if let Some(target) = value.get("target") {
+                                if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
+                                    if kind.iter().any(|k| k.as_str() == Some("bin")) {
+                                        // Skip test binaries
+                                        if let Some(profile) = value.get("profile") {
+                                            let is_test = profile.get("test").and_then(|t| t.as_bool()).unwrap_or(false);
+                                            
+                                            if !is_test {
+                                                if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
+                                                    executable_path = Some(PathBuf::from(exec_path));
+                                                    
+                                                    if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
+                                                        executable_name = Some(name.to_string());
+                                                    }
+                                                    
+                                                    break;
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

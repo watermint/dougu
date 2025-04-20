@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           # Build the project and generate build output file for the pack step
-          cargo build --workspace --all-targets --message-format=json > build_output.json
+          cargo build --workspace --release --message-format=json > build_output.json
           
       # Pack artifact
       - name: Pack artifact
@@ -41,7 +41,7 @@ jobs:
           
           # Let build pack command parse the cargo build output and create plain text files
           # with artifact information in the output directory
-          ./target/debug/dougu --ui-skip-appinfo build pack \
+          ./target/release/dougu --ui-skip-appinfo build pack \
             --output-dir target/dist \
             --cargo-output build_output.json \
             --ui-format jsonl
