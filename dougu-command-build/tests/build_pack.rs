@@ -276,13 +276,20 @@ async fn test_build_pack_with_cargo_output() -> Result<()> {
         fs::set_permissions(&mock_executable, perms)?;
     }
     
+    // Get the absolute path of the mock executable
+    let mock_executable_absolute = fs::canonicalize(&mock_executable)?;
+    
     // Create mock cargo output JSON
     let cargo_output_path = cargo_output_dir.join("cargo_output.json");
     let cargo_output_content = format!(
-        r#"{{"reason":"compiler-artifact", "target":{{"kind":["bin"], "name":"test_executable", "src_path":"main.rs"}}, "executable":"{}"}}"#,
-        mock_executable.to_string_lossy().replace("\\", "\\\\") // Escape backslashes for Windows paths in JSON
+        r#"{{"reason":"compiler-artifact", "target":{{"kind":["bin"], "name":"test_executable", "src_path":"main.rs"}}, "profile":{{"opt-level":"0", "debuginfo":2, "debug-assertions":true, "overflow-checks":true, "test":false}}, "executable":"{}"}}"#,
+        mock_executable_absolute.to_string_lossy().replace("\\", "\\\\") // Escape backslashes for Windows paths in JSON
     );
     fs::write(&cargo_output_path, cargo_output_content)?;
+    
+    // Print paths for debugging
+    println!("Mock executable path: {}", mock_executable_absolute.display());
+    println!("Cargo output content: {}", cargo_output_content);
     
     // Create UI manager for testing (JSON format)
     let ui = UIManager::with_format(OutputFormat::JsonLines);
