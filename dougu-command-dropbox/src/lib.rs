@@ -115,16 +115,16 @@ pub struct DeleteFolderArgs {
 /// Execute the Dropbox file list command
 pub async fn execute_file_list(args: &ListFileArgs, token: &str, ui: &dougu_foundation_ui::UIManager) -> Result<()> {
     let client = DropboxClient::new(token.to_string());
-    let path = args.path.as_deref().unwrap_or("");
+    let path = args.path.clone().unwrap_or_else(|| "/".to_string());
     
     dougu_essentials_logger::log_info(format!("Listing Dropbox files in: {}", path));
     
-    let result = client.list_files(path).await?;
+    let result = client.list_files(&path).await?;
     
     // Use provided UI manager instead of creating a new one
     for file in &result.files {
         let formatted = format!("{} ({})", file.name, file.size);
-        ui.print(&formatted);
+        ui.text(&formatted);
     }
     
     Ok(())

@@ -128,7 +128,7 @@ impl LauncherLayer for FileCommandletLayer {
                 .map_err(|e| format!("Failed to format results: {}", e))?;
             
             // Print the formatted result
-            ctx.ui.print(&formatted_result);
+            ctx.ui.text(&formatted_result);
             
             info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
         }
@@ -158,16 +158,16 @@ impl LauncherLayer for DropboxCommandLayer {
             info!("{}", log_messages::COMMAND_START.replace("{}", "Dropbox"));
             
             // Use UI manager from context directly
-            ctx.ui.print(&ctx.ui.heading(1, "Dropbox Operations"));
+            ctx.ui.heading(1, "Dropbox Operations");
             
             match &args.command {
                 DropboxCommands::File(file_args) => {
-                    ctx.ui.print(&ctx.ui.heading(2, "File Operations"));
+                    ctx.ui.heading(2, "File Operations");
                     
                     match &file_args.command {
                         DropboxFileCommands::List(list_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File List"));
-                            ctx.ui.print(&ctx.ui.info("Listing files from Dropbox..."));
+                            ctx.ui.info("Listing files from Dropbox...");
                             
                             dougu_command_dropbox::execute_file_list(list_args, token, &ctx.ui).await
                                 .map_err(|e| format!("Dropbox file list failed: {}", e))?;
@@ -178,54 +178,54 @@ impl LauncherLayer for DropboxCommandLayer {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Download"));
                             // Create a local variable for the formatted message
                             let msg = format!("Downloading file: {}", download_args.path);
-                            ctx.ui.print(&ctx.ui.info(&msg));
+                            ctx.ui.info(&msg);
                             
                             dougu_command_dropbox::execute_file_download(download_args, token).await
                                 .map_err(|e| format!("Dropbox file download failed: {}", e))?;
                             
-                            ctx.ui.print(&ctx.ui.success("Download completed successfully"));
+                            ctx.ui.success("Download completed successfully");
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Download"));
                         }
                         DropboxFileCommands::Upload(upload_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Upload"));
                             // Create a local variable for the formatted message
                             let msg = format!("Uploading file to: {}", upload_args.dropbox_path);
-                            ctx.ui.print(&ctx.ui.info(&msg));
+                            ctx.ui.info(&msg);
                             
                             dougu_command_dropbox::execute_file_upload(upload_args, token).await
                                 .map_err(|e| format!("Dropbox file upload failed: {}", e))?;
                             
-                            ctx.ui.print(&ctx.ui.success("Upload completed successfully"));
+                            ctx.ui.success("Upload completed successfully");
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Upload"));
                         }
                     }
                 }
                 DropboxCommands::Folder(folder_args) => {
-                    ctx.ui.print(&ctx.ui.heading(2, "Folder Operations"));
+                    ctx.ui.heading(2, "Folder Operations");
                     
                     match &folder_args.command {
                         dougu_command_dropbox::FolderCommands::Create(create_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Create"));
                             // Create a local variable for the formatted message
                             let msg = format!("Creating folder: {}", create_args.path);
-                            ctx.ui.print(&ctx.ui.info(&msg));
+                            ctx.ui.info(&msg);
                             
                             dougu_command_dropbox::execute_folder_create(create_args, token).await
                                 .map_err(|e| format!("Dropbox folder create failed: {}", e))?;
                             
-                            ctx.ui.print(&ctx.ui.success("Folder created successfully"));
+                            ctx.ui.success("Folder created successfully");
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Create"));
                         }
                         dougu_command_dropbox::FolderCommands::Delete(delete_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Delete"));
                             // Create a local variable for the formatted message
                             let msg = format!("Deleting folder: {}", delete_args.path);
-                            ctx.ui.print(&ctx.ui.info(&msg));
+                            ctx.ui.info(&msg);
                             
                             dougu_command_dropbox::execute_folder_delete(delete_args, token).await
                                 .map_err(|e| format!("Dropbox folder delete failed: {}", e))?;
                             
-                            ctx.ui.print(&ctx.ui.success("Folder deleted successfully"));
+                            ctx.ui.success("Folder deleted successfully");
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Delete"));
                         }
                     }
@@ -286,73 +286,73 @@ impl LauncherLayer for BuildCommandLayer {
             // Use UI manager from context directly
             // Only show UI messages for non-JSON output
             if ctx.ui.format() != OutputFormat::JsonLines {
-                ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
+                ctx.ui.heading(1, "Build Operations");
             }
             
             match &args.command {
                 dougu_command_build::BuildCommands::Package(package_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Package"));
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
+                        ctx.ui.heading(2, "Packaging Application");
                         
                         // Get the output directory as a placeholder for package name
                         let package_name = package_args.output_dir.clone().unwrap_or_else(|| "default".to_string());
                         let msg = format!("Creating package in: {}", package_name);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.info(&msg);
                     }
                     
                     dougu_command_build::execute_package(package_args).await
                         .map_err(|e| format!("Build package failed: {}", e))?;
                     
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.success("Package created successfully"));
+                        ctx.ui.success("Package created successfully");
                     }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Package"));
                 }
                 dougu_command_build::BuildCommands::Test(test_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Test"));
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
+                        ctx.ui.heading(2, "Running Tests");
                         
                         let test_filter = test_args.filter.clone().unwrap_or_else(|| "all tests".to_string());
                         let msg = format!("Running test suite with filter: {}", test_filter);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.info(&msg);
                     }
                     
                     dougu_command_build::execute_test(test_args, &ctx.ui).await
                         .map_err(|e| format!("Build test failed: {}", e))?;
                     
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
+                        ctx.ui.success("Tests completed successfully");
                     }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Test"));
                 }
                 dougu_command_build::BuildCommands::Compile(compile_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Compile"));
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Compiling Project"));
+                        ctx.ui.heading(2, "Compiling Project");
                         
                         let build_type = if compile_args.release { "release" } else { "debug" };
                         let msg = format!("Compiling with build type: {}", build_type);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.info(&msg);
                     }
                     
                     dougu_command_build::execute_compile(compile_args, &ctx.ui).await
                         .map_err(|e| format!("Build compile failed: {}", e))?;
                     
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
+                        ctx.ui.success("Compilation completed successfully");
                     }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
                 }
                 dougu_command_build::BuildCommands::Pack(pack_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Pack"));
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
+                        ctx.ui.heading(2, "Creating Archive");
                         
                         let output_dir = pack_args.output_dir.clone().unwrap_or_else(|| "./target/dist".to_string());
                         let msg = format!("Creating archive in: {}", output_dir);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.info(&msg);
                     }
                     
                     // Pass UI context to execute_pack
@@ -363,12 +363,12 @@ impl LauncherLayer for BuildCommandLayer {
                     match ctx.ui.format() {
                         OutputFormat::JsonLines => {
                             // For JSON, just print the raw result without any additional formatting
-                            ctx.ui.print(&result);
+                            ctx.ui.text(&result);
                         },
                         _ => {
                             // For other formats, show success message and the result
-                            ctx.ui.print(&ctx.ui.success("Archive created successfully"));
-                            ctx.ui.print(&result);
+                            ctx.ui.success("Archive created successfully");
+                            ctx.ui.text(&result);
                         }
                     }
                     
@@ -378,18 +378,18 @@ impl LauncherLayer for BuildCommandLayer {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Spec"));
                     
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Generating Commandlet Specification"));
+                        ctx.ui.heading(2, "Generating Commandlet Specification");
                         
                         let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");
                         let msg = format!("Generating spec for: {}", commandlet_name);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.info(&msg);
                     }
                     
                     // Execute the spec command
                     let result = dougu_command_build::execute_spec(spec_args, &ctx.ui).await
                         .map_err(|e| format!("Build spec failed: {}", e))?;
                     
-                    ctx.ui.print(&result);
+                    ctx.ui.text(&result);
                     
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Spec"));
                 }
@@ -423,7 +423,7 @@ impl LauncherLayer for VersionCommandLayer {
         // Format and print the result
         let formatted_result = runner.format_results(&result)
             .map_err(|e| format!("Failed to format version results: {}", e))?;
-        ctx.ui.print(&formatted_result);
+        ctx.ui.text(&formatted_result);
         
         Ok(())
     }

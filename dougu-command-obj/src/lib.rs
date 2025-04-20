@@ -107,23 +107,22 @@ impl ObjCommand {
             match result {
                 Ok(val) => {
                     let json_string = serde_json::to_string_pretty(&val).unwrap();
-                    ui.print(&json_string);
+                    ui.text(&json_string);
                 },
                 Err(e) => {
                     let error_json = serde_json::json!({"error": e.to_string()}).to_string();
-                    ui.print(&error_json);
+                    ui.text(&error_json);
                 },
             }
         } else {
             match result {
                 Ok(val) => {
-                    ui.print(&ui.heading(1, "Query Result"));
-                    let formatted = ui.format_json(&val).unwrap_or_else(|_| format!("{}", serde_json::to_string_pretty(&val).unwrap_or_default()));
-                    ui.print(&ui.heading(2, "Query Output"));
-                    ui.print(&ui.code(&formatted, Some("json")));
+                    ui.heading(1, "Query Result");
+                    ui.heading(2, "Query Output");
+                    ui.code(&val.to_string(), Some("json"));
                 },
                 Err(e) => {
-                    ui.print(&ui.error(&e.to_string()));
+                    ui.error(&e.to_string());
                 }
             }
         }
@@ -131,14 +130,18 @@ impl ObjCommand {
     }
 
     async fn execute_convert(&self, input_format_str: &str, input_file: &PathBuf, output_format_str: &str, ui: &UIManager, json_mode: bool) -> Result<()> {
+        // Get the input data outside the closure so we can use it for UI display
+        let input_data = self.get_input(input_file)
+            .with_context(|| ERROR_FILE_NOT_FOUND)?;
+        let input_size = input_data.len();
+        
         let result: Result<serde_json::Value, anyhow::Error> = (|| {
             let input_format = Format::from_str(input_format_str)
                 .with_context(|| ERROR_INVALID_FORMAT)?;
             let output_format = Format::from_str(output_format_str)
                 .with_context(|| ERROR_INVALID_FORMAT)?;
-            let input = self.get_input(input_file)
-                .with_context(|| ERROR_FILE_NOT_FOUND)?;
-            let value: Value = Decoder::decode(&input, input_format)
+            
+            let value: Value = Decoder::decode(&input_data, input_format)
                 .with_context(|| ERROR_DECODE_FAILED)?;
             let output = match output_format {
                 Format::Json | Format::Xml => {
@@ -158,37 +161,38 @@ impl ObjCommand {
             match result {
                 Ok(val) => {
                     let json_string = serde_json::to_string_pretty(&val).unwrap();
-                    ui.print(&json_string);
+                    ui.text(&json_string);
                 },
                 Err(e) => {
                     let error_json = serde_json::json!({"error": e.to_string()}).to_string();
-                    ui.print(&error_json);
+                    ui.text(&error_json);
                 },
             }
         } else {
             match result {
                 Ok(val) => {
-                    ui.print(&ui.heading(1, "Format Conversion"));
-                    ui.print(&ui.key_value_list(&[
-                        ("From", input_format_str),
-                        ("To", output_format_str),
-                        ("File", &input_file.to_string_lossy()),
-                    ]));
-                    ui.print(&ui.heading(2, "Conversion Result"));
-                    if let Some(result) = val.get("result") {
-                        let formatted = ui.format_json(result).unwrap_or_else(|_| format!("{}", result));
-                        let language = match output_format_str.to_lowercase().as_str() {
-                            "json" => "json",
-                            "xml" => "xml",
-                            _ => "",
-                        };
-                        ui.print(&ui.code(&formatted, Some(language)));
-                    } else if let Some(info) = val.get("info") {
-                        ui.print(&ui.info(info.as_str().unwrap_or("Binary data written to stdout")));
+                    ui.heading(1, "Format Conversion");
+                    ui.key_value_list(&[
+                        ("Input Format", &input_format_str),
+                        ("Output Format", &output_format_str),
+                        ("Input Size", &format!("{} bytes", input_size)),
+                    ]);
+                    
+                    ui.heading(2, "Conversion Result");
+                    
+                    let (formatted, error_json) = self.format_output(&ui, val.clone())?;
+                    if !formatted.is_empty() {
+                        ui.text(&error_json);
+                    }
+                    
+                    ui.code(&formatted, Some("json"));
+                    
+                    if let Some(info) = val.get("info") {
+                        ui.info(info.as_str().unwrap_or("Binary data written to stdout"));
                     }
                 },
                 Err(e) => {
-                    ui.print(&ui.error(&e.to_string()));
+                    ui.error(&e.to_string());
                 }
             }
         }
@@ -205,6 +209,19 @@ impl ObjCommand {
         } else {
             fs::read(file_path).with_context(|| format!("Failed to read file: {:?}", file_path))
         }
+    }
+
+    fn format_output(&self, _ui: &UIManager, result: serde_json::Value) -> Result<(String, String)> {
+        let formatted = serde_json::to_string_pretty(&result)
+            .unwrap_or_else(|e| format!("Error formatting JSON: {}", e));
+
+        let error_json = if let Some(error) = result.get("error") {
+            error.to_string()
+        } else {
+            String::new()
+        };
+        
+        Ok((formatted, error_json))
     }
 }
 

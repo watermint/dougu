@@ -64,16 +64,16 @@ pub fn display_app_info(ui: &UIManager, _verbose: bool) {
         };
         
         // Serialize to JSON and print
-        if let Ok(json) = serde_json::to_string(&app_info_json) {
-            ui.print(&json);
+        if let Ok(_) = ui.jsonl(&app_info_json) {
+            // Output handled by jsonl method
         }
     } else {
         // Display the application banner in text format
-        ui.print(&app_title);
-        ui.print(&separator);
-        ui.line_break(); // Empty line for spacing using line_break
-        ui.print(&copyright);
-        ui.print(license);
-        ui.line_break(); // Add break line after the app info using line_break
+        ui.heading(1, &app_title);
+        ui.text(&separator);
+        ui.line_break(); // Empty line for spacing
+        ui.text(&copyright);
+        ui.text(license);
+        ui.line_break(); // Add break line after the app info
     }
 } 

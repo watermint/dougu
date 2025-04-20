@@ -296,7 +296,7 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
     
     // Print output using the provided UI manager
     if !output.stdout.is_empty() {
-        ui.print(&String::from_utf8_lossy(&output.stdout));
+        ui.text(&String::from_utf8_lossy(&output.stdout));
     }
     
     if !output.stderr.is_empty() {
@@ -345,7 +345,7 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     
     // Print output using the provided UI manager
     if !output.stdout.is_empty() {
-        ui.print(&String::from_utf8_lossy(&output.stdout));
+        ui.text(&String::from_utf8_lossy(&output.stdout));
     }
     
     if !output.stderr.is_empty() {

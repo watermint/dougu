@@ -148,34 +148,29 @@ impl LauncherLayer for VersionCommandLayer {
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the commandlet and runner with UI formatting
+        // Create the VersionCommandlet 
         let commandlet = VersionCommandlet;
-        // Use UI from context instead of creating a new one
+        
+        // Create a CommandRunner with UI manager from context
         let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
         
-        // Create empty parameters
+        // Empty params for version command
         let params = VersionParams {};
+        
+        // Serialize the params
         let serialized_params = serde_json::to_string(&params)
             .map_err(|e| format!("{}: {}", t(VERSION_ERROR_SERIALIZE), e))?;
         
-        // Run the commandlet and get the serialized result
-        let command_result = runner.run(&serialized_params).await
+        // Run the command with serialized parameters
+        let result = runner.run(&serialized_params).await
             .map_err(|e| format!("{}: {}", t(VERSION_ERROR_EXECUTION), e))?;
         
-        // Format the result based on its content
-        let formatted_result = if command_result.starts_with('{') {
-            // Try to parse as VersionResults
-            match serde_json::from_str::<VersionResults>(&command_result) {
-                Ok(results) => format_version_results(&ctx.ui, &results)
-                    .map_err(|e| format!("{}: {}", t(VERSION_ERROR_FORMAT), e))?,
-                Err(e) => format!("Error parsing result: {}", e),
-            }
-        } else {
-            // It's already an error message
-            command_result
-        };
+        // Format the results using the runner
+        let formatted_result = runner.format_results(&result)
+            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_FORMAT), e))?;
         
-        ctx.ui.print(&formatted_result);
+        // Display the formatted result
+        ctx.ui.text(&formatted_result);
         
         Ok(())
     }

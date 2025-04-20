@@ -31,30 +31,30 @@ impl LauncherLayer for BuildCommandLayer {
                 
             // Only show UI messages for non-JSON output
             if ctx.ui.format() != OutputFormat::JsonLines {
-                ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
+                ctx.ui.text(&ctx.ui.heading(1, "Build Operations"));
             }
             
             match &args.command {
                 BuildCommands::Package(package_args) => {
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
+                        ctx.ui.text(&ctx.ui.heading(2, "Packaging Application"));
                         
                         let target = package_args.target.as_deref().unwrap_or("default");
                         let output_dir = package_args.output_dir.as_deref().unwrap_or("dist");
                         let build_mode = if package_args.release { "release" } else { "debug" };
                         
                         let msg = format!("Packaging for target: {} ({}) to {}", target, build_mode, output_dir);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.text(&ctx.ui.info(&msg));
                     }
                     
                     execute_package(package_args).await
                         .map_err(|e| format!("Build package failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Packaging completed successfully"));
+                    ctx.ui.text(&ctx.ui.success("Packaging completed successfully"));
                 }
                 BuildCommands::Test(test_args) => {
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
+                        ctx.ui.text(&ctx.ui.heading(2, "Running Tests"));
                         
                         let build_mode = if test_args.release { "release" } else { "debug" };
                         let test_type = if test_args.unit {
@@ -67,62 +67,62 @@ impl LauncherLayer for BuildCommandLayer {
                         
                         let filter = test_args.filter.as_deref().unwrap_or("all");
                         let msg = format!("Running {} ({}) with filter: {}", test_type, build_mode, filter);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.text(&ctx.ui.info(&msg));
                     }
                     
                     execute_test(test_args, &ctx.ui).await
                         .map_err(|e| format!("Build test failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
+                    ctx.ui.text(&ctx.ui.success("Tests completed successfully"));
                 }
                 BuildCommands::Compile(compile_args) => {
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Compiling Application"));
+                        ctx.ui.text(&ctx.ui.heading(2, "Compiling Application"));
                         
                         let output_dir = compile_args.output_dir.as_deref().unwrap_or("target");
                         let build_mode = if compile_args.release { "release" } else { "debug" };
                         
                         let msg = format!("Compiling in {} mode to {}", build_mode, output_dir);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.text(&ctx.ui.info(&msg));
                     }
                     
                     execute_compile(compile_args, &ctx.ui).await
                         .map_err(|e| format!("Build compile failed: {}", e))?;
                     
-                    ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
+                    ctx.ui.text(&ctx.ui.success("Compilation completed successfully"));
                 }
                 BuildCommands::Pack(pack_args) => {
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
+                        ctx.ui.text(&ctx.ui.heading(2, "Creating Archive"));
                         
                         let name = pack_args.name.as_deref().unwrap_or("app");
                         let platform = pack_args.platform.as_deref().unwrap_or("any");
                         let input_dir = pack_args.input_dir.as_deref().unwrap_or("target/release");
                         
                         let msg = format!("Creating archive for {} on {} from {}", name, platform, input_dir);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.text(&ctx.ui.info(&msg));
                     }
                     
                     let output = execute_pack(pack_args, &ctx.ui).await
                         .map_err(|e| format!("Build pack failed: {}", e))?;
                     
                     // Output is now a formatted string, not a PackOutput struct
-                    ctx.ui.print(&ctx.ui.success(&format!("Archive created successfully: {}", output)));
+                    ctx.ui.text(&ctx.ui.success(&format!("Archive created successfully: {}", output)));
                 }
                 BuildCommands::Spec(spec_args) => {
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.print(&ctx.ui.heading(2, "Generating Commandlet Specification"));
+                        ctx.ui.text(&ctx.ui.heading(2, "Generating Commandlet Specification"));
                         
                         let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");
                         let msg = format!("Generating spec for: {}", commandlet_name);
-                        ctx.ui.print(&ctx.ui.info(&msg));
+                        ctx.ui.text(&ctx.ui.info(&msg));
                     }
                     
                     // Execute the spec command
                     let result = execute_spec(spec_args, &ctx.ui).await
                         .map_err(|e| format!("Build spec failed: {}", e))?;
                     
-                    ctx.ui.print(&result);
+                    ctx.ui.text(&result);
                 }
             }
         }
