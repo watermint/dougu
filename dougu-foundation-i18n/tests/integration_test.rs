@@ -1,14 +1,35 @@
 use dougu_foundation_i18n::{init, load_translations, set_locale, t, tf, vars, ErrorWithDetails};
 use dougu_foundation_run::CommandletError;
+use std::path::PathBuf;
+use std::env;
+
+fn get_resource_path(relative_path: &str) -> String {
+    // Try to determine the workspace directory
+    // This assumes tests are run from the workspace root or from a package directory
+    let mut path = env::current_dir().unwrap();
+    
+    // If we're in a package directory (likely), go up to the workspace root
+    if path.ends_with("dougu-foundation-i18n") {
+        path.pop();
+    }
+    
+    // Append the relative path
+    path.push(relative_path.trim_start_matches("../"));
+    
+    path.to_string_lossy().to_string()
+}
 
 #[test]
 fn test_i18n_commandlet_integration() {
     // Initialize the i18n system
     init("en").unwrap();
     
-    // Load translations
-    load_translations("en", "../dougu-foundation-run/src/resources/i18n-en.json").unwrap();
-    load_translations("ja", "../dougu-foundation-run/src/resources/i18n-ja.json").unwrap();
+    // Load translations using platform-independent paths
+    let run_resources_en = get_resource_path("dougu-foundation-run/src/resources/i18n-en.json");
+    let run_resources_ja = get_resource_path("dougu-foundation-run/src/resources/i18n-ja.json");
+    
+    load_translations("en", &run_resources_en).unwrap();
+    load_translations("ja", &run_resources_ja).unwrap();
     
     // Test basic translation in English (default)
     let error_msg = t("RESOURCE_NOT_FOUND");
@@ -51,9 +72,12 @@ fn test_file_commandlet_translations() {
     // Initialize the i18n system
     init("en").unwrap();
     
-    // Load translations
-    load_translations("en", "../dougu-command-file/src/resources/i18n-en.json").unwrap();
-    load_translations("ja", "../dougu-command-file/src/resources/i18n-ja.json").unwrap();
+    // Load translations using platform-independent paths
+    let file_resources_en = get_resource_path("dougu-command-file/src/resources/i18n-en.json");
+    let file_resources_ja = get_resource_path("dougu-command-file/src/resources/i18n-ja.json");
+    
+    load_translations("en", &file_resources_en).unwrap();
+    load_translations("ja", &file_resources_ja).unwrap();
     
     // Test file copy success message in English
     let msg = tf("FILE_COPY_SUCCESS", vars!(
