@@ -679,105 +679,114 @@ impl UIManager {
     }
 }
 
+/// Format a commandlet result for JSON Lines output
+fn format_commandlet_result_json_lines<T: Serialize>(ui: &UIManager, result: &T) -> String {
+    // For JSON Lines format, use compact JSON formatting (no indentation)
+    match ui.jsonl(result) {
+        Ok(formatted_json) => {
+            debug!("{}", ui_messages::DEBUG_RESULT_FORMATTED);
+            formatted_json
+        },
+        Err(e) => {
+            debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
+            format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
+        }
+    }
+}
+
+/// Format a commandlet result for Markdown output
+fn format_commandlet_result_markdown<T: Serialize>(ui: &UIManager, result: &T) -> String {
+    // For markdown format, create a more human-readable output
+    // First serialize to a value to examine the structure
+    if let Ok(json_value) = serde_json::to_value(result) {
+        if let Some(obj) = json_value.as_object() {
+            // Create a markdown table from the object
+            let mut markdown = String::new();
+            markdown.push_str("# Result\n\n");
+            
+            // Create a table with key-value pairs
+            markdown.push_str("| Property | Value |\n");
+            markdown.push_str("|----------|-------|\n");
+            
+            for (key, value) in obj {
+                let value_str = match value {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => value.to_string(),
+                };
+                markdown.push_str(&format!("| **{}** | {} |\n", key, value_str));
+            }
+            
+            markdown
+        } else {
+            // If it's not an object, just format as JSON with markdown code block
+            match ui.json(result) {
+                Ok(formatted_json) => formatted_json,
+                Err(e) => {
+                    debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
+                    format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
+                }
+            }
+        }
+    } else {
+        // Fallback to JSON if we can't convert to a value
+        match ui.json(result) {
+            Ok(formatted_json) => formatted_json,
+            Err(e) => {
+                debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
+                format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
+            }
+        }
+    }
+}
+
+/// Format a commandlet result for Default output
+fn format_commandlet_result_default<T: Serialize>(ui: &UIManager, result: &T) -> String {
+    // For default format, also use JSON but with a more human-readable output if possible
+    if let Ok(json_value) = serde_json::to_value(result) {
+        if let Some(obj) = json_value.as_object() {
+            // Create a simple text output
+            let mut text = String::new();
+            
+            for (key, value) in obj {
+                let value_str = match value {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => value.to_string(),
+                };
+                text.push_str(&format!("{}: {}\n", key, value_str));
+            }
+            
+            text
+        } else {
+            // If it's not an object, just format as JSON
+            match ui.json(result) {
+                Ok(formatted_json) => formatted_json,
+                Err(e) => {
+                    debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
+                    format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
+                }
+            }
+        }
+    } else {
+        // Fallback to JSON if we can't convert to a value
+        match ui.json(result) {
+            Ok(formatted_json) => formatted_json,
+            Err(e) => {
+                debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
+                format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
+            }
+        }
+    }
+}
+
 /// Format a commandlet result in a standardized way
 pub fn format_commandlet_result<T: Serialize>(ui: &UIManager, result: &T) -> String {
     trace!("{}", ui_messages::TRACE_FORMATTING_RESULT);
     
     // Check the format and handle accordingly
     match ui.format() {
-        OutputFormat::JsonLines => {
-            // For JSON Lines format, use compact JSON formatting (no indentation)
-            match ui.jsonl(result) {
-                Ok(formatted_json) => {
-                    debug!("{}", ui_messages::DEBUG_RESULT_FORMATTED);
-                    formatted_json
-                },
-                Err(e) => {
-                    debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
-                    format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
-                }
-            }
-        },
-        OutputFormat::Markdown => {
-            // For markdown format, create a more human-readable output
-            // First serialize to a value to examine the structure
-            if let Ok(json_value) = serde_json::to_value(result) {
-                if let Some(obj) = json_value.as_object() {
-                    // Create a markdown table from the object
-                    let mut markdown = String::new();
-                    markdown.push_str("# Result\n\n");
-                    
-                    // Create a table with key-value pairs
-                    markdown.push_str("| Property | Value |\n");
-                    markdown.push_str("|----------|-------|\n");
-                    
-                    for (key, value) in obj {
-                        let value_str = match value {
-                            serde_json::Value::String(s) => s.clone(),
-                            _ => value.to_string(),
-                        };
-                        markdown.push_str(&format!("| **{}** | {} |\n", key, value_str));
-                    }
-                    
-                    markdown
-                } else {
-                    // If it's not an object, just format as JSON with markdown code block
-                    match ui.json(result) {
-                        Ok(formatted_json) => formatted_json,
-                        Err(e) => {
-                            debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
-                            format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
-                        }
-                    }
-                }
-            } else {
-                // Fallback to JSON if we can't convert to a value
-                match ui.json(result) {
-                    Ok(formatted_json) => formatted_json,
-                    Err(e) => {
-                        debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
-                        format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
-                    }
-                }
-            }
-        },
-        OutputFormat::Default => {
-            // For default format, also use JSON but with a more human-readable output if possible
-            if let Ok(json_value) = serde_json::to_value(result) {
-                if let Some(obj) = json_value.as_object() {
-                    // Create a simple text output
-                    let mut text = String::new();
-                    
-                    for (key, value) in obj {
-                        let value_str = match value {
-                            serde_json::Value::String(s) => s.clone(),
-                            _ => value.to_string(),
-                        };
-                        text.push_str(&format!("{}: {}\n", key, value_str));
-                    }
-                    
-                    text
-                } else {
-                    // If it's not an object, just format as JSON
-                    match ui.json(result) {
-                        Ok(formatted_json) => formatted_json,
-                        Err(e) => {
-                            debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
-                            format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
-                        }
-                    }
-                }
-            } else {
-                // Fallback to JSON if we can't convert to a value
-                match ui.json(result) {
-                    Ok(formatted_json) => formatted_json,
-                    Err(e) => {
-                        debug!("{}: {}", ui_messages::ERROR_FORMATTING_RESULT, e);
-                        format!("{}", ui_messages::ERROR_RESULT_FALLBACK)
-                    }
-                }
-            }
-        }
+        OutputFormat::JsonLines => format_commandlet_result_json_lines(ui, result),
+        OutputFormat::Markdown => format_commandlet_result_markdown(ui, result),
+        OutputFormat::Default => format_commandlet_result_default(ui, result),
     }
 }
 
