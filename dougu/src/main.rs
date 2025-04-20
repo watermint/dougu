@@ -14,6 +14,7 @@ use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, Comm
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::OutputFormat;
+use dougu_foundation_ui::resources::ui_messages;
 use dougu_command_root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer};
 
 // Keep the i18n module for potential future use
@@ -33,6 +34,10 @@ struct Cli {
     /// Set output format (default, jsonl, markdown)
     #[arg(long = "ui-format", value_parser = ["default", "jsonl", "markdown"], default_value = "default", global = true)]
     format: String,
+
+    /// Skip displaying application info at startup
+    #[arg(long = "ui-skip-appinfo", help = ui_messages::SKIP_APPINFO_OPTION_DESCRIPTION, global = true)]
+    skip_appinfo: bool,
 
     #[command(subcommand)]
     command: Commands,
@@ -515,7 +520,9 @@ async fn main() -> Result<()> {
     launcher.add_layer(i18n_layer);
     
     // Now display application information banner with i18n initialized
-    display_app_info(&context.ui, cli.verbose >= 2);
+    if !cli.skip_appinfo {
+        display_app_info(&context.ui, cli.verbose >= 2);
+    }
     
     // Add appropriate command layers based on the command
     match &cli.command {

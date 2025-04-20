@@ -21,4 +21,5 @@ pub const LIST_EMPTY: &str = "Empty list";
 pub const BLOCK_PLACEHOLDER: &str = "No content provided";
 
 // Format options
-pub const FORMAT_OPTION_DESCRIPTION: &str = "Output UI format (jsonl, markdown, default)"; 
+pub const FORMAT_OPTION_DESCRIPTION: &str = "Output UI format (jsonl, markdown, default)";
+pub const SKIP_APPINFO_OPTION_DESCRIPTION: &str = "Skip displaying application information at startup"; 

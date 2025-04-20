@@ -1,5 +1,16 @@
-use dougu_foundation_ui::UIManager;
+use dougu_foundation_ui::{UIManager, OutputFormat};
 use dougu_essentials_build::get_build_info;
+use serde::{Serialize, Deserialize};
+
+/// Application info for JSON serialization
+#[derive(Serialize, Deserialize)]
+struct AppInfoJson {
+    app_name: String,
+    version: String,
+    copyright: String,
+    license: String,
+    banner_type: String,
+}
 
 /// Display application information banner at startup
 pub fn display_app_info(ui: &UIManager, _verbose: bool) {
@@ -41,11 +52,28 @@ pub fn display_app_info(ui: &UIManager, _verbose: bool) {
     // License information
     let license = "Licensed under open source licenses. Use the `license` command for more detail.";
     
-    // Display the application banner
-    ui.print(&app_title);
-    ui.print(&separator);
-    ui.line_break(); // Empty line for spacing using line_break
-    ui.print(&copyright);
-    ui.print(license);
-    ui.line_break(); // Add break line after the app info using line_break
+    // Check if we should output in JSON format
+    if ui.format() == OutputFormat::JsonLines {
+        // Create JSON structure for the app info
+        let app_info_json = AppInfoJson {
+            app_name: build_info.executable_name.clone(),
+            version: build_info.semantic_version(),
+            copyright: copyright.clone(),
+            license: license.to_string(),
+            banner_type: "app_info".to_string()
+        };
+        
+        // Serialize to JSON and print
+        if let Ok(json) = serde_json::to_string(&app_info_json) {
+            ui.print(&json);
+        }
+    } else {
+        // Display the application banner in text format
+        ui.print(&app_title);
+        ui.print(&separator);
+        ui.line_break(); // Empty line for spacing using line_break
+        ui.print(&copyright);
+        ui.print(license);
+        ui.line_break(); // Add break line after the app info using line_break
+    }
 } 
