@@ -36,9 +36,8 @@ jobs:
           EXECUTABLE=$(./target/debug/dougu --ui-skip-appinfo obj extract \
             --format jsonl \
             --raw \
-            --filter-query 'select(.reason == "compiler-artifact" and .target.kind | contains(["bin"]) and .target.src_path | endswith("/main.rs") and .executable != null)' \
-            --value-path '.executable' \
-            build_output.json)
+            build_output.json \
+            'select(.reason == "compiler-artifact" and .target.kind | contains(["bin"]) and .target.src_path | endswith("/main.rs") and .executable != null) | .executable')
           
           if [ -z "$EXECUTABLE" ]; then
             echo "No executable found matching main.rs. Aborting." >&2
@@ -65,14 +64,14 @@ jobs:
           ARCHIVE_PATH=$(./target/debug/dougu --ui-skip-appinfo obj extract \
             --format json \
             --raw \
-            --value-path '.path' \
-            <(echo "$PACK_OUTPUT"))
+            <(echo "$PACK_OUTPUT") \
+            '.path')
           
           ARTIFACT_NAME=$(./target/debug/dougu --ui-skip-appinfo obj extract \
             --format json \
             --raw \
-            --value-path '.name' \
-            <(echo "$PACK_OUTPUT"))
+            <(echo "$PACK_OUTPUT") \
+            '.name')
           
           echo "ARCHIVE_PATH: $ARCHIVE_PATH"
           echo "ARTIFACT_NAME: $ARTIFACT_NAME"
