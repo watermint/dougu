@@ -30,13 +30,13 @@ impl LauncherLayer for BuildCommandLayer {
                 .map_err(|e| format!("Failed to parse build args: {}", e))?;
                 
             // Only show UI messages for non-JSON output
-            if ctx.ui.format() != OutputFormat::Json {
+            if ctx.ui.format() != OutputFormat::JsonLines {
                 ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
             }
             
             match &args.command {
                 BuildCommands::Package(package_args) => {
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
                         
                         let target = package_args.target.as_deref().unwrap_or("default");
@@ -53,7 +53,7 @@ impl LauncherLayer for BuildCommandLayer {
                     ctx.ui.print(&ctx.ui.success("Packaging completed successfully"));
                 }
                 BuildCommands::Test(test_args) => {
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
                         
                         let build_mode = if test_args.release { "release" } else { "debug" };
@@ -76,7 +76,7 @@ impl LauncherLayer for BuildCommandLayer {
                     ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
                 }
                 BuildCommands::Compile(compile_args) => {
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Compiling Application"));
                         
                         let output_dir = compile_args.output_dir.as_deref().unwrap_or("target");
@@ -92,7 +92,7 @@ impl LauncherLayer for BuildCommandLayer {
                     ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
                 }
                 BuildCommands::Pack(pack_args) => {
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
                         
                         let name = pack_args.name.as_deref().unwrap_or("app");
@@ -110,7 +110,7 @@ impl LauncherLayer for BuildCommandLayer {
                     ctx.ui.print(&ctx.ui.success(&format!("Archive created successfully: {}", output)));
                 }
                 BuildCommands::Spec(spec_args) => {
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Generating Commandlet Specification"));
                         
                         let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");

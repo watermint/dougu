@@ -22,8 +22,8 @@ use resources::messages::*;
 #[command(name = "obj")]
 #[command(about = CMD_OBJ_DESCRIPTION)]
 pub struct ObjCommand {
-    /// Output format (default, json, markdown)
-    #[arg(long = "ui-format", help = FORMAT_OPTION_DESCRIPTION, value_parser = ["default", "json", "markdown"], default_value = "default")]
+    /// Output format (default, jsonl, markdown)
+    #[arg(long = "ui-format", help = FORMAT_OPTION_DESCRIPTION, value_parser = ["default", "jsonl", "markdown"], default_value = "default")]
     pub format: String,
     #[command(subcommand)]
     command: ObjCommands,
@@ -68,7 +68,7 @@ impl ObjCommand {
     pub async fn execute(self) -> Result<()> {
         let output_format = OutputFormat::from_str(&self.format).unwrap_or(OutputFormat::Default);
         let ui = UIManager::with_format(output_format);
-        let use_json_output = output_format == OutputFormat::Json;
+        let use_json_output = output_format == OutputFormat::JsonLines;
         
         match self.command {
             ObjCommands::Query {

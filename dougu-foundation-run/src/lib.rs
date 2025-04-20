@@ -186,7 +186,7 @@ impl LauncherContext {
         ctx.set_data("active_locale", locale.as_str().to_string());
         ctx.set_data("output_format", match format {
             OutputFormat::Default => "default",
-            OutputFormat::Json => "json",
+            OutputFormat::JsonLines => "jsonl",
             OutputFormat::Markdown => "markdown",
         }.to_string());
         ctx
@@ -202,7 +202,7 @@ impl LauncherContext {
         self.ui = UIManager::with_format(format);
         self.set_data("output_format", match format {
             OutputFormat::Default => "default",
-            OutputFormat::Json => "json",
+            OutputFormat::JsonLines => "jsonl",
             OutputFormat::Markdown => "markdown",
         }.to_string());
     }

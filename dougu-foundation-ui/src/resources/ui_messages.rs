@@ -4,6 +4,7 @@ pub const SUCCESS_DATA_DISPLAYED: &str = "Data displayed successfully";
 
 // Error messages
 pub const ERROR_JSON_FORMATTING: &str = "Error formatting JSON";
+pub const ERROR_JSONL_FORMATTING: &str = "Error formatting JSON Lines";
 pub const ERROR_FORMATTING_RESULT: &str = "Error formatting result";
 pub const ERROR_RESULT_FALLBACK: &str = "Unable to format result, showing raw data";
 pub const ERROR_THEME_INVALID: &str = "Invalid theme setting";
@@ -20,4 +21,4 @@ pub const LIST_EMPTY: &str = "Empty list";
 pub const BLOCK_PLACEHOLDER: &str = "No content provided";
 
 // Format options
-pub const FORMAT_OPTION_DESCRIPTION: &str = "Output UI format (json, markdown, default)"; 
+pub const FORMAT_OPTION_DESCRIPTION: &str = "Output UI format (jsonl, markdown, default)"; 

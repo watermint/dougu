@@ -34,7 +34,7 @@ async fn test_build_pack_json_output() -> Result<()> {
     fs::create_dir_all(&output_dir)?;
     
     // Create UI manager for testing (JSON format)
-    let ui = UIManager::with_format(OutputFormat::Json);
+    let ui = UIManager::with_format(OutputFormat::JsonLines);
     
     // Run the build pack command
     let output = dougu_command_build::execute_pack(&dougu_command_build::PackArgs {
@@ -69,7 +69,7 @@ async fn test_build_pack_invalid_input() -> Result<()> {
     fs::create_dir_all(&output_dir)?;
     
     // Create UI manager for testing (JSON format)
-    let ui = UIManager::with_format(OutputFormat::Json);
+    let ui = UIManager::with_format(OutputFormat::JsonLines);
     
     // Try to run the build pack command with invalid input
     let result = dougu_command_build::execute_pack(&dougu_command_build::PackArgs {
@@ -84,4 +84,74 @@ async fn test_build_pack_invalid_input() -> Result<()> {
     assert!(result.is_err());
     
     Ok(())
+}
+
+#[test]
+fn test_pack_basic() {
+    let temp_dir = tempdir().unwrap();
+    let output_dir = temp_dir.path().to_string_lossy().to_string();
+    
+    let pack_args = dougu_command_build::PackArgs {
+        source_dir: Some("./tests/fixtures".to_string()),
+        output_dir: Some(output_dir.clone()),
+        name: Some("test_pack".to_string()),
+        format: Some("zip".to_string()),
+        include: Some(vec!["**/*.txt".to_string()]),
+        exclude: None,
+    };
+    
+    let ui = UIManager::with_format(OutputFormat::JsonLines);
+    
+    let result = dougu_command_build::execute_pack(&pack_args, &ui);
+    
+    // We're running the test in a blocking context, so we need to block_on
+    let rt = Runtime::new().unwrap();
+    let result = rt.block_on(result);
+    
+    assert!(result.is_ok(), "Pack operation failed: {:?}", result.err());
+    let formatted_result = result.unwrap();
+    
+    // Parse the JSON output and verify it contains the expected info
+    let json: Value = serde_json::from_str(&formatted_result).unwrap();
+    assert!(json.is_object());
+    assert!(json.get("archive_path").is_some());
+    
+    // Verify the file exists
+    let archive_path = json["archive_path"].as_str().unwrap();
+    assert!(Path::new(archive_path).exists());
+}
+
+#[test]
+fn test_pack_with_exclusions() {
+    let temp_dir = tempdir().unwrap();
+    let output_dir = temp_dir.path().to_string_lossy().to_string();
+    
+    let pack_args = dougu_command_build::PackArgs {
+        source_dir: Some("./tests/fixtures".to_string()),
+        output_dir: Some(output_dir.clone()),
+        name: Some("test_pack_exclusions".to_string()),
+        format: Some("zip".to_string()),
+        include: Some(vec!["**/*".to_string()]),
+        exclude: Some(vec!["**/*.txt".to_string()]),
+    };
+    
+    let ui = UIManager::with_format(OutputFormat::JsonLines);
+    
+    let result = dougu_command_build::execute_pack(&pack_args, &ui);
+    
+    // We're running the test in a blocking context, so we need to block_on
+    let rt = Runtime::new().unwrap();
+    let result = rt.block_on(result);
+    
+    assert!(result.is_ok(), "Pack operation failed: {:?}", result.err());
+    let formatted_result = result.unwrap();
+    
+    // Parse the JSON output and verify it contains the expected info
+    let json: Value = serde_json::from_str(&formatted_result).unwrap();
+    assert!(json.is_object());
+    assert!(json.get("archive_path").is_some());
+    
+    // Verify the file exists
+    let archive_path = json["archive_path"].as_str().unwrap();
+    assert!(Path::new(archive_path).exists());
 } 

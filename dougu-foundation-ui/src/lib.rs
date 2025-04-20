@@ -13,7 +13,7 @@ use textwrap::wrap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
     Default,
-    Json,
+    JsonLines,
     Markdown,
 }
 
@@ -29,7 +29,7 @@ impl FromStr for OutputFormat {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "default" => Ok(OutputFormat::Default),
-            "json" => Ok(OutputFormat::Json),
+            "json" | "jsonl" | "jsonlines" => Ok(OutputFormat::JsonLines),
             "markdown" => Ok(OutputFormat::Markdown),
             _ => Err(format!("Invalid output format: {}", s)),
         }
@@ -99,7 +99,7 @@ impl UIManager {
     pub fn json_mode() -> Self {
         Self { 
             theme: UITheme::default(),
-            format: OutputFormat::Json,
+            format: OutputFormat::JsonLines,
         }
     }
     
@@ -234,6 +234,12 @@ impl UIManager {
             .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSON_FORMATTING, e))
     }
     
+    /// Format data as a single JSON line (compact format, no indentation)
+    pub fn format_jsonl<T: Serialize>(&self, data: &T) -> Result<String, String> {
+        serde_json::to_string(data)
+            .map_err(|e| format!("{}: {}", ui_messages::ERROR_JSONL_FORMATTING, e))
+    }
+    
     /// Show key-value pairs in a structured format
     pub fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
         pairs
@@ -255,9 +261,9 @@ pub fn format_commandlet_result<T: Serialize>(ui: &UIManager, result: &T) -> Str
     
     // Check the format and handle accordingly
     match ui.format() {
-        OutputFormat::Json => {
-            // For JSON format, use the existing JSON formatting
-            match ui.format_json(result) {
+        OutputFormat::JsonLines => {
+            // For JSON Lines format, use compact JSON formatting (no indentation)
+            match ui.format_jsonl(result) {
                 Ok(formatted_json) => {
                     debug!("{}", ui_messages::DEBUG_RESULT_FORMATTED);
                     formatted_json

@@ -30,8 +30,8 @@ struct Cli {
     #[arg(long = "ui-locale", default_value = "en", global = true)]
     locale: String,
 
-    /// Set output format (default, json, markdown)
-    #[arg(long = "ui-format", value_parser = ["default", "json", "markdown"], default_value = "default", global = true)]
+    /// Set output format (default, jsonl, markdown)
+    #[arg(long = "ui-format", value_parser = ["default", "jsonl", "markdown"], default_value = "default", global = true)]
     format: String,
 
     #[command(subcommand)]
@@ -280,14 +280,14 @@ impl LauncherLayer for BuildCommandLayer {
             
             // Use UI manager from context directly
             // Only show UI messages for non-JSON output
-            if ctx.ui.format() != OutputFormat::Json {
+            if ctx.ui.format() != OutputFormat::JsonLines {
                 ctx.ui.print(&ctx.ui.heading(1, "Build Operations"));
             }
             
             match &args.command {
                 dougu_command_build::BuildCommands::Package(package_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Package"));
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Packaging Application"));
                         
                         // Get the output directory as a placeholder for package name
@@ -299,14 +299,14 @@ impl LauncherLayer for BuildCommandLayer {
                     dougu_command_build::execute_package(package_args).await
                         .map_err(|e| format!("Build package failed: {}", e))?;
                     
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.success("Package created successfully"));
                     }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Package"));
                 }
                 dougu_command_build::BuildCommands::Test(test_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Test"));
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Running Tests"));
                         
                         let test_filter = test_args.filter.clone().unwrap_or_else(|| "all tests".to_string());
@@ -317,14 +317,14 @@ impl LauncherLayer for BuildCommandLayer {
                     dougu_command_build::execute_test(test_args, &ctx.ui).await
                         .map_err(|e| format!("Build test failed: {}", e))?;
                     
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.success("Tests completed successfully"));
                     }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Test"));
                 }
                 dougu_command_build::BuildCommands::Compile(compile_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Compile"));
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Compiling Project"));
                         
                         let build_type = if compile_args.release { "release" } else { "debug" };
@@ -335,14 +335,14 @@ impl LauncherLayer for BuildCommandLayer {
                     dougu_command_build::execute_compile(compile_args, &ctx.ui).await
                         .map_err(|e| format!("Build compile failed: {}", e))?;
                     
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.success("Compilation completed successfully"));
                     }
                     info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
                 }
                 dougu_command_build::BuildCommands::Pack(pack_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Pack"));
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Creating Archive"));
                         
                         let output_dir = pack_args.output_dir.clone().unwrap_or_else(|| "./target/dist".to_string());
@@ -356,7 +356,7 @@ impl LauncherLayer for BuildCommandLayer {
                     
                     // Print the result directly - it's already formatted by the execute_pack function
                     match ctx.ui.format() {
-                        OutputFormat::Json => {
+                        OutputFormat::JsonLines => {
                             // For JSON, just print the raw result without any additional formatting
                             println!("{}", result);
                         },
@@ -372,7 +372,7 @@ impl LauncherLayer for BuildCommandLayer {
                 dougu_command_build::BuildCommands::Spec(spec_args) => {
                     info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Spec"));
                     
-                    if ctx.ui.format() != OutputFormat::Json {
+                    if ctx.ui.format() != OutputFormat::JsonLines {
                         ctx.ui.print(&ctx.ui.heading(2, "Generating Commandlet Specification"));
                         
                         let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");
