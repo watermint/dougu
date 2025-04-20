@@ -1,14 +1,15 @@
-use anyhow::{Result, anyhow};
-use clap::{Args, Subcommand};
+use anyhow::{anyhow, Result};
+use clap::{Parser, Args, Subcommand};
+use dougu_essentials_build::get_build_info;
+use dougu_foundation_run::{SpecCommandlet, SpecParams, CommandletError, Commandlet};
+use dougu_foundation_ui::UIManager;
 use serde::{Serialize, Deserialize};
-use std::path::{Path, PathBuf};
+use serde_json::Value;
 use std::fs;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use uuid::Uuid;
 use walkdir::WalkDir;
-use dougu_essentials_build::get_build_info;
-use dougu_foundation_run::{SpecCommandlet, SpecParams, SpecResults, CommandletError, Commandlet};
-use dougu_foundation_ui::UIManager;
 
 mod resources;
 mod launcher;
@@ -109,6 +110,10 @@ pub struct PackArgs {
     /// Output directory for the archive
     #[arg(short, long)]
     pub output_dir: Option<String>,
+    
+    /// Path to cargo build output JSON file
+    #[arg(long)]
+    pub cargo_output: Option<String>,
 }
 
 #[derive(Debug, Args, Serialize, Deserialize)]
@@ -381,8 +386,10 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
 
 /// Execute the pack command
 pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) -> Result<String> {
-    let input_dir = args.input_dir.as_deref().unwrap_or("./target/package");
     let output_dir = args.output_dir.as_deref().unwrap_or("./target/dist");
+    
+    // Create output directory if it doesn't exist
+    fs::create_dir_all(output_dir)?;
     
     // Get build information
     let build_info = get_build_info();
@@ -390,7 +397,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     // Get the semantic version from BuildInfo to match the version command
     let package_version = build_info.semantic_version();
     
-    // Determine platform if not specified
+    // Determine platform
     let platform = match args.platform.as_deref() {
         Some(platform) => platform.to_string(),
         None => {
@@ -407,146 +414,181 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         }
     };
     
-    // Find executables in input directory
-    let mut executables = Vec::new();
-    for entry in WalkDir::new(input_dir).max_depth(1) {
-        let entry = entry?;
-        if entry.file_type().is_file() {
-            let path = entry.path();
-            
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if let Ok(metadata) = fs::metadata(path) {
-                    let is_executable = metadata.permissions().mode() & 0o111 != 0;
-                    if is_executable {
-                        let filename = path.file_name().unwrap().to_string_lossy().to_string();
-                        // Skip files that don't look like executables
-                        if !filename.ends_with(".d") && 
-                           !filename.ends_with(".rlib") && 
-                           !filename.ends_with(".o") && 
-                           !filename.ends_with(".json") && 
-                           !filename.ends_with(".lock") && 
-                           !filename.ends_with(".so") && 
-                           !filename.ends_with(".dll") && 
-                           !filename.ends_with(".dylib") {
-                            executables.push(path.to_path_buf());
+    // Find executable path - either from cargo output or by scanning input directory
+    let mut executable_path = None;
+    let mut executable_name = None;
+    
+    if let Some(cargo_output_path) = &args.cargo_output {
+        // Parse cargo build output to find executable
+        let file_content = fs::read_to_string(cargo_output_path)?;
+        
+        // Parse JSON lines to find executable paths
+        for line in file_content.lines() {
+            if let Ok(value) = serde_json::from_str::<Value>(line) {
+                // Look for compiler-artifact entries with binaries
+                if let Some(reason) = value.get("reason").and_then(|v| v.as_str()) {
+                    if reason == "compiler-artifact" {
+                        if let Some(target) = value.get("target") {
+                            // Check if it's a binary target
+                            if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
+                                if kind.iter().any(|k| k.as_str() == Some("bin")) {
+                                    // Check if it has an executable path
+                                    if let Some(exec_path) = value.get("executable").and_then(|e| e.as_str()) {
+                                        executable_path = Some(PathBuf::from(exec_path));
+                                        
+                                        // Extract name from target
+                                        if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
+                                            executable_name = Some(name.to_string());
+                                        }
+                                        
+                                        // We found what we need, no need to process further
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-            
-            #[cfg(windows)]
-            {
-                let extension = path.extension().unwrap_or_default().to_string_lossy();
-                if extension == "exe" {
-                    executables.push(path.to_path_buf());
+        }
+    } else if let Some(input_dir) = &args.input_dir {
+        // Traditional scan for executables in input directory
+        for entry in WalkDir::new(input_dir).max_depth(1) {
+            let entry = entry?;
+            if entry.file_type().is_file() {
+                let path = entry.path();
+                
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Ok(metadata) = fs::metadata(path) {
+                        let is_executable = metadata.permissions().mode() & 0o111 != 0;
+                        if is_executable {
+                            let filename = path.file_name().unwrap().to_string_lossy().to_string();
+                            // Skip files that don't look like executables
+                            if !filename.ends_with(".d") && 
+                               !filename.ends_with(".rlib") && 
+                               !filename.ends_with(".o") && 
+                               !filename.ends_with(".json") && 
+                               !filename.ends_with(".lock") && 
+                               !filename.ends_with(".so") && 
+                               !filename.ends_with(".dll") && 
+                               !filename.ends_with(".dylib") {
+                                executable_path = Some(path.to_path_buf());
+                                executable_name = Some(filename);
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                #[cfg(windows)]
+                {
+                    let extension = path.extension().unwrap_or_default().to_string_lossy();
+                    if extension == "exe" {
+                        let filename = path.file_name().unwrap().to_string_lossy().to_string();
+                        executable_path = Some(path.to_path_buf());
+                        executable_name = Some(filename);
+                        break;
+                    }
                 }
             }
         }
     }
     
-    if executables.is_empty() {
-        dougu_essentials_logger::log_error(resources::log_messages::EXECUTABLE_SEARCH_FAILED
-            .replace("{dir}", input_dir));
-        return Err(anyhow!("No executables found in {}", input_dir));
-    }
+    // Check if we found an executable
+    let executable_path = executable_path.ok_or_else(|| {
+        dougu_essentials_logger::log_error("No executable found in cargo output or input directory");
+        anyhow!("No executable found")
+    })?;
     
-    // Create output directory if it doesn't exist
-    fs::create_dir_all(output_dir)?;
+    // Determine the executable name
+    let exec_name = executable_path.file_name()
+        .ok_or_else(|| anyhow!("Invalid executable filename"))?
+        .to_string_lossy()
+        .to_string();
     
-    // Process each executable
-    let mut archive_path = None;
-    let mut archive_name = None;
-    for executable_path in executables {
-        let exec_name = executable_path.file_name()
-            .ok_or_else(|| anyhow!("Invalid executable filename"))?
-            .to_string_lossy()
-            .to_string();
-        
-        // Use build_info for name detection
-        let detected_name = if !build_info.executable_name.is_empty() {
-            build_info.executable_name.clone()
-        } else {
-            exec_name.clone()
-        };
-        
-        // Use the semantic version from BuildInfo to match the version command
-        let detected_version = package_version.clone();
-        
-        // Use provided name or detected name
-        let name = args.name.as_deref().unwrap_or(&detected_name);
-        archive_name = Some(name.to_string());
-        
-        // Use provided version or detected version
-        let version = args.version.as_deref().unwrap_or(&detected_version);
-        
-        // Create archive name using the specified convention
-        let archive_filename = format!("{}-{}-{}.zip", name, version, platform);
-        let current_archive_path = PathBuf::from(output_dir).join(&archive_filename);
-        archive_path = Some(current_archive_path.clone());
-        
-        dougu_essentials_logger::log_info(resources::log_messages::PACKING_ARTIFACT
-            .replace("{name}", &archive_filename));
-        
-        // Create the zip file
-        let zip_file = fs::File::create(&current_archive_path)?;
-        let mut zip = zip::ZipWriter::new(zip_file);
-        
-        // Set file options (executable permissions for binaries)
-        let options = zip::write::FileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated)
-            .unix_permissions(0o755);
-        
-        // Add the executable to the archive
-        zip.start_file(exec_name, options)?;
-        let mut file = fs::File::open(&executable_path)?;
-        std::io::copy(&mut file, &mut zip)?;
-        
-        // Add README.md if it exists in the input directory
-        let readme_path = Path::new(input_dir).join("README.md");
-        if readme_path.exists() {
-            zip.start_file("README.md", options)?;
-            let mut file = fs::File::open(readme_path)?;
-            std::io::copy(&mut file, &mut zip)?;
-        }
-        
-        // Add VERSION.txt if it exists in the input directory
-        let version_path = Path::new(input_dir).join("VERSION.txt");
-        if version_path.exists() {
-            zip.start_file("VERSION.txt", options)?;
-            let mut file = fs::File::open(version_path)?;
-            std::io::copy(&mut file, &mut zip)?;
-        } else {
-            // Generate a VERSION.txt with build info
-            let version_content = format!(
-                "Name: {}\nRelease: {}\nBuild Type: {}\nBuild Date: {}\nRepository: {}/{}",
-                name,
-                build_info.build_release,
-                build_info.build_type,
-                build_info.build_timestamp,
-                build_info.repository_owner,
-                build_info.repository_name
-            );
-            zip.start_file("VERSION.txt", options)?;
-            std::io::copy(&mut std::io::Cursor::new(version_content.into_bytes()), &mut zip)?;
-        }
-        
-        zip.finish()?;
-        
-        dougu_essentials_logger::log_info(resources::log_messages::PACKAGE_CREATED
-            .replace("{path}", &current_archive_path.to_string_lossy()));
-    }
+    // If executable name wasn't found in cargo output, use the actual file name
+    let executable_name = executable_name.unwrap_or_else(|| exec_name.clone());
+    
+    // Use build_info for name detection
+    let detected_name = if !build_info.executable_name.is_empty() {
+        build_info.executable_name.clone()
+    } else if let Some(name) = &args.name {
+        name.clone()
+    } else {
+        executable_name.clone()
+    };
+    
+    // Use the semantic version from BuildInfo to match the version command
+    let detected_version = package_version.clone();
+    let version = args.version.as_deref().unwrap_or(&detected_version);
+    
+    // Create archive name using the specified convention: EXECUTABLE-VERSION-PLATFORM
+    let artifact_name = format!("{}-{}-{}", detected_name, version, platform);
+    let archive_filename = format!("{}.zip", artifact_name);
+    let archive_path = PathBuf::from(output_dir).join(&archive_filename);
+    
+    dougu_essentials_logger::log_info(resources::log_messages::PACKING_ARTIFACT
+        .replace("{name}", &archive_filename));
+    
+    // Create the zip file
+    let zip_file = fs::File::create(&archive_path)?;
+    let mut zip = zip::ZipWriter::new(zip_file);
+    
+    // Set file options (executable permissions for binaries)
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o755);
+    
+    // Add the executable to the archive
+    zip.start_file(exec_name, options)?;
+    let mut file = fs::File::open(&executable_path)?;
+    std::io::copy(&mut file, &mut zip)?;
+    
+    // Generate a VERSION.txt with build info
+    let version_content = format!(
+        "Name: {}\nRelease: {}\nBuild Type: {}\nBuild Date: {}\nRepository: {}/{}",
+        detected_name,
+        build_info.build_release,
+        build_info.build_type,
+        build_info.build_timestamp,
+        build_info.repository_owner,
+        build_info.repository_name
+    );
+    zip.start_file("VERSION.txt", options)?;
+    std::io::copy(&mut std::io::Cursor::new(version_content.into_bytes()), &mut zip)?;
+    
+    zip.finish()?;
+    
+    dougu_essentials_logger::log_info(resources::log_messages::PACKAGE_CREATED
+        .replace("{path}", &archive_path.to_string_lossy()));
     
     dougu_essentials_logger::log_info(resources::log_messages::PACK_COMPLETE);
     
-    // Create and return JSON output
+    // Write artifact information to plain text files
+    let artifact_path_file = PathBuf::from(output_dir).join("artifact_path");
+    let artifact_name_file = PathBuf::from(output_dir).join("artifact_name");
+    
+    // Use the filename only for artifact_path to make it easier to use
+    let archive_filename_only = archive_filename.clone();
+    let artifact_name_str = artifact_name.clone();
+    
+    fs::write(&artifact_path_file, &archive_filename_only)?;
+    fs::write(&artifact_name_file, &artifact_name_str)?;
+    
+    dougu_essentials_logger::log_info(format!(
+        "Artifact information written to {} and {}. Artifact name: {}",
+        artifact_path_file.display(),
+        artifact_name_file.display(),
+        artifact_name
+    ));
+    
+    // Create and return JSON output for backward compatibility
     let output = PackOutput {
-        name: archive_name.ok_or_else(|| anyhow!("No archive name was created"))?,
-        path: archive_path
-            .map(|p| p.to_string_lossy().into_owned())
-            .ok_or_else(|| anyhow!("No archive was created"))?,
-        version: args.version.as_deref().unwrap_or(&package_version).to_string(),
+        name: artifact_name,
+        path: archive_path.to_string_lossy().into_owned(),
+        version: version.to_string(),
         platform: platform,
     };
     

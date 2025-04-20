@@ -64,13 +64,18 @@ impl BuildInfo {
             now.ordinal() as u32 % 1000 // Day of year mod 1000
         };
         
-        // Create build metadata from build_type and timestamp
-        let build_metadata = format!("{}.{}", 
-            self.build_type,
-            self.build_timestamp.replace(" ", "").replace(":", "").replace("-", "")
-        );
-        
-        format!("{}.{}.{}+{}", self.build_release, minor, patch, build_metadata)
+        // For CI builds (github), don't include build metadata
+        if self.build_type == "github" {
+            format!("{}.{}.{}", self.build_release, minor, patch)
+        } else {
+            // Create build metadata from build_type and timestamp for non-CI builds
+            let build_metadata = format!("{}.{}", 
+                self.build_type,
+                self.build_timestamp.replace(" ", "").replace(":", "").replace("-", "")
+            );
+            
+            format!("{}.{}.{}+{}", self.build_release, minor, patch, build_metadata)
+        }
     }
     
     /// Returns a formatted version string for display purposes

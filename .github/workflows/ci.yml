@@ -28,50 +28,27 @@ jobs:
         id: build
         shell: bash
         run: |
-          # Build the project
+          # Build the project and generate build output file for the pack step
           cargo build --workspace --all-targets --message-format=json > build_output.json
           
-          # Find executable path using the dougu tool
-          # The cargo output is JSON lines format
-          EXECUTABLE=$(./target/debug/dougu --ui-skip-appinfo obj extract \
-            --format jsonl \
-            --raw \
-            build_output.json \
-            'select(.reason == "compiler-artifact" and .target.kind | contains(["bin"]) and .target.src_path | endswith("/main.rs") and .executable != null) | .executable')
-          
-          if [ -z "$EXECUTABLE" ]; then
-            echo "No executable found matching main.rs. Aborting." >&2
-            exit 1
-          fi
-          
-          echo "Found executable: $EXECUTABLE"
-          echo "executable=$EXECUTABLE" >> $GITHUB_OUTPUT
-          echo "app_name=dougu" >> $GITHUB_OUTPUT
-      
       # Pack artifact
       - name: Pack artifact
         id: pack_artifact
         shell: bash
         run: |
-          # Build the artifact using the build pack command
+          # Create output directory
           mkdir -p target/dist
-          PACK_OUTPUT=$(./target/debug/dougu --ui-skip-appinfo build pack \
-            --input-dir target/debug \
+          
+          # Let build pack command parse the cargo build output and create plain text files
+          # with artifact information in the output directory
+          ./target/debug/dougu --ui-skip-appinfo build pack \
             --output-dir target/dist \
-            --ui-format jsonl)
+            --cargo-output build_output.json \
+            --ui-format jsonl
           
-          # Extract values using proper format (single JSON object)
-          ARCHIVE_PATH=$(./target/debug/dougu --ui-skip-appinfo obj extract \
-            --format json \
-            --raw \
-            <(echo "$PACK_OUTPUT") \
-            '.path')
-          
-          ARTIFACT_NAME=$(./target/debug/dougu --ui-skip-appinfo obj extract \
-            --format json \
-            --raw \
-            <(echo "$PACK_OUTPUT") \
-            '.name')
+          # Read the artifact information from the plain text files
+          ARCHIVE_PATH=$(cat target/dist/artifact_path)
+          ARTIFACT_NAME=$(cat target/dist/artifact_name)
           
           echo "ARCHIVE_PATH: $ARCHIVE_PATH"
           echo "ARTIFACT_NAME: $ARTIFACT_NAME"
