@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use chrono::{Utc, Datelike};
+use chrono::{Utc, Datelike, NaiveDate};
 
 // Minor version constants
 const MINOR_VERSION_GITHUB_MAIN: u32 = 8;
@@ -75,11 +75,16 @@ impl BuildInfo {
             
             format!("{}.{}.{}", self.build_release, minor, patch)
         } else {
-            // For non-CI builds, use day of year as patch
+            // For non-CI builds, use days since 2020-01-01 as patch
             let patch = {
-                // Use day of year as patch for local builds
-                let now = Utc::now();
-                now.ordinal() as u32 % 1000 // Day of year mod 1000
+                const EPOCH_YEAR: i32 = 2020;
+                const EPOCH_MONTH: u32 = 1;
+                const EPOCH_DAY: u32 = 1;
+                
+                let epoch_date = NaiveDate::from_ymd_opt(EPOCH_YEAR, EPOCH_MONTH, EPOCH_DAY)
+                    .expect("Invalid epoch date components");
+                let current_date = Utc::now().date_naive();
+                current_date.signed_duration_since(epoch_date).num_days() as u32
             };
             
             // Create build metadata from build_type and timestamp for non-CI builds
@@ -307,6 +312,10 @@ mod tests {
         let parts: Vec<&str> = semantic_version.split('.').collect();
         assert_eq!(parts[0], build_info.build_release.to_string());
         assert_eq!(parts[1], "0"); // minor version for local builds
+        
+        // Check that patch is a positive integer (days since epoch)
+        let patch_local = parts[2].split('+').next().unwrap().parse::<u32>().unwrap();
+        assert!(patch_local > 1461); // 2024-01-01 is 1461 days from 2020-01-01
         
         // Test github build with run number environment variable
         build_info.build_type = "github".to_string();
