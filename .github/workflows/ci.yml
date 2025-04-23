@@ -39,8 +39,7 @@ jobs:
           # Create output directory
           mkdir -p target/dist
           
-          # Let build pack command parse the cargo build output and create plain text files
-          # with artifact information in the output directory
+          # Let build pack command verify the executable and create artifact info files
           ./target/release/dougu --ui-skip-appinfo build pack \
             --output-dir target/dist \
             --cargo-output build_output.json \
@@ -57,7 +56,7 @@ jobs:
           echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
       
       # Upload artifact
-      - name: Upload zip artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.pack_artifact.outputs.artifact_name }}

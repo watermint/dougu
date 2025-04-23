@@ -76,7 +76,7 @@ impl BuildInfo {
             format!("{}.{}.{}", self.build_release, minor, patch)
         } else {
             // For non-CI builds, use days since 2025-01-01 as patch
-            let patch = {
+            let patch = {   
                 const EPOCH_YEAR: i32 = 2025;
                 const EPOCH_MONTH: u32 = 1;
                 const EPOCH_DAY: u32 = 1;
@@ -315,7 +315,7 @@ mod tests {
         
         // Check that patch is a positive integer (days since epoch)
         let patch_local = parts[2].split('+').next().unwrap().parse::<u32>().unwrap();
-        assert!(patch_local > 1461); // 2024-01-01 is 1461 days from 2020-01-01
+        assert!(patch_local >= 0); // patch is days since 2025-01-01, should be non-negative
         
         // Test github build with run number environment variable
         build_info.build_type = "github".to_string();

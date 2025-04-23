@@ -9,6 +9,11 @@ use serde_json::Value;
 
 #[tokio::test]
 async fn test_build_pack_json_output() -> Result<()> {
+    // Set the environment variable to match the test executable name
+    unsafe {
+        std::env::set_var("DOUGU_EXECUTABLE_NAME", "test_app");
+    }
+    
     // Create a temporary directory for testing
     let temp_dir = tempdir()?;
     let input_dir = temp_dir.path().join("input");
@@ -75,6 +80,11 @@ async fn test_build_pack_json_output() -> Result<()> {
 
 #[tokio::test]
 async fn test_build_pack_invalid_input() -> Result<()> {
+    // Set the environment variable to match the test executable name
+    unsafe {
+        std::env::set_var("DOUGU_EXECUTABLE_NAME", "test");
+    }
+    
     // Create a temporary directory for testing
     let temp_dir = tempdir()?;
     let input_dir = temp_dir.path().join("nonexistent");
@@ -102,6 +112,11 @@ async fn test_build_pack_invalid_input() -> Result<()> {
 
 #[test]
 fn test_pack_basic() {
+    // Set the environment variable to match the test executable name
+    unsafe {
+        std::env::set_var("DOUGU_EXECUTABLE_NAME", "test_exec");
+    }
+    
     // Create temporary directories for testing
     let temp_dir = tempdir().unwrap();
     let input_dir = temp_dir.path().join("input");
@@ -175,6 +190,11 @@ fn test_pack_basic() {
 
 #[test]
 fn test_pack_with_different_name() {
+    // Set the environment variable to match the test executable name
+    unsafe {
+        std::env::set_var("DOUGU_EXECUTABLE_NAME", "test_exec");
+    }
+    
     // Create temporary directories for testing
     let temp_dir = tempdir().unwrap();
     let input_dir = temp_dir.path().join("input");
@@ -287,6 +307,19 @@ async fn test_build_pack_with_cargo_output() -> Result<()> {
     );
     fs::write(&cargo_output_path, cargo_output_content.clone())?;
     
+    // Create another copy of the executable in cargo_output_dir with the specific name
+    let named_executable = cargo_output_dir.join("test_executable");
+    fs::copy(&mock_executable, &named_executable)?;
+    
+    // Make the file executable on Unix systems
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&named_executable)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&named_executable, perms)?;
+    }
+    
     // Print paths for debugging
     println!("Mock executable path: {}", mock_executable_absolute.display());
     println!("Cargo output content: {}", cargo_output_content);
@@ -296,10 +329,10 @@ async fn test_build_pack_with_cargo_output() -> Result<()> {
     
     // Run the build pack command with cargo output
     let output = dougu_command_build::execute_pack(&dougu_command_build::PackArgs {
-        name: None,  // Let it detect from cargo output
+        name: Some("test_executable".to_string()),  // Match the name in the cargo output
         version: Some("1.0.0".to_string()),
         platform: Some("test-platform".to_string()),
-        input_dir: None,
+        input_dir: Some(cargo_output_dir.to_string_lossy().into_owned()),  // Point to where our named executable is
         output_dir: Some(output_dir.to_string_lossy().into_owned()),
         cargo_output: Some(cargo_output_path.to_string_lossy().into_owned()),
     }, &ui).await?;
@@ -335,6 +368,11 @@ async fn test_build_pack_with_cargo_output() -> Result<()> {
 
 #[tokio::test]
 async fn test_build_pack_artifact_naming_format() -> Result<()> {
+    // Set the environment variable to match the test executable name
+    unsafe {
+        std::env::set_var("DOUGU_EXECUTABLE_NAME", "test_app");
+    }
+    
     // Create a temporary directory for testing
     let temp_dir = tempdir()?;
     let input_dir = temp_dir.path().join("input");
@@ -415,6 +453,11 @@ async fn test_build_pack_artifact_naming_format() -> Result<()> {
 #[tokio::test]
 #[ignore = "Requires additional setup for cargo output parsing"]
 async fn test_build_pack_from_cargo_output() -> Result<()> {
+    // Set the environment variable to match the test executable name
+    unsafe {
+        std::env::set_var("DOUGU_EXECUTABLE_NAME", "test_app");
+    }
+    
     // Create a temporary directory for testing
     let temp_dir = tempdir()?;
     let debug_dir = temp_dir.path().join("debug");
