@@ -2,7 +2,7 @@
 members = [
     "dougu-app",
     "dougu-essentials",
-    "foundation",
+    "dougu-foundation",
     "dougu-bridge"
 ]
 resolver = "2"
