@@ -5,11 +5,11 @@ use std::str::FromStr;
 // New module for embedded resources
 pub mod embedded;
 
-// Re-export the integration functions from dougu-essentials-i18n
-pub use dougu_essentials_i18n::integration::{init, load_translations, set_locale, t, tf, init_with_locale, set_locale_object};
-pub use dougu_essentials_i18n::vars;
-pub use dougu_essentials_i18n::{Locale, LocaleError};
-pub use dougu_essentials_i18n::locale::is_supported_language;
+// Re-export the integration functions from dougu-essentials
+pub use dougu_essentials::i18n::integration::{init, load_translations, set_locale, t, tf, init_with_locale, set_locale_object};
+pub use dougu_essentials::vars;
+pub use dougu_essentials::i18n::{Locale, LocaleError};
+pub use dougu_essentials::i18n::locale::is_supported_language;
 
 // Generic error trait for compatibility with CommandletError without direct dependency
 pub trait ErrorWithDetails {
@@ -20,7 +20,7 @@ pub trait ErrorWithDetails {
 }
 
 // Re-export the trait for convenience
-pub use dougu_essentials_i18n::integration::I18nCommandletError;
+pub use dougu_essentials::i18n::integration::I18nCommandletError;
 
 // Generic context trait to avoid direct dependency
 pub trait I18nContext {
@@ -180,7 +180,7 @@ impl I18nInitializer {
     fn load_module_resource(&self, module: &str, locale_str: &str, base_language: &str) -> Result<(), String> {
         // Try with exact locale first
         if let Some(content) = embedded::get_resource(module, locale_str) {
-            if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale_str, content) {
+            if let Err(e) = dougu_essentials::i18n::integration::load_translations_content(locale_str, content) {
                 log::warn!("Failed to load {} translations for {}: {}", module, locale_str, e);
                 // Continue with fallbacks even if this fails
             } else {
@@ -191,7 +191,7 @@ impl I18nInitializer {
         // If exact locale failed, try with base language
         if locale_str != base_language {
             if let Some(content) = embedded::get_resource(module, base_language) {
-                if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale_str, content) {
+                if let Err(e) = dougu_essentials::i18n::integration::load_translations_content(locale_str, content) {
                     log::warn!("Failed to load {} translations for base language {}: {}", 
                                module, base_language, e);
                     // Continue with English fallback
@@ -204,7 +204,7 @@ impl I18nInitializer {
         // Try English as last resort
         if base_language != "en" {
             if let Some(content) = embedded::get_resource(module, "en") {
-                if let Err(e) = dougu_essentials_i18n::integration::load_translations_content(locale_str, content) {
+                if let Err(e) = dougu_essentials::i18n::integration::load_translations_content(locale_str, content) {
                     log::warn!("Failed to load {} translations for fallback 'en': {}", module, e);
                     return Err(format!("{} resource not available for locale: {}", module, locale_str));
                 }

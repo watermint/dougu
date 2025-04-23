@@ -15,6 +15,6 @@ serde_json = { workspace = true }
 log = { workspace = true }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 dougu-foundation-i18n = { path = "../dougu-foundation-i18n", optional = true }
-dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
+dougu-essentials = { path = "../dougu-essentials" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
 chrono = { workspace = true } 

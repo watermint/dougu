@@ -1,6 +1,6 @@
 // This module embeds translation resources into the binary
 // Each resource is included at compile time as a static string
-use dougu_essentials_i18n::Locale;
+use dougu_essentials::i18n::Locale;
 
 /// Foundation English resources
 pub const FOUNDATION_EN: &str = include_str!("../../dougu-foundation-run/src/resources/i18n-en.json");

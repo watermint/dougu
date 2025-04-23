@@ -12,10 +12,8 @@ readme = "../README.md"
 build = "build.rs"
 
 [dependencies]
-dougu-essentials-log = { path = "../dougu-essentials-log" }
-dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
+dougu-essentials = { path = "../dougu-essentials" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
-dougu-essentials-obj = { path = "../dougu-essentials-obj" }
 dougu-essentials-archive = { path = "../dougu-essentials-archive" }
 dougu-essentials-fs = { path = "../dougu-essentials-fs" }
 domain = { path = "../domain" }

@@ -1,5 +1,5 @@
-use crate::I18n;
-use crate::locale::{Locale, is_supported_language};
+use crate::i18n::I18n;
+use crate::i18n::locale::{Locale, is_supported_language};
 use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use std::str::FromStr;

@@ -1,14 +1,16 @@
 [package]
-name = "dougu-essentials-obj"
+name = "dougu-essentials"
 version = "1.0.0"
 edition = "2024"
 publish = false
 
 [dependencies]
-log = { workspace = true }
-anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+once_cell = { workspace = true }
+tokio = { workspace = true }
 async-trait = { workspace = true }
 ciborium = { workspace = true }
 bson = { workspace = true }
@@ -17,18 +19,8 @@ jaq-parse = { workspace = true }
 jaq-interpret = { workspace = true }
 jaq-syn = { workspace = true }
 hex = { workspace = true }
-serde_yaml = "0.9.34"
-toml = "0.8.20"
-
-[features]
-examples = []
-
-[[bin]]
-name = "format_conversion"
-path = "src/examples/format_conversion.rs"
-required-features = ["examples"]
-
-[[bin]]
-name = "cli"
-path = "src/examples/cli.rs"
-required-features = ["examples"] 
+reqwest = { workspace = true }
+env_logger = { workspace = true }
+chrono = { workspace = true }
+serde_yaml = "0.9.27"
+toml = "0.8.6" 

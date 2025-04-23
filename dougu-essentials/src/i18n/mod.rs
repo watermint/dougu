@@ -180,4 +180,4 @@ mod tests {
         
         assert_eq!(msg.format(&vars), "Bonjour, Alice!");
     }
-}
+} 

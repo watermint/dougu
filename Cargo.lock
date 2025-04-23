@@ -599,7 +599,7 @@ name = "domain"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "dougu-essentials-log",
+ "dougu-essentials",
  "reqwest",
  "serde",
  "serde_json",
@@ -624,12 +624,10 @@ dependencies = [
  "ciborium",
  "clap",
  "domain",
+ "dougu-essentials",
  "dougu-essentials-archive",
  "dougu-essentials-build",
  "dougu-essentials-fs",
- "dougu-essentials-i18n",
- "dougu-essentials-log",
- "dougu-essentials-obj",
  "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
@@ -647,6 +645,31 @@ dependencies = [
  "uuid",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "dougu-essentials"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bson",
+ "chrono",
+ "ciborium",
+ "env_logger",
+ "hex",
+ "jaq-interpret",
+ "jaq-parse",
+ "jaq-syn",
+ "log",
+ "once_cell",
+ "quick-xml",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
@@ -685,16 +708,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dougu-essentials-i18n"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "once_cell",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "dougu-essentials-kvs"
 version = "1.0.0"
 dependencies = [
@@ -705,35 +718,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
-]
-
-[[package]]
-name = "dougu-essentials-log"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "env_logger",
- "log",
-]
-
-[[package]]
-name = "dougu-essentials-obj"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bson",
- "ciborium",
- "hex",
- "jaq-interpret",
- "jaq-parse",
- "jaq-syn",
- "log",
- "quick-xml",
- "serde",
- "serde_json",
- "serde_yaml",
- "toml",
 ]
 
 [[package]]
@@ -755,7 +739,7 @@ name = "dougu-foundation-i18n"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "dougu-essentials-i18n",
+ "dougu-essentials",
  "dougu-foundation-run",
  "log",
  "once_cell",
@@ -771,8 +755,8 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "dougu-essentials",
  "dougu-essentials-build",
- "dougu-essentials-i18n",
  "dougu-foundation-i18n",
  "dougu-foundation-ui",
  "log",
@@ -1531,9 +1515,9 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "libm"
-version = "0.2.11"
+version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
+checksum = "c9627da5196e5d8ed0b0495e61e518847578da83483c37288316d9b2e03a7f72"
 
 [[package]]
 name = "libredox"

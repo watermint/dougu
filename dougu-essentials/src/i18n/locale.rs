@@ -250,9 +250,9 @@ mod tests {
     fn test_locale_same_language() {
         let en_us = Locale::from_str("en-US").unwrap();
         let en_gb = Locale::from_str("en-GB").unwrap();
-        let fr = Locale::from_str("fr").unwrap();
+        let ja = Locale::from_str("ja").unwrap();
         
         assert!(en_us.same_language(&en_gb));
-        assert!(!en_us.same_language(&fr));
+        assert!(!en_us.same_language(&ja));
     }
 } 

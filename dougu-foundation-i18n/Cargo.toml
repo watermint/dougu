@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
+dougu-essentials = { path = "../dougu-essentials" }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
