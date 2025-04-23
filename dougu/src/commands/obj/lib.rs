@@ -451,7 +451,7 @@ impl ObjCommand {
     }
 }
 
-pub type ExecuteResult = Result<(), String>;
+pub type ExecuteResult = Result<Option<String>, String>;
 
 pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
     // Using a simplified implementation here since the async implementation
@@ -465,7 +465,7 @@ pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
                 io::stdin().read_to_string(&mut buffer).map_err(|_| ERROR_STDIN_READ.to_string())?;
                 buffer
             } else {
-                fs::read_to_string(file).map_err(|_| ERROR_FILE_NOT_FOUND.to_string())?
+                fs::read_to_string(file).map_err(|_| ERROR_FILE_NOT_FOUND.to_string())?;
             };
 
             // Explicitly specify the type to avoid inference issues
@@ -478,14 +478,14 @@ pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
             let json_result: Value = serde_json::from_str(&result_str)
                 .unwrap_or_else(|_| Value::String(result_str));
                 
-            println!("{}", json_result);
-            
-            Ok(())
+            // Return as string instead of printing directly
+            let output = json_result.to_string();
+            Ok(Some(output))
         },
         ObjCommands::Convert { format, output_format, .. } => {
             // Simplified implementation
-            println!("Converting from {} to {}", format, output_format);
-            Ok(())
+            let output = format!("Converting from {} to {}", format, output_format);
+            Ok(Some(output))
         },
         ObjCommands::Extract { query, format, file, raw } => {
             // Parse format
@@ -499,7 +499,7 @@ pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
                     .map_err(|_| ERROR_STDIN_READ.to_string())?;
                 buffer
             } else {
-                fs::read(file).map_err(|_| ERROR_FILE_NOT_FOUND.to_string())?
+                fs::read(file).map_err(|_| ERROR_FILE_NOT_FOUND.to_string())?;
             };
             
             // Compile query
@@ -533,17 +533,15 @@ pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
                         let json_value: Value = serde_json::from_str(&result_str)
                             .unwrap_or_else(|_| Value::String(result_str));
                         
-                        // If the query matches, output the value and exit
+                        // If the query matches, return the value
                         if *raw {
                             // Output raw value directly
                             let raw_value = ObjCommand::process_raw_value(&json_value);
-                            println!("{}", raw_value);
-                            return Ok(());
+                            return Ok(Some(raw_value));
                         } else {
                             // Extract and output with normal formatting
                             let raw_value = extract_raw_value(&json_value).map_err(|e| e)?;
-                            println!("{}", raw_value);
-                            return Ok(());
+                            return Ok(Some(raw_value));
                         }
                     }
                     
@@ -564,17 +562,15 @@ pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
                     let json_value: Value = serde_json::from_str(&result_str)
                         .unwrap_or_else(|_| Value::String(result_str));
                     
-                    if *raw {
-                        // Output raw value directly
-                        let raw_value = ObjCommand::process_raw_value(&json_value);
-                        println!("{}", raw_value);
+                    let output = if *raw {
+                        // Return raw value directly
+                        ObjCommand::process_raw_value(&json_value)
                     } else {
-                        // Extract and output with normal formatting
-                        let raw_value = extract_raw_value(&json_value).map_err(|e| e)?;
-                        println!("{}", raw_value);
-                    }
+                        // Extract with normal formatting
+                        extract_raw_value(&json_value).map_err(|e| e)?
+                    };
                     
-                    Ok(())
+                    Ok(Some(output))
                 }
             }
         }

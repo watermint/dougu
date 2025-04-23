@@ -15,13 +15,13 @@ build = "build.rs"
 dougu-essentials-log = { path = "../dougu-essentials-log" }
 dougu-essentials-i18n = { path = "../dougu-essentials-i18n" }
 dougu-essentials-build = { path = "../dougu-essentials-build" }
-dougu-command-file = { path = "../dougu-command-file" }
-dougu-command-dropbox = { path = "../dougu-command-dropbox" }
-dougu-command-obj = { path = "../dougu-command-obj" }
-dougu-command-build = { path = "../dougu-command-build" }
-dougu-command-root = { path = "../dougu-command-root" }
+dougu-essentials-obj = { path = "../dougu-essentials-obj" }
+dougu-essentials-archive = { path = "../dougu-essentials-archive" }
+dougu-essentials-fs = { path = "../dougu-essentials-fs" }
+dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
 dougu-foundation-run = { path = "../dougu-foundation-run", features = ["i18n"] }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
+dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
@@ -30,7 +30,19 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
 chrono = "0.4.31"
-dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
+ciborium = { workspace = true }
+bson = { workspace = true }
+quick-xml = { workspace = true }
+jaq-parse = { workspace = true }
+jaq-interpret = { workspace = true }
+jaq-syn = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true }
+uuid = { version = "1.4", features = ["v4"] }
+walkdir = "2.3"
+zip = "0.6"
+tempfile = "3.10.0"
+base64 = "0.21.7"
 
 [build-dependencies]
 chrono = "0.4.31"

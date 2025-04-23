@@ -5,17 +5,21 @@ use async_trait::async_trait;
 use std::str::FromStr;
 use serde::{Serialize, Deserialize};
 
-use dougu_command_file::{FileArgs, FileCommandlet};
-use dougu_command_file::{FileCopyCommandlet, FileMoveCommandlet, FileListCommandlet};
-use dougu_command_dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
-use dougu_command_obj::ObjCommand;
-use dougu_command_build::BuildArgs;
+// Add the commands module
+mod commands;
+
+// Use commands from our local modules instead of external crates
+use crate::commands::file::{FileArgs, FileCommandlet};
+use crate::commands::file::{FileCopyCommandlet, FileMoveCommandlet, FileListCommandlet};
+use crate::commands::dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
+use crate::commands::obj::ObjCommand;
+use crate::commands::build::BuildArgs;
 use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer, display_app_info};
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::OutputFormat;
 use dougu_foundation_ui::resources::ui_messages;
-use dougu_command_root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer, LicenseCommandLayer};
+use crate::commands::root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer, LicenseCommandLayer};
 
 // Keep the i18n module for potential future use
 mod i18n;
@@ -169,7 +173,7 @@ impl LauncherLayer for DropboxCommandLayer {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File List"));
                             ctx.ui.info("Listing files from Dropbox...");
                             
-                            dougu_command_dropbox::execute_file_list(list_args, token, &ctx.ui).await
+                            crate::commands::dropbox::execute_file_list(list_args, token, &ctx.ui).await
                                 .map_err(|e| format!("Dropbox file list failed: {}", e))?;
                             
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File List"));
@@ -180,7 +184,7 @@ impl LauncherLayer for DropboxCommandLayer {
                             let msg = format!("Downloading file: {}", download_args.path);
                             ctx.ui.info(&msg);
                             
-                            dougu_command_dropbox::execute_file_download(download_args, token).await
+                            crate::commands::dropbox::execute_file_download(download_args, token).await
                                 .map_err(|e| format!("Dropbox file download failed: {}", e))?;
                             
                             ctx.ui.success("Download completed successfully");
@@ -192,7 +196,7 @@ impl LauncherLayer for DropboxCommandLayer {
                             let msg = format!("Uploading file to: {}", upload_args.dropbox_path);
                             ctx.ui.info(&msg);
                             
-                            dougu_command_dropbox::execute_file_upload(upload_args, token).await
+                            crate::commands::dropbox::execute_file_upload(upload_args, token).await
                                 .map_err(|e| format!("Dropbox file upload failed: {}", e))?;
                             
                             ctx.ui.success("Upload completed successfully");
@@ -204,25 +208,25 @@ impl LauncherLayer for DropboxCommandLayer {
                     ctx.ui.heading(2, "Folder Operations");
                     
                     match &folder_args.command {
-                        dougu_command_dropbox::FolderCommands::Create(create_args) => {
+                        crate::commands::dropbox::FolderCommands::Create(create_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Create"));
                             // Create a local variable for the formatted message
                             let msg = format!("Creating folder: {}", create_args.path);
                             ctx.ui.info(&msg);
                             
-                            dougu_command_dropbox::execute_folder_create(create_args, token).await
+                            crate::commands::dropbox::execute_folder_create(create_args, token).await
                                 .map_err(|e| format!("Dropbox folder create failed: {}", e))?;
                             
                             ctx.ui.success("Folder created successfully");
                             info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Create"));
                         }
-                        dougu_command_dropbox::FolderCommands::Delete(delete_args) => {
+                        crate::commands::dropbox::FolderCommands::Delete(delete_args) => {
                             info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Delete"));
                             // Create a local variable for the formatted message
                             let msg = format!("Deleting folder: {}", delete_args.path);
                             ctx.ui.info(&msg);
                             
-                            dougu_command_dropbox::execute_folder_delete(delete_args, token).await
+                            crate::commands::dropbox::execute_folder_delete(delete_args, token).await
                                 .map_err(|e| format!("Dropbox folder delete failed: {}", e))?;
                             
                             ctx.ui.success("Folder deleted successfully");
@@ -242,27 +246,22 @@ impl LauncherLayer for DropboxCommandLayer {
 // Object command layer
 struct ObjCommandLayer;
 
-#[async_trait]
-impl LauncherLayer for ObjCommandLayer {
-    fn name(&self) -> &str {
-        "ObjCommandLayer"
-    }
-
-    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        if let Some(args_str) = ctx.get_data("obj_args") {
-            // Parse the serialized args
-            let cmd: ObjCommand = serde_json::from_str(args_str)
-                .map_err(|e| format!("Failed to parse obj args: {}", e))?;
-            
-            info!("{}", log_messages::COMMAND_START.replace("{}", "Obj"));
-            
-            cmd.execute().await
-                .map_err(|e| format!("Obj command execution failed: {}", e))?;
-            
-            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Obj"));
+impl crate::commands::obj::layer::CommandLayer for ObjCommandLayer {
+    fn handle_command(&self, command: &str, args: Vec<String>) -> Result<(), String> {
+        let cmd = commands::obj::lib::ObjCommand::from_args(command, args);
+        let result = commands::obj::lib::execute_command(&cmd)?;
+        
+        if let Some(output) = result {
+            if !output.is_empty() {
+                println!("{}", output);
+            }
         }
         
         Ok(())
+    }
+
+    fn is_empty(&self, result: &str) -> bool {
+        result.is_empty() || result == "null" || result == "{}"
     }
 }
 
@@ -276,150 +275,19 @@ impl LauncherLayer for BuildCommandLayer {
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        if let Some(args_str) = ctx.get_data("build_args") {
-            // Parse the serialized args
-            let args: BuildArgs = serde_json::from_str(args_str)
-                .map_err(|e| format!("Failed to parse build args: {}", e))?;
-                
-            info!("{}", log_messages::COMMAND_START.replace("{}", "Build"));
-            
-            // Use UI manager from context directly
-            // Only show UI messages for non-JSON output
-            if ctx.ui.format() != OutputFormat::JsonLines {
-                ctx.ui.heading(1, "Build Operations");
-            }
-            
-            match &args.command {
-                dougu_command_build::BuildCommands::Package(package_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Package"));
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.heading(2, "Packaging Application");
-                        
-                        // Get the output directory as a placeholder for package name
-                        let package_name = package_args.output_dir.clone().unwrap_or_else(|| "default".to_string());
-                        let msg = format!("Creating package in: {}", package_name);
-                        ctx.ui.info(&msg);
-                    }
-                    
-                    dougu_command_build::execute_package(package_args).await
-                        .map_err(|e| format!("Build package failed: {}", e))?;
-                    
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.success("Package created successfully");
-                    }
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Package"));
-                }
-                dougu_command_build::BuildCommands::Test(test_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Test"));
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.heading(2, "Running Tests");
-                        
-                        let test_filter = test_args.filter.clone().unwrap_or_else(|| "all tests".to_string());
-                        let msg = format!("Running test suite with filter: {}", test_filter);
-                        ctx.ui.info(&msg);
-                    }
-                    
-                    dougu_command_build::execute_test(test_args, &ctx.ui).await
-                        .map_err(|e| format!("Build test failed: {}", e))?;
-                    
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.success("Tests completed successfully");
-                    }
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Test"));
-                }
-                dougu_command_build::BuildCommands::Compile(compile_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Compile"));
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.heading(2, "Compiling Project");
-                        
-                        let build_type = if compile_args.release { "release" } else { "debug" };
-                        let msg = format!("Compiling with build type: {}", build_type);
-                        ctx.ui.info(&msg);
-                    }
-                    
-                    dougu_command_build::execute_compile(compile_args, &ctx.ui).await
-                        .map_err(|e| format!("Build compile failed: {}", e))?;
-                    
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.success("Compilation completed successfully");
-                    }
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Compile"));
-                }
-                dougu_command_build::BuildCommands::Pack(pack_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Pack"));
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.heading(2, "Creating Archive");
-                        
-                        let output_dir = pack_args.output_dir.clone().unwrap_or_else(|| "./target/dist".to_string());
-                        let msg = format!("Creating archive in: {}", output_dir);
-                        ctx.ui.info(&msg);
-                    }
-                    
-                    dougu_essentials_log::log_info(format!("Running build pack command with args: {:?}", pack_args));
-                    
-                    // Pass UI context to execute_pack
-                    let result = dougu_command_build::execute_pack(pack_args, &ctx.ui).await
-                        .map_err(|e| format!("Build pack failed: {}", e))?;
-                    
-                    // Log the result instead of printing
-                    dougu_essentials_log::log_info(format!("Build pack result: {}", result));
-                    
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Pack"));
-                }
-                dougu_command_build::BuildCommands::Spec(spec_args) => {
-                    info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Spec"));
-                    
-                    if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.heading(2, "Generating Commandlet Specification");
-                        
-                        let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");
-                        let msg = format!("Generating spec for: {}", commandlet_name);
-                        ctx.ui.info(&msg);
-                    }
-                    
-                    // Execute the spec command
-                    let result = dougu_command_build::execute_spec(spec_args, &ctx.ui).await
-                        .map_err(|e| format!("Build spec failed: {}", e))?;
-                    
-                    // Format results for display
-                    ctx.ui.text(&result);
-                    
-                    info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Spec"));
-                }
-            }
-            
-            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Build"));
-        }
+        let args_str = match ctx.get_data("build_args") {
+            Some(args) => args,
+            None => return Ok(()),
+        };
         
-        Ok(())
+        // Use the build command layer from the build module
+        let layer = crate::commands::build::BuildCommandLayer;
+        layer.run(ctx).await
     }
 }
 
-// Replace VersionCommandLayerWithFormat with VersionCommandLayer
-struct VersionCommandLayer;
-
-#[async_trait]
-impl LauncherLayer for VersionCommandLayer {
-    fn name(&self) -> &str {
-        "VersionCommandLayer"
-    }
-
-    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        let commandlet = dougu_command_root::VersionCommandlet;
-        let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
-        let params = dougu_command_root::VersionParams {};
-        let serialized_params = serde_json::to_string(&params)
-            .map_err(|e| format!("Failed to serialize version params: {}", e))?;
-        let result = runner.run(&serialized_params).await
-            .map_err(|e| format!("Version command execution failed: {}", e))?;
-        
-        // Format results using CommandRunner
-        runner.format_results(&result)
-            .map_err(|e| format!("Failed to format version results: {}", e))?;
-        
-        Ok(())
-    }
-}
+// Use the VersionCommandLayer from the root module
+use crate::commands::root::VersionCommandLayer;
 
 #[tokio::main]
 async fn main() -> Result<()> {

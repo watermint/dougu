@@ -84,12 +84,32 @@ pub struct ListArgs {
     pub long: bool,
 }
 
-// Generic result structure for file commands
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FileCommandResult {
-    pub success: bool,
-    pub message: String,
+pub struct FileCopyResult {
+    pub source: String,
+    pub destination: String,
     pub details: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileMoveResult {
+    pub source: String,
+    pub destination: String,
+    pub details: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileListResult {
+    pub directory: String,
+    pub files: Vec<String>,
+}
+
+// Main result enum for file commands
+#[derive(Debug, Serialize, Deserialize)]
+pub enum FileCommandResult {
+    Copy(FileCopyResult),
+    Move(FileMoveResult),
+    List(FileListResult),
 }
 
 // File copy commandlet
@@ -114,14 +134,11 @@ impl Commandlet for FileCopyCommandlet {
         // Pseudo implementation
         // In a real app, this would perform the actual file copy
         
-        Ok(FileCommandResult {
-            success: true,
-            message: tf("FILE_COPY_SUCCESS", vars!(
-                "source" => &params.source,
-                "destination" => &params.destination
-            )),
+        Ok(FileCommandResult::Copy(FileCopyResult {
+            source: params.source,
+            destination: params.destination,
             details: None,
-        })
+        }))
     }
     
     fn generate_spec(&self) -> CommandletSpec {
@@ -156,15 +173,15 @@ impl Commandlet for FileCopyCommandlet {
             ],
             result_types: vec![
                 SpecField {
-                    name: "success".to_string(),
-                    description: Some("Whether the copy operation was successful".to_string()),
-                    field_type: "boolean".to_string(),
+                    name: "source".to_string(),
+                    description: Some("Path to the source file".to_string()),
+                    field_type: "string".to_string(),
                     required: true,
                     default_value: None,
                 },
                 SpecField {
-                    name: "message".to_string(),
-                    description: Some("A human-readable message about the copy operation result".to_string()),
+                    name: "destination".to_string(),
+                    description: Some("Path to the destination file".to_string()),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
@@ -221,14 +238,11 @@ impl Commandlet for FileMoveCommandlet {
         // Pseudo implementation
         // In a real app, this would perform the actual file move
         
-        Ok(FileCommandResult {
-            success: true,
-            message: tf("FILE_MOVE_SUCCESS", vars!(
-                "source" => &params.source,
-                "destination" => &params.destination
-            )),
+        Ok(FileCommandResult::Move(FileMoveResult {
+            source: params.source,
+            destination: params.destination,
             details: None,
-        })
+        }))
     }
     
     fn generate_spec(&self) -> CommandletSpec {
@@ -263,15 +277,15 @@ impl Commandlet for FileMoveCommandlet {
             ],
             result_types: vec![
                 SpecField {
-                    name: "success".to_string(),
-                    description: Some("Whether the move operation was successful".to_string()),
-                    field_type: "boolean".to_string(),
+                    name: "source".to_string(),
+                    description: Some("Path to the source file".to_string()),
+                    field_type: "string".to_string(),
                     required: true,
                     default_value: None,
                 },
                 SpecField {
-                    name: "message".to_string(),
-                    description: Some("A human-readable message about the move operation result".to_string()),
+                    name: "destination".to_string(),
+                    description: Some("Path to the destination file".to_string()),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
@@ -329,13 +343,10 @@ impl Commandlet for FileListCommandlet {
         // Pseudo implementation
         // In a real app, this would list the directory contents
         
-        Ok(FileCommandResult {
-            success: true,
-            message: tf("FILE_LIST_SUCCESS", vars!(
-                "directory" => dir
-            )),
-            details: None,
-        })
+        Ok(FileCommandResult::List(FileListResult {
+            directory: dir.to_string(),
+            files: Vec::new(),
+        }))
     }
     
     fn generate_spec(&self) -> CommandletSpec {
@@ -370,24 +381,17 @@ impl Commandlet for FileListCommandlet {
             ],
             result_types: vec![
                 SpecField {
-                    name: "success".to_string(),
-                    description: Some("Whether the list operation was successful".to_string()),
-                    field_type: "boolean".to_string(),
-                    required: true,
-                    default_value: None,
-                },
-                SpecField {
-                    name: "message".to_string(),
-                    description: Some("A human-readable message about the list operation result".to_string()),
+                    name: "directory".to_string(),
+                    description: Some("Path to the directory to list".to_string()),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
                 },
                 SpecField {
-                    name: "details".to_string(),
-                    description: Some("Additional details about the list operation, including file list".to_string()),
-                    field_type: "string".to_string(),
-                    required: false,
+                    name: "files".to_string(),
+                    description: Some("List of files in the directory".to_string()),
+                    field_type: "Vec<string>".to_string(),
+                    required: true,
                     default_value: None,
                 },
             ],
@@ -422,18 +426,58 @@ impl Commandlet for FileCommandlet {
     }
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
-        match &params.command {
+        match params.command {
             FileCommands::Copy(copy_args) => {
-                let commandlet = FileCopyCommandlet;
-                commandlet.execute(copy_args.clone()).await
+                dougu_essentials_log::log_info(tf("FILE_COPY_START", vars!(
+                    "source" => &copy_args.source,
+                    "destination" => &copy_args.destination
+                )));
+                
+                // Call the implementation
+                execute_copy(&copy_args)?;
+                
+                Ok(FileCommandResult::Copy(FileCopyResult {
+                    source: copy_args.source,
+                    destination: copy_args.destination,
+                    details: None,
+                }))
             }
             FileCommands::Move(move_args) => {
-                let commandlet = FileMoveCommandlet;
-                commandlet.execute(move_args.clone()).await
+                dougu_essentials_log::log_info(tf("FILE_MOVE_START", vars!(
+                    "source" => &move_args.source,
+                    "destination" => &move_args.destination
+                )));
+                
+                // Call the implementation
+                execute_move(&move_args)?;
+                
+                Ok(FileCommandResult::Move(FileMoveResult {
+                    source: move_args.source,
+                    destination: move_args.destination,
+                    details: None,
+                }))
             }
             FileCommands::List(list_args) => {
-                let commandlet = FileListCommandlet;
-                commandlet.execute(list_args.clone()).await
+                let dir = list_args.directory.clone().unwrap_or_else(|| ".".to_string());
+                
+                dougu_essentials_log::log_info(tf("FILE_LIST_START", vars!(
+                    "directory" => &dir
+                )));
+                
+                // Call the implementation
+                execute_list(&list_args)?;
+                
+                // For demo, just return some dummy files
+                let files = vec![
+                    "file1.txt".to_string(),
+                    "file2.txt".to_string(),
+                    "file3.txt".to_string(),
+                ];
+                
+                Ok(FileCommandResult::List(FileListResult {
+                    directory: dir,
+                    files,
+                }))
             }
         }
     }
@@ -455,24 +499,10 @@ impl Commandlet for FileCommandlet {
             ],
             result_types: vec![
                 SpecField {
-                    name: "success".to_string(),
-                    description: Some("Whether the operation was successful".to_string()),
-                    field_type: "boolean".to_string(),
+                    name: "result".to_string(),
+                    description: Some("The result of the file operation".to_string()),
+                    field_type: "FileCommandResult enum".to_string(),
                     required: true,
-                    default_value: None,
-                },
-                SpecField {
-                    name: "message".to_string(),
-                    description: Some("A human-readable message about the operation result".to_string()),
-                    field_type: "string".to_string(),
-                    required: true,
-                    default_value: None,
-                },
-                SpecField {
-                    name: "details".to_string(),
-                    description: Some("Additional details about the operation result".to_string()),
-                    field_type: "string".to_string(),
-                    required: false,
                     default_value: None,
                 },
             ],

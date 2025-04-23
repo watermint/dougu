@@ -606,38 +606,28 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.21.7",
+ "bson",
  "chrono",
+ "ciborium",
  "clap",
- "dougu-command-build",
- "dougu-command-dropbox",
- "dougu-command-file",
- "dougu-command-obj",
- "dougu-command-root",
+ "dougu-domain-dropbox",
+ "dougu-essentials-archive",
  "dougu-essentials-build",
+ "dougu-essentials-fs",
  "dougu-essentials-i18n",
  "dougu-essentials-log",
+ "dougu-essentials-obj",
  "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
+ "hex",
+ "jaq-interpret",
+ "jaq-parse",
+ "jaq-syn",
  "log",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-command-build"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "clap",
- "dougu-essentials-build",
- "dougu-essentials-log",
- "dougu-foundation-i18n",
- "dougu-foundation-run",
- "dougu-foundation-ui",
- "log",
+ "quick-xml",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
@@ -645,82 +635,6 @@ dependencies = [
  "uuid",
  "walkdir",
  "zip",
-]
-
-[[package]]
-name = "dougu-command-dropbox"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "clap",
- "dougu-domain-dropbox",
- "dougu-essentials-i18n",
- "dougu-essentials-log",
- "dougu-foundation-run",
- "dougu-foundation-ui",
- "log",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-command-file"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "clap",
- "dougu-essentials-log",
- "dougu-foundation-i18n",
- "dougu-foundation-run",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-command-obj"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.21.7",
- "bson",
- "ciborium",
- "clap",
- "dougu-essentials-log",
- "dougu-essentials-obj",
- "dougu-foundation-run",
- "dougu-foundation-ui",
- "jaq-interpret",
- "jaq-parse",
- "jaq-syn",
- "log",
- "quick-xml",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-command-root"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dougu-command-build",
- "dougu-command-dropbox",
- "dougu-command-file",
- "dougu-command-obj",
- "dougu-essentials-build",
- "dougu-foundation-i18n",
- "dougu-foundation-run",
- "dougu-foundation-ui",
- "log",
- "serde",
- "serde_json",
 ]
 
 [[package]]

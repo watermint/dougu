@@ -1,12 +1,15 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use dougu_foundation_run::{LauncherContext, LauncherLayer};
+use dougu_foundation_ui::UIManager;
+use log::info;
+use dougu_foundation_run::resources::log_messages;
 use serde_json;
 
-use crate::{
-    DropboxArgs,
-    DropboxCommands,
-    FileCommands as DropboxFileCommands,
-    FolderCommands as DropboxFolderCommands
+use crate::commands::dropbox::{
+    DropboxArgs, DropboxCommands, FileCommands, FolderCommands,
+    execute_file_list, execute_file_download, execute_file_upload,
+    execute_folder_create, execute_folder_delete
 };
 
 /// Dropbox command layer for the launcher
@@ -27,6 +30,8 @@ impl LauncherLayer for DropboxCommandLayer {
             // For demo purposes, use a dummy token
             let token = "dummy_dropbox_token";
             
+            info!("{}", log_messages::COMMAND_START.replace("{}", "Dropbox"));
+            
             // Use UI manager from context directly
             ctx.ui.heading(1, "Dropbox Operations");
             
@@ -35,29 +40,38 @@ impl LauncherLayer for DropboxCommandLayer {
                     ctx.ui.heading(2, "File Operations");
                     
                     match &file_args.command {
-                        DropboxFileCommands::List(list_args) => {
+                        FileCommands::List(list_args) => {
+                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File List"));
                             ctx.ui.info("Listing files from Dropbox...");
                             
-                            crate::execute_file_list(list_args, token, &ctx.ui).await
+                            execute_file_list(list_args, token, &ctx.ui).await
                                 .map_err(|e| format!("Dropbox file list failed: {}", e))?;
+                            
+                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File List"));
                         }
-                        DropboxFileCommands::Download(download_args) => {
+                        FileCommands::Download(download_args) => {
+                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Download"));
+                            // Create a local variable for the formatted message
                             let msg = format!("Downloading file: {}", download_args.path);
                             ctx.ui.info(&msg);
                             
-                            crate::execute_file_download(download_args, token).await
+                            execute_file_download(download_args, token).await
                                 .map_err(|e| format!("Dropbox file download failed: {}", e))?;
                             
                             ctx.ui.success("Download completed successfully");
+                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Download"));
                         }
-                        DropboxFileCommands::Upload(upload_args) => {
+                        FileCommands::Upload(upload_args) => {
+                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Upload"));
+                            // Create a local variable for the formatted message
                             let msg = format!("Uploading file to: {}", upload_args.dropbox_path);
                             ctx.ui.info(&msg);
                             
-                            crate::execute_file_upload(upload_args, token).await
+                            execute_file_upload(upload_args, token).await
                                 .map_err(|e| format!("Dropbox file upload failed: {}", e))?;
                             
                             ctx.ui.success("Upload completed successfully");
+                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Upload"));
                         }
                     }
                 }
@@ -65,27 +79,35 @@ impl LauncherLayer for DropboxCommandLayer {
                     ctx.ui.heading(2, "Folder Operations");
                     
                     match &folder_args.command {
-                        DropboxFolderCommands::Create(create_args) => {
+                        FolderCommands::Create(create_args) => {
+                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Create"));
+                            // Create a local variable for the formatted message
                             let msg = format!("Creating folder: {}", create_args.path);
                             ctx.ui.info(&msg);
                             
-                            crate::execute_folder_create(create_args, token).await
+                            execute_folder_create(create_args, token).await
                                 .map_err(|e| format!("Dropbox folder create failed: {}", e))?;
                             
                             ctx.ui.success("Folder created successfully");
+                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Create"));
                         }
-                        DropboxFolderCommands::Delete(delete_args) => {
+                        FolderCommands::Delete(delete_args) => {
+                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Delete"));
+                            // Create a local variable for the formatted message
                             let msg = format!("Deleting folder: {}", delete_args.path);
                             ctx.ui.info(&msg);
                             
-                            crate::execute_folder_delete(delete_args, token).await
+                            execute_folder_delete(delete_args, token).await
                                 .map_err(|e| format!("Dropbox folder delete failed: {}", e))?;
                             
                             ctx.ui.success("Folder deleted successfully");
+                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Delete"));
                         }
                     }
                 }
             }
+            
+            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Dropbox"));
         }
         
         Ok(())

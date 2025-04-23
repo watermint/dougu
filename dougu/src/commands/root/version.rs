@@ -1,18 +1,27 @@
 use async_trait::async_trait;
-use dougu_essentials_build::{get_build_info};
+use dougu_essentials_build::get_build_info;
 use dougu_foundation_i18n::t;
-use dougu_foundation_run::{Commandlet, CommandletError, CommandRunner, LauncherContext, LauncherLayer};
+use dougu_foundation_run::{
+    Commandlet, 
+    CommandletError, 
+    CommandRunner,
+    LauncherContext, 
+    LauncherLayer
+};
 use dougu_foundation_ui::UIManager;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
+use anyhow::{anyhow, Result};
+use serde_json;
 
-use crate::resources::messages::*;
+// Add the import for message resources
+use crate::commands::root::resources::messages::*;
 
 // Version command as a Commandlet
 pub struct VersionCommandlet;
 
 #[derive(Serialize, Deserialize)]
 pub struct VersionParams {
-    // Empty parameters for version command
+    // No parameters needed for version command
 }
 
 #[derive(Serialize, Deserialize)]
@@ -133,7 +142,7 @@ pub fn display_version_results(ui: &UIManager, results: &VersionResults) -> Resu
     Ok(())
 }
 
-// Version command layer for the launcher
+/// Version command layer for the launcher
 pub struct VersionCommandLayer;
 
 #[async_trait]
@@ -143,30 +152,23 @@ impl LauncherLayer for VersionCommandLayer {
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the VersionCommandlet 
+        // Create the version commandlet
         let commandlet = VersionCommandlet;
         
-        // Create a CommandRunner with UI manager from context
+        // Create a runner with UI manager
         let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
         
-        // Empty params for version command
+        // Execute the commandlet with empty params
         let params = VersionParams {};
+        let params_str = serde_json::to_string(&params)
+            .map_err(|e| format!("Failed to serialize version params: {}", e))?;
         
-        // Serialize the params
-        let serialized_params = serde_json::to_string(&params)
-            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_SERIALIZE), e))?;
+        let result = runner.run(&params_str).await
+            .map_err(|e| format!("Version command execution failed: {}", e))?;
         
-        // Run the command with serialized parameters
-        let result = runner.run(&serialized_params).await
-            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_EXECUTION), e))?;
-        
-        // Parse the results
-        let version_results: VersionResults = serde_json::from_str(&result)
-            .map_err(|e| format!("Failed to parse version results: {}", e))?;
-        
-        // Display the results directly
-        display_version_results(&ctx.ui, &version_results)
-            .map_err(|e| format!("{}: {}", t(VERSION_ERROR_FORMAT), e))?;
+        // Format results
+        runner.format_results(&result)
+            .map_err(|e| format!("Failed to format version results: {}", e))?;
         
         Ok(())
     }

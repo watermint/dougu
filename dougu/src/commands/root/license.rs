@@ -3,9 +3,11 @@ use dougu_foundation_i18n::t;
 use dougu_foundation_run::{Commandlet, CommandletError, CommandRunner, LauncherContext, LauncherLayer};
 use dougu_foundation_ui::UIManager;
 use dougu_essentials_build::get_build_info;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
+use serde_json;
 
-use crate::resources::messages::*;
+// Import messages
+use crate::commands::root::resources::messages::*;
 
 // License command as a Commandlet
 pub struct LicenseCommandlet;
