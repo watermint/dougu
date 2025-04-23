@@ -613,9 +613,6 @@ dependencies = [
  "clap",
  "dougu-bridge",
  "dougu-essentials",
- "dougu-essentials-archive",
- "dougu-essentials-build",
- "dougu-essentials-fs",
  "dougu-foundation-i18n",
  "dougu-foundation-run",
  "dougu-foundation-ui",
@@ -664,74 +661,18 @@ dependencies = [
  "log",
  "once_cell",
  "quick-xml",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml",
- "tokio",
- "toml",
-]
-
-[[package]]
-name = "dougu-essentials-archive"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "zip",
-]
-
-[[package]]
-name = "dougu-essentials-build"
-version = "1.0.0"
-dependencies = [
- "chrono",
- "log",
- "serde",
-]
-
-[[package]]
-name = "dougu-essentials-fs"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-essentials-kvs"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
  "redb",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-essentials-sql"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sqlx",
+ "tempfile",
  "tokio",
+ "toml",
+ "walkdir",
+ "zip",
 ]
 
 [[package]]
@@ -756,7 +697,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "dougu-essentials",
- "dougu-essentials-build",
  "dougu-foundation-i18n",
  "dougu-foundation-ui",
  "log",

@@ -9,4 +9,6 @@ pub const INVALID_ENTRY_PATH: &str = "Invalid entry path";
 pub const COMPRESSION_ERROR: &str = "Compression error";
 pub const DECOMPRESSION_ERROR: &str = "Decompression error";
 pub const IO_ERROR: &str = "I/O error";
-pub const UNKNOWN_ERROR: &str = "Unknown error"; 
+pub const UNKNOWN_ERROR: &str = "Unknown error";
+pub const INVALID_ARCHIVE_EXTENSION: &str = "Invalid archive file extension";
+pub const UNSUPPORTED_ARCHIVE_TYPE: &str = "Unsupported archive type"; 

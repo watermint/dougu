@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use bson::{Document, from_document, to_document};
-use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
-use jaq_parse::parse;
+use jaq_interpret::Val;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::io::Cursor;

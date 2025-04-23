@@ -1,5 +1,5 @@
-use crate::{FileSystemProvider, FileSystemEntry, FileMetadata, ReadOptions, WriteOptions};
-use crate::resources::error_messages;
+use crate::fs::{FileSystemProvider, FileSystemEntry, FileMetadata, ReadOptions, WriteOptions};
+use crate::fs::resources::error_messages;
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};

@@ -23,4 +23,16 @@ reqwest = { workspace = true }
 env_logger = { workspace = true }
 chrono = { workspace = true }
 serde_yaml = "0.9.27"
-toml = "0.8.6" 
+toml = "0.8.6"
+# Dependencies from dougu-essentials-kvs
+redb = "1.5.0"
+# Dependencies from dougu-essentials-sql
+rusqlite = { version = "0.30.0", features = ["bundled"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
+# Dependencies from dougu-essentials-archive
+zip = "0.6"
+tempfile = "3.8"
+walkdir = "2.3"
+
+[features]
+examples = [] 
