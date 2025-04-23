@@ -2,22 +2,22 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dougu_foundation_run::{LauncherContext, LauncherLayer};
 use dougu_foundation_ui::{UIManager, OutputFormat};
-use dougu_essentials_log::log_info;
+use dougu_essentials::log::log_info;
 use serde_json;
 
-use crate::commands::build::{
+use crate::build::{
     BuildArgs, BuildCommands, execute_package, execute_test, 
     execute_compile, execute_pack, execute_spec
 };
-use crate::commands::build::resources::log_messages;
+use crate::build::resources::log_messages;
 
-/// Build command layer for the launcher
-pub struct BuildCommandLayer;
+/// Build action layer for the launcher
+pub struct BuildActionLayer;
 
 #[async_trait]
-impl LauncherLayer for BuildCommandLayer {
+impl LauncherLayer for BuildActionLayer {
     fn name(&self) -> &str {
-        "BuildCommandLayer"
+        "BuildActionLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
@@ -116,10 +116,10 @@ impl LauncherLayer for BuildCommandLayer {
                 }
                 BuildCommands::Spec(spec_args) => {
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.heading(2, "Generating Commandlet Specification");
+                        ctx.ui.heading(2, "Generating Action Specification");
                         
-                        let commandlet_name = spec_args.commandlet_name.as_deref().unwrap_or("all available");
-                        let msg = format!("Generating spec for: {}", commandlet_name);
+                        let action_name = spec_args.action_name.as_deref().unwrap_or("all available");
+                        let msg = format!("Generating spec for: {}", action_name);
                         ctx.ui.info(&msg);
                     }
                     

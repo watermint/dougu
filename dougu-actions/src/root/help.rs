@@ -1,18 +1,19 @@
 use async_trait::async_trait;
 use dougu_foundation_i18n::t;
-use dougu_foundation_run::{Commandlet, CommandletError, CommandRunner, LauncherContext, LauncherLayer};
+use dougu_foundation_run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer};
 use dougu_foundation_ui::UIManager;
 use serde::{Serialize, Deserialize};
+use anyhow::Result;
+use serde_json;
 
 // Import messages
-use crate::commands::root::resources::messages::*;
+use crate::root::resources::messages::*;
 
-// Help command as a Commandlet
-pub struct HelpCommandlet;
+// Help action
+pub struct HelpAction;
 
 #[derive(Serialize, Deserialize)]
 pub struct HelpParams {
-    // Optional command to get help for
     pub command: Option<String>,
 }
 
@@ -22,15 +23,15 @@ pub struct HelpResults {
 }
 
 #[async_trait]
-impl Commandlet for HelpCommandlet {
+impl Action for HelpAction {
     type Params = HelpParams;
     type Results = HelpResults;
     
     fn name(&self) -> &str {
-        "HelpCommandlet"
+        "HelpAction"
     }
     
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
         let content = match params.command.as_deref() {
             Some("file") => t(HELP_COMMAND_FILE),
             Some("dropbox") => t(HELP_COMMAND_DROPBOX),
@@ -39,7 +40,7 @@ impl Commandlet for HelpCommandlet {
             Some("version") => t(HELP_COMMAND_VERSION),
             Some("help") => t(HELP_COMMAND_HELP),
             Some("license") => t(HELP_COMMAND_LICENSE),
-            Some(cmd) => return Err(CommandletError::new(
+            Some(cmd) => return Err(ActionError::new(
                 "UNKNOWN_COMMAND", 
                 &format!("Unknown command: {}", cmd)
             )),
@@ -50,21 +51,21 @@ impl Commandlet for HelpCommandlet {
     }
 }
 
-// Help command layer for the launcher
-pub struct HelpCommandLayer;
+/// Help action layer for the launcher
+pub struct HelpActionLayer;
 
 #[async_trait]
-impl LauncherLayer for HelpCommandLayer {
+impl LauncherLayer for HelpActionLayer {
     fn name(&self) -> &str {
-        "HelpCommandLayer"
+        "HelpActionLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the commandlet
-        let commandlet = HelpCommandlet;
+        // Create the action
+        let action = HelpAction;
         
-        // Create a CommandRunner with UI manager from context
-        let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
+        // Create a ActionRunner with UI manager from context
+        let runner = ActionRunner::with_ui(action, ctx.ui.clone());
         
         // Create help parameters from context data
         let params = HelpParams {
@@ -75,9 +76,9 @@ impl LauncherLayer for HelpCommandLayer {
         let serialized_params = serde_json::to_string(&params)
             .map_err(|e| format!("Failed to serialize help params: {}", e))?;
         
-        // Run the command and get results
+        // Run the action and get results
         let result = runner.run(&serialized_params).await
-            .map_err(|e| format!("Help command execution failed: {}", e))?;
+            .map_err(|e| format!("Help action execution failed: {}", e))?;
         
         // Parse the result
         let results: HelpResults = serde_json::from_str(&result)

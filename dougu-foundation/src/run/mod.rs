@@ -8,15 +8,17 @@ use resources::spec_messages;
 use log::{debug, info, error};
 use async_trait::async_trait;
 use serde::{Serialize, Deserialize};
+use serde_json::Value;
 use crate::ui::{UIManager, OutputFormat};
 use std::str::FromStr;
+use crate::i18n::{Locale, t};
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
 // Re-export locale from i18n module
 pub use crate::i18n::{Locale, LocaleError};
 
-/// Represents a parameter or result type within a commandlet specification
+/// Field specification for Action parameters and results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecField {
     pub name: String,
@@ -26,16 +28,16 @@ pub struct SpecField {
     pub default_value: Option<String>,
 }
 
-/// Represents a possible error that can be returned by a commandlet
+/// Error specification for Action errors
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecError {
     pub code: String,
     pub description: String,
 }
 
-/// Represents the full specification document for a commandlet
+/// Specification for an Action's inputs and outputs
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommandletSpec {
+pub struct ActionSpec {
     pub name: String,
     pub description: Option<String>,
     pub behavior: String,
@@ -45,26 +47,26 @@ pub struct CommandletSpec {
     pub errors: Vec<SpecError>,
 }
 
-/// Commandlet represents a command implementation that takes serializable parameters and returns serializable results
+/// Action represents a command implementation that takes serializable parameters and returns serializable results
 #[async_trait]
-pub trait Commandlet {
-    /// The type of parameters this commandlet accepts
+pub trait Action {
+    /// The type of parameters this action accepts
     type Params: Serialize + for<'a> Deserialize<'a> + Send + Sync;
     
-    /// The type of results this commandlet returns 
+    /// The type of results this action returns 
     type Results: Serialize + for<'a> Deserialize<'a> + Send + Sync;
     
-    /// Returns the name of this commandlet
+    /// Returns the name of this action
     fn name(&self) -> &str;
     
-    /// Executes the commandlet with the given parameters
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError>;
+    /// Executes the action with the given parameters
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError>;
     
-    /// Generates a specification document for this commandlet
-    fn generate_spec(&self) -> CommandletSpec {
+    /// Generates a specification document for this action
+    fn generate_spec(&self) -> ActionSpec {
         // Default implementation provides a basic spec structure
-        // Commandlets should override this to provide detailed specifications
-        CommandletSpec {
+        // Actions should override this to provide detailed specifications
+        ActionSpec {
             name: self.name().to_string(),
             description: None,
             behavior: "Not specified".to_string(),
@@ -76,15 +78,15 @@ pub trait Commandlet {
     }
 }
 
-/// Error type for commandlet operations
+/// Error type for action operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommandletError {
+pub struct ActionError {
     pub code: String,
     pub message: String,
     pub details: Option<String>,
 }
 
-impl CommandletError {
+impl ActionError {
     pub fn new(code: &str, message: &str) -> Self {
         Self {
             code: code.to_string(),
@@ -102,7 +104,7 @@ impl CommandletError {
     }
 }
 
-impl std::fmt::Display for CommandletError {
+impl std::fmt::Display for ActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: {}", self.code, self.message)?;
         if let Some(details) = &self.details {
@@ -112,7 +114,7 @@ impl std::fmt::Display for CommandletError {
     }
 }
 
-impl From<String> for CommandletError {
+impl From<String> for ActionError {
     fn from(message: String) -> Self {
         Self {
             code: "UNKNOWN_ERROR".to_string(),
@@ -122,7 +124,7 @@ impl From<String> for CommandletError {
     }
 }
 
-impl From<&str> for CommandletError {
+impl From<&str> for ActionError {
     fn from(message: &str) -> Self {
         Self {
             code: "UNKNOWN_ERROR".to_string(),
@@ -132,8 +134,8 @@ impl From<&str> for CommandletError {
     }
 }
 
-// Implement the I18nCommandletError trait from i18n module
-impl crate::i18n::ErrorWithDetails for CommandletError {
+// Implement the I18nActionError trait from i18n module
+impl crate::i18n::ErrorWithDetails for ActionError {
     fn new_with_i18n(code: &str, key: &str) -> Self {
         let message = crate::i18n::t(key);
         Self::new(code, &message)
@@ -162,7 +164,7 @@ pub trait LauncherLayer {
 }
 
 pub struct LauncherContext {
-    // Store contextual information for command execution
+    // Store contextual information for action execution
     pub command_name: String,
     pub verbosity: u8,
     pub locale: Locale, // Use Locale struct instead of raw string
@@ -244,22 +246,21 @@ impl LauncherContext {
     }
 }
 
-// Implement I18nContext for LauncherContext to support i18n functionality
 impl crate::i18n::I18nContext for LauncherContext {
     fn get_context_data(&self, key: &str) -> Option<&String> {
-        self.data.get(key)
+        self.get_data(key)
     }
     
     fn set_context_data(&mut self, key: &str, value: String) {
-        self.data.insert(key.to_string(), value);
+        self.set_data(key, value);
     }
 }
 
-pub struct CommandLauncher {
+pub struct ActionLauncher {
     layers: Vec<Box<dyn LauncherLayer>>,
 }
 
-impl CommandLauncher {
+impl ActionLauncher {
     pub fn new() -> Self {
         Self {
             layers: Vec::new(),
@@ -288,38 +289,38 @@ impl CommandLauncher {
     }
 }
 
-pub struct CommandRunner<C: Commandlet> {
-    commandlet: C,
+pub struct ActionRunner<A: Action> {
+    action: A,
     ui: UIManager,
 }
 
-impl<C: Commandlet> CommandRunner<C> {
-    pub fn new(commandlet: C) -> Self {
+impl<A: Action> ActionRunner<A> {
+    pub fn new(action: A) -> Self {
         Self {
-            commandlet,
+            action,
             ui: UIManager::default(),
         }
     }
     
-    pub fn with_ui(commandlet: C, ui: UIManager) -> Self {
+    pub fn with_ui(action: A, ui: UIManager) -> Self {
         Self {
-            commandlet,
+            action,
             ui,
         }
     }
     
-    pub async fn run(&self, serialized_params: &str) -> Result<String, CommandletError> {
-        let params = serde_json::from_str::<C::Params>(serialized_params)
-            .map_err(|e| CommandletError::with_details(
+    pub async fn run(&self, serialized_params: &str) -> Result<String, ActionError> {
+        let params = serde_json::from_str::<A::Params>(serialized_params)
+            .map_err(|e| ActionError::with_details(
                 "PARAM_PARSE_ERROR",
                 &error_messages::PARAM_PARSE_ERROR,
                 &e.to_string()
             ))?;
         
-        let results = self.commandlet.execute(params).await?;
+        let results = self.action.execute(params).await?;
         
         let serialized_results = serde_json::to_string(&results)
-            .map_err(|e| CommandletError::with_details(
+            .map_err(|e| ActionError::with_details(
                 "RESULT_SERIALIZE_ERROR",
                 &error_messages::RESULT_SERIALIZE_ERROR,
                 &e.to_string()
@@ -328,9 +329,9 @@ impl<C: Commandlet> CommandRunner<C> {
         Ok(serialized_results)
     }
     
-    pub fn format_results(&self, serialized_results: &str) -> Result<(), CommandletError> {
+    pub fn format_results(&self, serialized_results: &str) -> Result<(), ActionError> {
         let result_value: serde_json::Value = serde_json::from_str(serialized_results)
-            .map_err(|e| CommandletError::with_details(
+            .map_err(|e| ActionError::with_details(
                 "RESULT_PARSE_ERROR",
                 &error_messages::RESULT_PARSE_ERROR,
                 &e.to_string()
@@ -343,9 +344,9 @@ impl<C: Commandlet> CommandRunner<C> {
         Ok(())
     }
     
-    pub fn format_results_to_string(&self, serialized_results: &str) -> Result<String, CommandletError> {
+    pub fn format_results_to_string(&self, serialized_results: &str) -> Result<String, ActionError> {
         let result_value: serde_json::Value = serde_json::from_str(serialized_results)
-            .map_err(|e| CommandletError::with_details(
+            .map_err(|e| ActionError::with_details(
                 "RESULT_PARSE_ERROR",
                 &error_messages::RESULT_PARSE_ERROR,
                 &e.to_string()
@@ -361,8 +362,8 @@ impl<C: Commandlet> CommandRunner<C> {
         &self.ui
     }
     
-    pub fn generate_spec(&self) -> CommandletSpec {
-        self.commandlet.generate_spec()
+    pub fn generate_spec(&self) -> ActionSpec {
+        self.action.generate_spec()
     }
     
     pub fn get_locale(ctx: &LauncherContext) -> &Locale {
@@ -400,20 +401,19 @@ impl<C: Commandlet> CommandRunner<C> {
 }
 
 pub struct SpecParams {
-    /// Name of the commandlet to generate spec for
-    pub commandlet_name: Option<String>,
+    /// Name of the action to generate spec for
+    pub action_name: Option<String>,
     /// Format of the spec (text, json, markdown)
     pub format: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct SpecResults {
-    pub commandlet_name: String,
-    pub spec: CommandletSpec,
+    pub action_name: String,
+    pub spec: ActionSpec,
     pub formatted_spec: String,
 }
 
-pub fn format_spec_as_markdown(spec: &CommandletSpec) -> String {
+pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
     let mut result = String::new();
     
     // Title
@@ -493,7 +493,7 @@ pub fn format_spec_as_markdown(spec: &CommandletSpec) -> String {
     result
 }
 
-pub fn format_spec_as_text(spec: &CommandletSpec) -> String {
+pub fn format_spec_as_text(spec: &ActionSpec) -> String {
     let mut result = String::new();
     
     // Title
@@ -581,63 +581,63 @@ pub fn format_spec_as_text(spec: &CommandletSpec) -> String {
     result
 }
 
-pub struct SpecCommandlet {
-    available_commandlets: Vec<Box<dyn AnyCommandlet>>,
+pub struct SpecAction {
+    available_actions: Vec<Box<dyn AnyAction>>,
 }
 
-pub trait AnyCommandlet: Send + Sync {
+pub trait AnyAction: Send + Sync {
     fn name(&self) -> &str;
-    fn generate_spec(&self) -> CommandletSpec;
+    fn generate_spec(&self) -> ActionSpec;
 }
 
-impl<T: Commandlet + Send + Sync> AnyCommandlet for T {
+impl<T: Action + Send + Sync> AnyAction for T {
     fn name(&self) -> &str {
         self.name()
     }
     
-    fn generate_spec(&self) -> CommandletSpec {
+    fn generate_spec(&self) -> ActionSpec {
         self.generate_spec()
     }
 }
 
-impl SpecCommandlet {
+impl SpecAction {
     pub fn new() -> Self {
         Self {
-            available_commandlets: Vec::new(),
+            available_actions: Vec::new(),
         }
     }
     
-    pub fn register_commandlet<C: Commandlet + 'static + Send + Sync>(&mut self, commandlet: C) {
-        self.available_commandlets.push(Box::new(commandlet));
+    pub fn register_action<A: Action + 'static + Send + Sync>(&mut self, action: A) {
+        self.available_actions.push(Box::new(action));
     }
     
-    fn find_commandlet(&self, name: &str) -> Option<&Box<dyn AnyCommandlet>> {
-        self.available_commandlets.iter().find(|c| c.name() == name)
+    fn find_action(&self, name: &str) -> Option<&Box<dyn AnyAction>> {
+        self.available_actions.iter().find(|a| a.name() == name)
     }
     
-    fn list_available_commandlets(&self) -> Vec<String> {
-        self.available_commandlets.iter().map(|c| c.name().to_string()).collect()
+    fn list_available_actions(&self) -> Vec<String> {
+        self.available_actions.iter().map(|a| a.name().to_string()).collect()
     }
 }
 
-impl Commandlet for SpecCommandlet {
+impl Action for SpecAction {
     type Params = SpecParams;
     type Results = SpecResults;
     
     fn name(&self) -> &str {
-        "spec"
+        "SpecAction"
     }
     
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
-        if let Some(commandlet_name) = params.commandlet_name {
-            // Generate spec for a specific commandlet
-            if let Some(commandlet) = self.find_commandlet(&commandlet_name) {
-                let spec = commandlet.generate_spec();
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
+        if let Some(action_name) = params.action_name {
+            // Generate spec for a specific action
+            if let Some(action) = self.find_action(&action_name) {
+                let spec = action.generate_spec();
                 
                 // Format the spec based on the requested format
                 let formatted_spec = match params.format.as_deref() {
                     Some("json") => serde_json::to_string_pretty(&spec)
-                        .map_err(|e| CommandletError::with_details(
+                        .map_err(|e| ActionError::with_details(
                             "SPEC_FORMAT_ERROR",
                             &spec_messages::SPEC_FORMAT_ERROR,
                             &e.to_string()
@@ -647,37 +647,37 @@ impl Commandlet for SpecCommandlet {
                 };
                 
                 Ok(SpecResults {
-                    commandlet_name: commandlet_name.clone(),
+                    action_name: action_name.clone(),
                     spec,
                     formatted_spec,
                 })
             } else {
                 // Commandlet not found
-                Err(CommandletError::with_i18n_vars(
+                Err(ActionError::with_i18n_vars(
                     "COMMANDLET_NOT_FOUND",
                     "errors.commandlet_not_found",
-                    &[("name", &commandlet_name)]
+                    &[("name", &action_name)]
                 ))
             }
         } else {
             // No specific commandlet requested, return list of available commandlets
-            let available = self.list_available_commandlets();
+            let available = self.list_available_actions();
             let formatted = match params.format.as_deref() {
                 Some("json") => serde_json::to_string_pretty(&available)
-                    .map_err(|e| CommandletError::with_details(
+                    .map_err(|e| ActionError::with_details(
                         "SPEC_FORMAT_ERROR",
                         &spec_messages::SPEC_FORMAT_ERROR,
                         &e.to_string()
                     ))?,
                 Some("markdown") => {
-                    let mut result = String::from("# Available Commandlets\n\n");
+                    let mut result = String::from("# Available Actions\n\n");
                     for cmd in &available {
                         result.push_str(&format!("- {}\n", cmd));
                     }
                     result
                 },
                 _ => {
-                    let mut result = String::from("Available Commandlets:\n");
+                    let mut result = String::from("Available Actions:\n");
                     result.push_str(&format!("{}\n\n", "=".repeat(22)));
                     for cmd in &available {
                         result.push_str(&format!("* {}\n", cmd));
@@ -687,10 +687,10 @@ impl Commandlet for SpecCommandlet {
             };
             
             // Create a placeholder spec for the list
-            let spec = CommandletSpec {
-                name: "Available Commandlets".to_string(),
-                description: Some("List of all available commandlets".to_string()),
-                behavior: "Lists all registered commandlets".to_string(),
+            let spec = ActionSpec {
+                name: "Available Actions".to_string(),
+                description: Some("List of all available actions".to_string()),
+                behavior: "Lists all registered actions".to_string(),
                 options: Vec::new(),
                 parameters: Vec::new(),
                 result_types: Vec::new(),
@@ -698,22 +698,22 @@ impl Commandlet for SpecCommandlet {
             };
             
             Ok(SpecResults {
-                commandlet_name: "available".to_string(),
+                action_name: "available_actions".to_string(),
                 spec,
                 formatted_spec: formatted,
             })
         }
     }
     
-    fn generate_spec(&self) -> CommandletSpec {
-        CommandletSpec {
+    fn generate_spec(&self) -> ActionSpec {
+        ActionSpec {
             name: self.name().to_string(),
             description: Some(spec_messages::SPEC_DESCRIPTION.to_string()),
             behavior: spec_messages::SPEC_BEHAVIOR.to_string(),
             options: Vec::new(),
             parameters: vec![
                 SpecField {
-                    name: "commandlet_name".to_string(),
+                    name: "action_name".to_string(),
                     description: Some(spec_messages::SPEC_PARAM_NAME_DESC.to_string()),
                     field_type: "string".to_string(),
                     required: false,
@@ -729,8 +729,8 @@ impl Commandlet for SpecCommandlet {
             ],
             result_types: vec![
                 SpecField {
-                    name: "commandlet_name".to_string(),
-                    description: Some("Name of the commandlet".to_string()),
+                    name: "action_name".to_string(),
+                    description: Some("Name of the action".to_string()),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
@@ -738,7 +738,7 @@ impl Commandlet for SpecCommandlet {
                 SpecField {
                     name: "spec".to_string(),
                     description: Some("Full specification structure".to_string()),
-                    field_type: "CommandletSpec".to_string(),
+                    field_type: "ActionSpec".to_string(),
                     required: true,
                     default_value: None,
                 },
@@ -753,7 +753,7 @@ impl Commandlet for SpecCommandlet {
             errors: vec![
                 SpecError {
                     code: "COMMANDLET_NOT_FOUND".to_string(),
-                    description: "The requested commandlet was not found".to_string(),
+                    description: "The requested action was not found".to_string(),
                 },
                 SpecError {
                     code: "SPEC_FORMAT_ERROR".to_string(),

@@ -4,6 +4,7 @@ use dougu_bridge::dropbox::DropboxClient;
 use dougu_foundation_ui::UIManager;
 use serde::{Serialize, Deserialize};
 use std::path::PathBuf;
+use dougu_essentials::log as log_util;
 
 // Now resources is handled in mod.rs
 // mod resources;
@@ -161,7 +162,7 @@ pub async fn execute_file_upload(args: &UploadArgs, token: &str) -> Result<()> {
 
 pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Result<()> {
     // Since client.create_folder doesn't exist, create a manual implementation
-    dougu_essentials_log::log_info(format!("Creating folder: {}", args.path));
+    log_util::log_info(format!("Creating folder: {}", args.path));
     
     // In a real app, this would perform the actual folder creation
     // using the Dropbox API
@@ -172,10 +173,10 @@ pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Resu
 
 pub async fn execute_folder_delete(args: &DeleteFolderArgs, token: &str) -> Result<()> {
     // Since client.delete_folder doesn't exist, create a manual implementation
-    dougu_essentials_log::log_info(format!("Deleting folder: {}", args.path));
+    log_util::log_info(format!("Deleting folder: {}", args.path));
     
     if args.recursive {
-        dougu_essentials_log::log_info("Using recursive deletion");
+        log_util::log_info("Using recursive deletion");
     }
     
     // In a real app, this would perform the actual folder deletion

@@ -606,6 +606,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "clap",
+ "dougu-essentials",
+ "dougu-foundation",
  "log",
  "serde",
  "serde_json",
@@ -623,6 +626,7 @@ dependencies = [
  "chrono",
  "ciborium",
  "clap",
+ "dougu-actions",
  "dougu-bridge",
  "dougu-essentials",
  "dougu-foundation",
@@ -649,6 +653,22 @@ dependencies = [
  "anyhow",
  "dougu-essentials",
  "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "dougu-domain"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dougu-essentials",
+ "dougu-foundation",
+ "log",
+ "once_cell",
  "serde",
  "serde_json",
  "tokio",

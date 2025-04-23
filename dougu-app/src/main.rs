@@ -5,21 +5,21 @@ use async_trait::async_trait;
 use std::str::FromStr;
 use serde::{Serialize, Deserialize};
 
-// Add the commands module
-mod commands;
+// Remove the local actions module
+// mod actions;
 
-// Use commands from our local modules instead of external crates
-use crate::commands::file::{FileArgs, FileCommandlet};
-use crate::commands::file::{FileCopyCommandlet, FileMoveCommandlet, FileListCommandlet};
-use crate::commands::dropbox::{DropboxArgs, DropboxCommands, FileCommands as DropboxFileCommands};
-use crate::commands::obj::ObjCommand;
-use crate::commands::build::BuildArgs;
-use dougu_foundation_run::{CommandLauncher, LauncherContext, LauncherLayer, CommandRunner, I18nInitializerLayer, display_app_info};
+// Use actions from the dougu-actions crate
+use dougu_actions::file::{FileArgs, FileAction};
+use dougu_actions::file::{FileCopyAction, FileMoveAction, FileListAction};
+use dougu_actions::dropbox::{DropboxArgs, DropboxActions, file::FileActions as DropboxFileActions};
+use dougu_actions::obj::ObjAction;
+use dougu_actions::build::BuildArgs;
+use dougu_foundation_run::{ActionLauncher, LauncherContext, LauncherLayer, ActionRunner, I18nInitializerLayer, display_app_info};
 use dougu_foundation_i18n::Locale;
 use dougu_foundation_run::resources::log_messages;
 use dougu_foundation_ui::OutputFormat;
 use dougu_foundation_ui::resources::ui_messages;
-use crate::commands::root::{VersionCommandlet, HelpCommandlet, HelpCommandLayer, LicenseCommandLayer};
+use dougu_actions::root::{VersionAction, HelpAction, HelpActionLayer, LicenseActionLayer};
 
 // Keep the i18n module for potential future use
 mod i18n;
@@ -56,7 +56,7 @@ enum Commands {
     Dropbox(DropboxArgs),
     
     /// Object notation operations (JSON, BSON, XML, CBOR)
-    Obj(ObjCommand),
+    Obj(ObjAction),
     
     /// Build operations
     Build(BuildArgs),
@@ -77,22 +77,22 @@ pub struct HelpArgs {
     command: Option<String>,
 }
 
-// File command layer using new commandlet architecture
-struct FileCommandletLayer;
+// File action layer using new action architecture
+struct FileActionLayer;
 
 #[async_trait]
-impl LauncherLayer for FileCommandletLayer {
+impl LauncherLayer for FileActionLayer {
     fn name(&self) -> &str {
-        "FileCommandletLayer"
+        "FileActionLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         if let Some(args_str) = ctx.get_data("file_args") {
-            info!("{}", log_messages::COMMAND_START.replace("{}", "File"));
+            info!("{}", log_messages::ACTION_START.replace("{}", "File"));
             
-            // Create the commandlet with UI manager from context directly
-            let commandlet = FileCommandlet;
-            let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
+            // Create the action with UI manager from context directly
+            let action = FileAction;
+            let runner = ActionRunner::with_ui(action, ctx.ui.clone());
             
             // Add locale to the args if it's a JSON object
             let args_with_locale = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
@@ -126,28 +126,28 @@ impl LauncherLayer for FileCommandletLayer {
                 args_str.to_string()
             };
             
-            // Run the commandlet with the serialized arguments
+            // Run the action with the serialized arguments
             let result = runner.run(&args_with_locale).await
-                .map_err(|e| format!("File command execution failed: {}", e))?;
+                .map_err(|e| format!("File action execution failed: {}", e))?;
             
-            // Format results using CommandRunner
+            // Format results using ActionRunner
             runner.format_results(&result)
                 .map_err(|e| format!("Failed to format results: {}", e))?;
             
-            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
+            info!("{}", log_messages::ACTION_COMPLETE.replace("{}", "File"));
         }
         
         Ok(())
     }
 }
 
-// Dropbox command layer
-struct DropboxCommandLayer;
+// Dropbox action layer
+struct DropboxActionLayer;
 
 #[async_trait]
-impl LauncherLayer for DropboxCommandLayer {
+impl LauncherLayer for DropboxActionLayer {
     fn name(&self) -> &str {
-        "DropboxCommandLayer"
+        "DropboxActionLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
@@ -159,275 +159,245 @@ impl LauncherLayer for DropboxCommandLayer {
             // For demo purposes, use a dummy token
             let token = "dummy_dropbox_token";
             
-            info!("{}", log_messages::COMMAND_START.replace("{}", "Dropbox"));
+            info!("{}", log_messages::ACTION_START.replace("{}", "Dropbox"));
             
             // Use UI manager from context directly
             ctx.ui.heading(1, "Dropbox Operations");
             
             match &args.command {
-                DropboxCommands::File(file_args) => {
+                DropboxActions::File(file_args) => {
                     ctx.ui.heading(2, "File Operations");
                     
                     match &file_args.command {
-                        DropboxFileCommands::List(list_args) => {
-                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File List"));
+                        DropboxFileActions::List(list_args) => {
+                            info!("{}", log_messages::SUBACTION_START.replace("{}", "File List"));
                             ctx.ui.info("Listing files from Dropbox...");
                             
-                            crate::commands::dropbox::execute_file_list(list_args, token, &ctx.ui).await
+                            dougu_actions::dropbox::execute_file_list(list_args, token, &ctx.ui).await
                                 .map_err(|e| format!("Dropbox file list failed: {}", e))?;
                             
-                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File List"));
+                            info!("{}", log_messages::SUBACTION_COMPLETE.replace("{}", "File List"));
                         }
-                        DropboxFileCommands::Download(download_args) => {
-                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Download"));
+                        DropboxFileActions::Download(download_args) => {
+                            info!("{}", log_messages::SUBACTION_START.replace("{}", "File Download"));
                             // Create a local variable for the formatted message
                             let msg = format!("Downloading file: {}", download_args.path);
                             ctx.ui.info(&msg);
                             
-                            crate::commands::dropbox::execute_file_download(download_args, token).await
+                            dougu_actions::dropbox::execute_file_download(download_args, token).await
                                 .map_err(|e| format!("Dropbox file download failed: {}", e))?;
                             
                             ctx.ui.success("Download completed successfully");
-                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Download"));
+                            info!("{}", log_messages::SUBACTION_COMPLETE.replace("{}", "File Download"));
                         }
-                        DropboxFileCommands::Upload(upload_args) => {
-                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "File Upload"));
+                        DropboxFileActions::Upload(upload_args) => {
+                            info!("{}", log_messages::SUBACTION_START.replace("{}", "File Upload"));
                             // Create a local variable for the formatted message
                             let msg = format!("Uploading file to: {}", upload_args.dropbox_path);
                             ctx.ui.info(&msg);
                             
-                            crate::commands::dropbox::execute_file_upload(upload_args, token).await
+                            dougu_actions::dropbox::execute_file_upload(upload_args, token).await
                                 .map_err(|e| format!("Dropbox file upload failed: {}", e))?;
                             
                             ctx.ui.success("Upload completed successfully");
-                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "File Upload"));
-                        }
-                    }
-                }
-                DropboxCommands::Folder(folder_args) => {
-                    ctx.ui.heading(2, "Folder Operations");
-                    
-                    match &folder_args.command {
-                        crate::commands::dropbox::FolderCommands::Create(create_args) => {
-                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Create"));
-                            // Create a local variable for the formatted message
-                            let msg = format!("Creating folder: {}", create_args.path);
-                            ctx.ui.info(&msg);
-                            
-                            crate::commands::dropbox::execute_folder_create(create_args, token).await
-                                .map_err(|e| format!("Dropbox folder create failed: {}", e))?;
-                            
-                            ctx.ui.success("Folder created successfully");
-                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Create"));
-                        }
-                        crate::commands::dropbox::FolderCommands::Delete(delete_args) => {
-                            info!("{}", log_messages::SUBCOMMAND_START.replace("{}", "Folder Delete"));
-                            // Create a local variable for the formatted message
-                            let msg = format!("Deleting folder: {}", delete_args.path);
-                            ctx.ui.info(&msg);
-                            
-                            crate::commands::dropbox::execute_folder_delete(delete_args, token).await
-                                .map_err(|e| format!("Dropbox folder delete failed: {}", e))?;
-                            
-                            ctx.ui.success("Folder deleted successfully");
-                            info!("{}", log_messages::SUBCOMMAND_COMPLETE.replace("{}", "Folder Delete"));
+                            info!("{}", log_messages::SUBACTION_COMPLETE.replace("{}", "File Upload"));
                         }
                     }
                 }
             }
             
-            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "Dropbox"));
+            info!("{}", log_messages::ACTION_COMPLETE.replace("{}", "Dropbox"));
         }
         
         Ok(())
     }
 }
 
-// Object command layer
-struct ObjCommandLayer;
-
-impl crate::commands::obj::layer::CommandLayer for ObjCommandLayer {
-    fn handle_command(&self, command: &str, args: Vec<String>) -> Result<(), String> {
-        let cmd = commands::obj::lib::ObjCommand::from_args(command, args);
-        let result = commands::obj::lib::execute_command(&cmd)?;
-        
-        if let Some(output) = result {
-            if !output.is_empty() {
-                println!("{}", output);
-            }
-        }
-        
-        Ok(())
-    }
-
-    fn is_empty(&self, result: &str) -> bool {
-        result.is_empty() || result == "null" || result == "{}"
-    }
-}
-
-// Build command layer
-struct BuildCommandLayer;
+// Obj action layer
+struct ObjActionLayer;
 
 #[async_trait]
-impl LauncherLayer for BuildCommandLayer {
+impl dougu_actions::obj::layer::ActionLayer for ObjActionLayer {
     fn name(&self) -> &str {
-        "BuildCommandLayer"
+        "ObjActionLayer"
     }
-
-    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        let args_str = match ctx.get_data("build_args") {
-            Some(args) => args,
-            None => return Ok(()),
-        };
-        
-        // Use the build command layer from the build module
-        let layer = crate::commands::build::BuildCommandLayer;
-        layer.run(ctx).await
+    
+    fn handle_action(&self, action: &str, args: Vec<String>) -> Result<(), String> {
+        match action {
+            "convert" => {
+                // Handle convert action with provided arguments
+                if args.len() < 3 {
+                    return Err("Not enough arguments for convert action".to_string());
+                }
+                
+                dougu_actions::obj::convert(&args[0], &args[1], &args[2])
+                    .map_err(|e| format!("Convert failed: {}", e))
+            }
+            _ => Err(format!("Unknown action: {}", action))
+        }
+    }
+    
+    fn is_empty(&self, result: &str) -> bool {
+        result.is_empty() || result == "{}" || result == "[]"
     }
 }
 
-// Use the VersionCommandLayer from the root module
-use crate::commands::root::VersionCommandLayer;
+// Build action layer
+struct BuildActionLayer;
 
-#[tokio::main]
+#[async_trait]
+impl LauncherLayer for BuildActionLayer {
+    fn name(&self) -> &str {
+        "BuildActionLayer"
+    }
+    
+    async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
+        if let Some(args_str) = ctx.get_data("build_args") {
+            // Parse the serialized args
+            let args: BuildArgs = serde_json::from_str(args_str)
+                .map_err(|e| format!("Failed to parse build args: {}", e))?;
+            
+            info!("{}", log_messages::ACTION_START.replace("{}", "Build"));
+            
+            // Use UI manager from context directly
+            ctx.ui.heading(1, "Build Operations");
+            
+            // Execute build operations
+            dougu_actions::build::execute_build(&args, &ctx.ui)
+                .map_err(|e| format!("Build failed: {}", e))?;
+            
+            info!("{}", log_messages::ACTION_COMPLETE.replace("{}", "Build"));
+        }
+        
+        Ok(())
+    }
+}
+
 async fn main() -> Result<()> {
+    // Initialize logger with environment variables
+    env_logger::builder()
+        .filter_level(LevelFilter::Info)
+        .parse_env("DOUGU_LOG")
+        .init();
+    
+    info!("{}", log_messages::LAUNCHER_START);
+    
+    // Parse command line arguments
     let cli = Cli::parse();
     
-    // Parse the output format
-    let output_format = OutputFormat::from_str(&cli.format)
-        .unwrap_or(OutputFormat::Default);
+    // Parse locale from command line
+    let locale = Locale::from_str(&cli.locale).unwrap_or_else(|_| {
+        info!("Invalid locale specified, using default (en)");
+        Locale::default()
+    });
     
-    // Set up logging based on verbosity
-    let level = match cli.verbose {
-        0 => LevelFilter::Off,
-        1 => LevelFilter::Error,
-        2 => LevelFilter::Warn,
-        3 => LevelFilter::Info,
-        4 => LevelFilter::Debug,
-        _ => LevelFilter::Trace,
+    // Parse output format from command line
+    let format = match cli.format.as_str() {
+        "jsonl" => OutputFormat::JsonLines,
+        "markdown" => OutputFormat::Markdown,
+        _ => OutputFormat::Default,
     };
     
-    info!("{}", log_messages::SETTING_VERBOSITY.replace("{}", &level.to_string()));
-    dougu_essentials_log::init(level)?;
+    // Create launcher context
+    let mut ctx = LauncherContext::with_ui_format("dougu".to_string(), cli.verbose, locale, format);
     
-    // Determine locale from command-line or environment variable
-    let locale = if cli.locale != "en" {
-        // If explicitly set on command-line, use that
-        info!("{}", log_messages::SETTING_LANGUAGE.replace("{}", &cli.locale));
-        Locale::from_str(&cli.locale).unwrap_or_else(|_| Locale::default())
-    } else {
-        // Otherwise check LANG environment variable
-        match std::env::var("LANG") {
-            Ok(lang) => {
-                info!("LANG environment variable: {}", lang);
-                // Extract language tag from LANG (e.g., "en" from "en_US.UTF-8")
-                let lang_tag = lang.split('.').next().unwrap_or("en").replace('_', "-");
-                info!("Extracted language tag: {}", lang_tag);
-                
-                // Parse the language tag as a Locale
-                let extracted_locale = Locale::from_str(&lang_tag).unwrap_or_else(|_| Locale::default());
-                
-                // Only use if we have translations for this language
-                if dougu_foundation_i18n::is_supported_language(&extracted_locale) {
-                    info!("{}", log_messages::SETTING_LANGUAGE.replace("{}", extracted_locale.as_str()));
-                    extracted_locale
-                } else {
-                    let msg = log_messages::LANGUAGE_UNSUPPORTED
-                        .replace("{}", extracted_locale.language())
-                        .replace("{}", "en");
-                    info!("{}", msg);
-                    Locale::default() // Default to English for unsupported languages
-                }
-            },
-            Err(_) => {
-                info!("{}", log_messages::USING_DEFAULT_LANGUAGE.replace("{}", "en"));
-                Locale::default() // Default to English if LANG is not set
-            }
-        }
-    };
-    
-    // Create context with command name, verbosity, locale and output format
-    let command_name = match &cli.command {
-        Commands::File(_) => "File",
-        Commands::Dropbox(_) => "Dropbox",
-        Commands::Obj(_) => "Obj",
-        Commands::Build(_) => "Build",
-        Commands::Version => "Version",
-        Commands::Help(_) => "Help",
-        Commands::License => "License",
-    };
-    
-    let mut context = LauncherContext::with_ui_format(
-        command_name.to_string(), 
-        cli.verbose, 
-        locale.clone(), 
-        output_format
-    );
-    
-    // Create CommandLauncher
-    let mut launcher = CommandLauncher::new();
-    
-    // Add the I18nInitializerLayer as the first layer and initialize it first
-    // to ensure translations are loaded before we display app info
-    let i18n_layer = I18nInitializerLayer::with_locale(locale.clone());
-    let mut i18n_context = LauncherContext::with_ui_format(
-        "i18n_init".to_string(),
-        cli.verbose,
-        locale.clone(),
-        output_format
-    );
-    i18n_layer.run(&mut i18n_context).await
-        .map_err(|e| anyhow::anyhow!("Failed to initialize i18n: {}", e))?;
-    launcher.add_layer(i18n_layer);
-    
-    // Now display application information banner with i18n initialized
+    // Display application info if not skipped
     if !cli.skip_appinfo {
-        display_app_info(&context.ui, cli.verbose >= 2);
+        display_app_info(&ctx.ui);
     }
     
-    // Add appropriate command layers based on the command
+    // Process command and arguments
     match &cli.command {
         Commands::File(args) => {
-            let args_json = serde_json::to_string(args)
-                .map_err(|e| anyhow::anyhow!("Failed to serialize file args: {}", e))?;
-            context.set_data("file_args", args_json);
-            launcher.add_layer(FileCommandletLayer);
+            // Store serialized arguments in context
+            let serialized = serde_json::to_string(args).map_err(|e| {
+                format!("Failed to serialize file args: {}", e)
+            })?;
+            ctx.set_data("file_args", serialized);
+            
+            // Create and run the file action layer
+            let file_layer = FileActionLayer;
+            file_layer.run(&mut ctx).await?;
         }
         Commands::Dropbox(args) => {
-            let args_json = serde_json::to_string(args)
-                .map_err(|e| anyhow::anyhow!("Failed to serialize dropbox args: {}", e))?;
-            context.set_data("dropbox_args", args_json);
-            launcher.add_layer(DropboxCommandLayer);
+            // Store serialized arguments in context
+            let serialized = serde_json::to_string(args).map_err(|e| {
+                format!("Failed to serialize dropbox args: {}", e)
+            })?;
+            ctx.set_data("dropbox_args", serialized);
+            
+            // Create and run the dropbox action layer
+            let dropbox_layer = DropboxActionLayer;
+            dropbox_layer.run(&mut ctx).await?;
         }
-        Commands::Obj(cmd) => {
-            let args_json = serde_json::to_string(cmd)
-                .map_err(|e| anyhow::anyhow!("Failed to serialize obj args: {}", e))?;
-            context.set_data("obj_args", args_json);
-            launcher.add_layer(ObjCommandLayer);
+        Commands::Obj(args) => {
+            // Create obj action layer
+            let obj_layer = ObjActionLayer;
+            
+            // Handle obj actions
+            match &args.command {
+                dougu_actions::obj::ObjCommands::Convert(convert_args) => {
+                    obj_layer.handle_action("convert", vec![
+                        convert_args.input.clone(),
+                        convert_args.output.clone(),
+                        convert_args.format.clone(),
+                    ])?;
+                }
+            }
         }
         Commands::Build(args) => {
-            let args_json = serde_json::to_string(args)
-                .map_err(|e| anyhow::anyhow!("Failed to serialize build args: {}", e))?;
-            context.set_data("build_args", args_json);
-            launcher.add_layer(BuildCommandLayer);
+            // Store serialized arguments in context
+            let serialized = serde_json::to_string(args).map_err(|e| {
+                format!("Failed to serialize build args: {}", e)
+            })?;
+            ctx.set_data("build_args", serialized);
+            
+            // Create and run the build action layer
+            let build_layer = BuildActionLayer;
+            build_layer.run(&mut ctx).await?;
         }
         Commands::Version => {
-            launcher.add_layer(VersionCommandLayer);
+            // Create version action layer
+            let version_layer = I18nInitializerLayer::wrap(dougu_actions::root::VersionActionLayer);
+            
+            // Create action launcher and add layers
+            let mut launcher = ActionLauncher::new();
+            launcher.add_layer(version_layer);
+            
+            // Launch the action
+            launcher.launch(&mut ctx).await?;
         }
-        Commands::Help(help_args) => {
-            if let Some(cmd) = &help_args.command {
-                context.set_data("help_command", cmd.clone());
+        Commands::Help(args) => {
+            // Store command to get help for
+            if let Some(command) = &args.command {
+                ctx.set_data("help_command", command.to_string());
             }
-            launcher.add_layer(HelpCommandLayer);
+            
+            // Create help action layer
+            let help_layer = I18nInitializerLayer::wrap(HelpActionLayer);
+            
+            // Create action launcher and add layers
+            let mut launcher = ActionLauncher::new();
+            launcher.add_layer(help_layer);
+            
+            // Launch the action
+            launcher.launch(&mut ctx).await?;
         }
         Commands::License => {
-            launcher.add_layer(LicenseCommandLayer);
+            // Create license action layer
+            let license_layer = I18nInitializerLayer::wrap(LicenseActionLayer);
+            
+            // Create action launcher and add layers
+            let mut launcher = ActionLauncher::new();
+            launcher.add_layer(license_layer);
+            
+            // Launch the action
+            launcher.launch(&mut ctx).await?;
         }
     }
     
-    // Execute the command through the launcher
-    launcher.launch(&mut context).await
-        .map_err(|e| anyhow::anyhow!("Command execution failed: {}", e))?;
+    info!("{}", log_messages::LAUNCHER_COMPLETE);
     
     Ok(())
 }
+

@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use dougu_essentials_build::get_build_info;
+use dougu_essentials::build::get_build_info;
 use dougu_foundation_i18n::t;
 use dougu_foundation_run::{
-    Commandlet, 
-    CommandletError, 
-    CommandRunner,
+    Action, 
+    ActionError, 
+    ActionRunner,
     LauncherContext, 
     LauncherLayer
 };
@@ -14,14 +14,14 @@ use anyhow::{anyhow, Result};
 use serde_json;
 
 // Add the import for message resources
-use crate::commands::root::resources::messages::*;
+use crate::root::resources::messages::*;
 
-// Version command as a Commandlet
-pub struct VersionCommandlet;
+// Version action
+pub struct VersionAction;
 
 #[derive(Serialize, Deserialize)]
 pub struct VersionParams {
-    // No parameters needed for version command
+    // No parameters needed for version action
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,15 +37,15 @@ pub struct VersionResults {
 }
 
 #[async_trait]
-impl Commandlet for VersionCommandlet {
+impl Action for VersionAction {
     type Params = VersionParams;
     type Results = VersionResults;
     
     fn name(&self) -> &str {
-        "VersionCommandlet"
+        "VersionAction"
     }
     
-    async fn execute(&self, _params: Self::Params) -> Result<Self::Results, CommandletError> {
+    async fn execute(&self, _params: Self::Params) -> Result<Self::Results, ActionError> {
         // Get build information
         let build_info = get_build_info();
         
@@ -74,7 +74,7 @@ impl Commandlet for VersionCommandlet {
 }
 
 // Display version results directly with UI methods
-pub fn display_version_results(ui: &UIManager, results: &VersionResults) -> Result<(), CommandletError> {
+pub fn display_version_results(ui: &UIManager, results: &VersionResults) -> Result<(), ActionError> {
     // Display version heading
     ui.heading(1, &t(VERSION_HEADING));
     ui.line_break();
@@ -142,29 +142,29 @@ pub fn display_version_results(ui: &UIManager, results: &VersionResults) -> Resu
     Ok(())
 }
 
-/// Version command layer for the launcher
-pub struct VersionCommandLayer;
+/// Version action layer for the launcher
+pub struct VersionActionLayer;
 
 #[async_trait]
-impl LauncherLayer for VersionCommandLayer {
+impl LauncherLayer for VersionActionLayer {
     fn name(&self) -> &str {
-        "VersionCommandLayer"
+        "VersionActionLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the version commandlet
-        let commandlet = VersionCommandlet;
+        // Create the version action
+        let action = VersionAction;
         
         // Create a runner with UI manager
-        let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
+        let runner = ActionRunner::with_ui(action, ctx.ui.clone());
         
-        // Execute the commandlet with empty params
+        // Execute the action with empty params
         let params = VersionParams {};
         let params_str = serde_json::to_string(&params)
             .map_err(|e| format!("Failed to serialize version params: {}", e))?;
         
         let result = runner.run(&params_str).await
-            .map_err(|e| format!("Version command execution failed: {}", e))?;
+            .map_err(|e| format!("Version action execution failed: {}", e))?;
         
         // Format results
         runner.format_results(&result)

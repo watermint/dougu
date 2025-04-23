@@ -2,14 +2,14 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
-use dougu_foundation_run::{Commandlet, CommandletError, CommandletSpec, SpecField, SpecError};
+use dougu_foundation_run::{Action, ActionError, ActionSpec, SpecField, SpecError};
 use dougu_foundation_i18n::{tf, vars};
-use dougu_essentials_log;
+use dougu_essentials::log as log_util;
 
 pub mod resources;
 mod launcher;
 
-pub use launcher::FileCommandLayer;
+pub use launcher::FileActionLayer;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
@@ -104,29 +104,29 @@ pub struct FileListResult {
     pub files: Vec<String>,
 }
 
-// Main result enum for file commands
+// Main result enum for file actions
 #[derive(Debug, Serialize, Deserialize)]
-pub enum FileCommandResult {
+pub enum FileActionResult {
     Copy(FileCopyResult),
     Move(FileMoveResult),
     List(FileListResult),
 }
 
-// File copy commandlet
-pub struct FileCopyCommandlet;
+// File copy action
+pub struct FileCopyAction;
 
 #[async_trait]
-impl Commandlet for FileCopyCommandlet {
+impl Action for FileCopyAction {
     type Params = CopyArgs;
-    type Results = FileCommandResult;
+    type Results = FileActionResult;
     
     fn name(&self) -> &str {
-        "FileCopyCommandlet"
+        "FileCopyAction"
     }
     
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
         // Use the i18n system for the log message
-        dougu_essentials_log::log_info(tf("FILE_COPY_START", vars!(
+        log_util::log_info(tf("FILE_COPY_START", vars!(
             "source" => &params.source,
             "destination" => &params.destination
         )));
@@ -134,15 +134,15 @@ impl Commandlet for FileCopyCommandlet {
         // Pseudo implementation
         // In a real app, this would perform the actual file copy
         
-        Ok(FileCommandResult::Copy(FileCopyResult {
+        Ok(FileActionResult::Copy(FileCopyResult {
             source: params.source,
             destination: params.destination,
             details: None,
         }))
     }
     
-    fn generate_spec(&self) -> CommandletSpec {
-        CommandletSpec {
+    fn generate_spec(&self) -> ActionSpec {
+        ActionSpec {
             name: self.name().to_string(),
             description: Some("Copies a file from source to destination".to_string()),
             behavior: "Copies a file from the specified source path to the destination path".to_string(),
@@ -216,21 +216,21 @@ impl Commandlet for FileCopyCommandlet {
     }
 }
 
-// File move commandlet
-pub struct FileMoveCommandlet;
+// File move action
+pub struct FileMoveAction;
 
 #[async_trait]
-impl Commandlet for FileMoveCommandlet {
+impl Action for FileMoveAction {
     type Params = MoveArgs;
-    type Results = FileCommandResult;
+    type Results = FileActionResult;
     
     fn name(&self) -> &str {
-        "FileMoveCommandlet"
+        "FileMoveAction"
     }
     
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
         // Use the i18n system for the log message
-        dougu_essentials_log::log_info(tf("FILE_MOVE_START", vars!(
+        log_util::log_info(tf("FILE_MOVE_START", vars!(
             "source" => &params.source,
             "destination" => &params.destination
         )));
@@ -238,15 +238,15 @@ impl Commandlet for FileMoveCommandlet {
         // Pseudo implementation
         // In a real app, this would perform the actual file move
         
-        Ok(FileCommandResult::Move(FileMoveResult {
+        Ok(FileActionResult::Move(FileMoveResult {
             source: params.source,
             destination: params.destination,
             details: None,
         }))
     }
     
-    fn generate_spec(&self) -> CommandletSpec {
-        CommandletSpec {
+    fn generate_spec(&self) -> ActionSpec {
+        ActionSpec {
             name: self.name().to_string(),
             description: Some("Moves a file from source to destination".to_string()),
             behavior: "Moves a file from the specified source path to the destination path".to_string(),
@@ -320,40 +320,42 @@ impl Commandlet for FileMoveCommandlet {
     }
 }
 
-// File list commandlet
-pub struct FileListCommandlet;
+// File list action
+pub struct FileListAction;
 
 #[async_trait]
-impl Commandlet for FileListCommandlet {
+impl Action for FileListAction {
     type Params = ListArgs;
-    type Results = FileCommandResult;
+    type Results = FileActionResult;
     
     fn name(&self) -> &str {
-        "FileListCommandlet"
+        "FileListAction"
     }
     
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
-        let dir = params.directory.as_deref().unwrap_or(".");
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
+        // Use a default directory if none specified
+        let directory = params.directory.unwrap_or_else(|| ".".to_string());
         
         // Use the i18n system for the log message
-        dougu_essentials_log::log_info(tf("FILE_LIST_START", vars!(
-            "directory" => dir
+        log_util::log_info(tf("FILE_LIST_START", vars!(
+            "directory" => &directory
         )));
         
         // Pseudo implementation
-        // In a real app, this would list the directory contents
+        // In a real app, this would perform the actual directory listing
+        let files = vec!["file1.txt".to_string(), "file2.txt".to_string()];
         
-        Ok(FileCommandResult::List(FileListResult {
-            directory: dir.to_string(),
-            files: Vec::new(),
+        Ok(FileActionResult::List(FileListResult {
+            directory,
+            files,
         }))
     }
     
-    fn generate_spec(&self) -> CommandletSpec {
-        CommandletSpec {
+    fn generate_spec(&self) -> ActionSpec {
+        ActionSpec {
             name: self.name().to_string(),
             description: Some("Lists files in a directory".to_string()),
-            behavior: "Lists files in the specified directory with optional formatting".to_string(),
+            behavior: "Lists files in the specified directory".to_string(),
             options: vec![
                 SpecField {
                     name: "all".to_string(),
@@ -382,7 +384,7 @@ impl Commandlet for FileListCommandlet {
             result_types: vec![
                 SpecField {
                     name: "directory".to_string(),
-                    description: Some("Path to the directory to list".to_string()),
+                    description: Some("Path to the directory that was listed".to_string()),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
@@ -390,15 +392,15 @@ impl Commandlet for FileListCommandlet {
                 SpecField {
                     name: "files".to_string(),
                     description: Some("List of files in the directory".to_string()),
-                    field_type: "Vec<string>".to_string(),
+                    field_type: "array<string>".to_string(),
                     required: true,
                     default_value: None,
                 },
             ],
             errors: vec![
                 SpecError {
-                    code: "DIRECTORY_NOT_FOUND".to_string(),
-                    description: "The specified directory was not found".to_string(),
+                    code: "DIR_NOT_FOUND".to_string(),
+                    description: "The directory was not found".to_string(),
                 },
                 SpecError {
                     code: "ACCESS_DENIED".to_string(),
@@ -406,93 +408,56 @@ impl Commandlet for FileListCommandlet {
                 },
                 SpecError {
                     code: "INVALID_PATH".to_string(),
-                    description: "The specified path is invalid or not a directory".to_string(),
+                    description: "The directory path is invalid".to_string(),
                 },
             ],
         }
     }
 }
 
-// Main file commandlet
-pub struct FileCommandlet;
+// Main file action that dispatches to other actions
+pub struct FileAction;
 
 #[async_trait]
-impl Commandlet for FileCommandlet {
+impl Action for FileAction {
     type Params = FileArgs;
-    type Results = FileCommandResult;
+    type Results = FileActionResult;
     
     fn name(&self) -> &str {
-        "FileCommandlet"
+        "FileAction"
     }
     
-    async fn execute(&self, params: Self::Params) -> Result<Self::Results, CommandletError> {
+    async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
         match params.command {
             FileCommands::Copy(copy_args) => {
-                dougu_essentials_log::log_info(tf("FILE_COPY_START", vars!(
-                    "source" => &copy_args.source,
-                    "destination" => &copy_args.destination
-                )));
-                
-                // Call the implementation
-                execute_copy(&copy_args)?;
-                
-                Ok(FileCommandResult::Copy(FileCopyResult {
-                    source: copy_args.source,
-                    destination: copy_args.destination,
-                    details: None,
-                }))
+                // Use the file copy action
+                let copy_action = FileCopyAction;
+                copy_action.execute(copy_args).await
             }
             FileCommands::Move(move_args) => {
-                dougu_essentials_log::log_info(tf("FILE_MOVE_START", vars!(
-                    "source" => &move_args.source,
-                    "destination" => &move_args.destination
-                )));
-                
-                // Call the implementation
-                execute_move(&move_args)?;
-                
-                Ok(FileCommandResult::Move(FileMoveResult {
-                    source: move_args.source,
-                    destination: move_args.destination,
-                    details: None,
-                }))
+                // Use the file move action
+                let move_action = FileMoveAction;
+                move_action.execute(move_args).await
             }
             FileCommands::List(list_args) => {
-                let dir = list_args.directory.clone().unwrap_or_else(|| ".".to_string());
-                
-                dougu_essentials_log::log_info(tf("FILE_LIST_START", vars!(
-                    "directory" => &dir
-                )));
-                
-                // Call the implementation
-                execute_list(&list_args)?;
-                
-                // For demo, just return some dummy files
-                let files = vec![
-                    "file1.txt".to_string(),
-                    "file2.txt".to_string(),
-                    "file3.txt".to_string(),
-                ];
-                
-                Ok(FileCommandResult::List(FileListResult {
-                    directory: dir,
-                    files,
-                }))
+                // Use the file list action
+                let list_action = FileListAction;
+                list_action.execute(list_args).await
             }
         }
     }
     
-    fn generate_spec(&self) -> CommandletSpec {
-        CommandletSpec {
+    fn generate_spec(&self) -> ActionSpec {
+        ActionSpec {
             name: self.name().to_string(),
-            description: Some("Performs file operations like copy, move, and list".to_string()),
-            behavior: "Delegates to sub-commandlets based on the operation requested".to_string(),
-            options: Vec::new(),
+            description: Some("File operations".to_string()),
+            behavior: "Performs various file operations such as copy, move, and list".to_string(),
+            options: vec![],
             parameters: vec![
                 SpecField {
                     name: "command".to_string(),
-                    description: Some("The file operation to perform".to_string()),
-                    field_type: "FileCommands enum".to_string(),
+                    description: Some("The file command to execute".to_string()),
+                    field_type: "enum(copy, move, list)".to_string(),
                     required: true,
                     default_value: None,
                 },
@@ -501,63 +466,41 @@ impl Commandlet for FileCommandlet {
                 SpecField {
                     name: "result".to_string(),
                     description: Some("The result of the file operation".to_string()),
-                    field_type: "FileCommandResult enum".to_string(),
+                    field_type: "object".to_string(),
                     required: true,
                     default_value: None,
                 },
             ],
             errors: vec![
                 SpecError {
-                    code: "FILE_NOT_FOUND".to_string(),
-                    description: "The specified file was not found".to_string(),
+                    code: "INVALID_COMMAND".to_string(),
+                    description: "The specified file command is invalid".to_string(),
                 },
                 SpecError {
-                    code: "ACCESS_DENIED".to_string(),
-                    description: "Access to the file was denied".to_string(),
-                },
-                SpecError {
-                    code: "ALREADY_EXISTS".to_string(),
-                    description: "The destination file already exists and force option not specified".to_string(),
-                },
-                SpecError {
-                    code: "INVALID_PATH".to_string(),
-                    description: "The specified path is invalid".to_string(),
+                    code: "COMMAND_FAILED".to_string(),
+                    description: "The file command failed to execute".to_string(),
                 },
             ],
         }
     }
 }
 
-// Legacy execute functions for backward compatibility
+// Legacy execution functions for backward compatibility
 pub fn execute_copy(args: &CopyArgs) -> Result<()> {
-    let commandlet = FileCopyCommandlet;
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            commandlet.execute(args.clone()).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            Ok(())
-        })
+    println!("Copying {} to {}", args.source, args.destination);
+    // Implementation would go here
+    Ok(())
 }
 
 pub fn execute_move(args: &MoveArgs) -> Result<()> {
-    let commandlet = FileMoveCommandlet;
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            commandlet.execute(args.clone()).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            Ok(())
-        })
+    println!("Moving {} to {}", args.source, args.destination);
+    // Implementation would go here
+    Ok(())
 }
 
 pub fn execute_list(args: &ListArgs) -> Result<()> {
-    let commandlet = FileListCommandlet;
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            commandlet.execute(args.clone()).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            Ok(())
-        })
+    let dir = args.directory.as_deref().unwrap_or(".");
+    println!("Listing directory: {}", dir);
+    // Implementation would go here
+    Ok(())
 }

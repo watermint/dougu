@@ -1,42 +1,42 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use dougu_foundation_run::{LauncherContext, LauncherLayer, CommandRunner, Commandlet};
+use dougu_foundation_run::{LauncherContext, LauncherLayer, ActionRunner, Action};
 use dougu_foundation_ui::UIManager;
 use log::info;
 use dougu_foundation_run::resources::log_messages;
 use serde_json;
 
-use crate::commands::file::{
-    FileCommandlet, FileCommandResult
+use crate::file::{
+    FileAction, FileActionResult
 };
 
-/// File command layer for the launcher
-pub struct FileCommandLayer;
+/// File action layer for the launcher
+pub struct FileActionLayer;
 
 #[async_trait]
-impl LauncherLayer for FileCommandLayer {
+impl LauncherLayer for FileActionLayer {
     fn name(&self) -> &str {
-        "FileCommandLayer"
+        "FileActionLayer"
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         if let Some(args_str) = ctx.get_data("file_args") {
-            info!("{}", log_messages::COMMAND_START.replace("{}", "File"));
+            info!("{}", log_messages::ACTION_START.replace("{}", "File"));
             
-            // Create the commandlet and runner
-            let commandlet = FileCommandlet;
-            let runner = CommandRunner::with_ui(commandlet, ctx.ui.clone());
+            // Create the action and runner
+            let action = FileAction;
+            let runner = ActionRunner::with_ui(action, ctx.ui.clone());
             
             // Run with the serialized arguments
             let result = runner.run(args_str).await
-                .map_err(|e| format!("File command execution failed: {}", e))?;
+                .map_err(|e| format!("File action execution failed: {}", e))?;
             
             // Parse the result to get details for display
-            let parsed_result: FileCommandResult = serde_json::from_str(&result)
+            let parsed_result: FileActionResult = serde_json::from_str(&result)
                 .map_err(|e| format!("Failed to parse result: {}", e))?;
             
             match parsed_result {
-                FileCommandResult::Copy(copy_result) => {
+                FileActionResult::Copy(copy_result) => {
                     // Format and display copy results
                     ctx.ui.heading(2, "File Copy Results");
                     ctx.ui.info(&format!("Copied from: {}", copy_result.source));
@@ -47,7 +47,7 @@ impl LauncherLayer for FileCommandLayer {
                         ctx.ui.text(details);
                     }
                 }
-                FileCommandResult::Move(move_result) => {
+                FileActionResult::Move(move_result) => {
                     // Format and display move results
                     ctx.ui.heading(2, "File Move Results");
                     ctx.ui.info(&format!("Moved from: {}", move_result.source));
@@ -58,7 +58,7 @@ impl LauncherLayer for FileCommandLayer {
                         ctx.ui.text(details);
                     }
                 }
-                FileCommandResult::List(list_result) => {
+                FileActionResult::List(list_result) => {
                     // Format and display list results
                     ctx.ui.heading(2, "File List Results");
                     ctx.ui.info(&format!("Directory: {}", list_result.directory));
@@ -69,7 +69,7 @@ impl LauncherLayer for FileCommandLayer {
                 }
             }
             
-            info!("{}", log_messages::COMMAND_COMPLETE.replace("{}", "File"));
+            info!("{}", log_messages::ACTION_COMPLETE.replace("{}", "File"));
         }
         
         Ok(())

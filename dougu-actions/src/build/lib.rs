@@ -1,26 +1,28 @@
 use anyhow::{anyhow, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use dougu_essentials_build::get_build_info;
-use dougu_foundation_run::{SpecCommandlet, SpecParams, CommandletError, Commandlet};
+use dougu_foundation_run::{SpecAction, SpecParams, ActionError, Action};
 use dougu_foundation_ui::UIManager;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tokio::process::Command;
+use tokio::process::Command as TokioCommand;
 use uuid::Uuid;
 use walkdir::WalkDir;
-use dougu_essentials_log;
+use dougu_essentials::log as log_util;
 use tempfile;
+use std::collections::HashMap;
+use tokio::fs::File;
 
 // Use the log_messages directly
-use crate::commands::build::resources::log_messages;
+use crate::build::resources::log_messages;
 
 // Now resources and launcher modules are handled in mod.rs
 // mod resources;
 // mod launcher;
 
-pub use crate::commands::build::launcher::BuildCommandLayer;
+pub use crate::build::launcher::BuildActionLayer;
 
 #[derive(Debug, Args, Serialize, Deserialize)]
 pub struct BuildArgs {
@@ -42,7 +44,7 @@ pub enum BuildCommands {
     /// Create archive of the artifact
     Pack(PackArgs),
     
-    /// Generate specification for a commandlet
+    /// Generate specification for an action
     Spec(SpecCommandArgs),
 }
 
@@ -124,12 +126,12 @@ pub struct PackArgs {
 
 #[derive(Debug, Args, Serialize, Deserialize)]
 pub struct SpecCommandArgs {
-    /// Name of the commandlet to generate specification for
-    pub commandlet_name: Option<String>,
+    /// Name of the action to generate specification for
+    pub action_name: Option<String>,
     
-    /// Format of the specification (text, json, markdown)
-    #[arg(short, long, value_parser = ["text", "json", "markdown"], default_value = "text")]
-    pub format: String,
+    /// Format to output the specification in (json, text, markdown)
+    #[arg(long, short, default_value = "text")]
+    pub format: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -147,7 +149,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     let mode = if args.release { "release" } else { "debug" };
     let build_id = args.build_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     
-    dougu_essentials_log::log_info(log_messages::PACKAGING_APP
+    log_util::log_info(log_messages::PACKAGING_APP
         .replace("{target}", target)
         .replace("{mode}", mode)
         .replace("{output}", output));
@@ -164,7 +166,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     
     // Check if README.md exists
     if !Path::new("README.md").exists() {
-        dougu_essentials_log::log_error(log_messages::README_MISSING);
+        log_util::log_error(log_messages::README_MISSING);
         return Err(anyhow!("README.md not found"));
     }
     
@@ -210,19 +212,19 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     }
     
     if executables.is_empty() {
-        dougu_essentials_log::log_error(log_messages::EXECUTABLE_SEARCH_FAILED
+        log_util::log_error(log_messages::EXECUTABLE_SEARCH_FAILED
             .replace("{dir}", &target_dir));
         return Err(anyhow!("No executables found in {}", target_dir));
     }
     
-    dougu_essentials_log::log_info(log_messages::FOUND_EXECUTABLES
+    log_util::log_info(log_messages::FOUND_EXECUTABLES
         .replace("{count}", &executables.len().to_string()));
     
     // Create package directory
     let package_dir = PathBuf::from(format!("{}/artifacts-{}", output, build_id));
     fs::create_dir_all(&package_dir)?;
     
-    dougu_essentials_log::log_info(log_messages::CREATING_PACKAGE_DIR
+    log_util::log_info(log_messages::CREATING_PACKAGE_DIR
         .replace("{dir}", &package_dir.to_string_lossy()));
     
     // Copy executables and README to package directory
@@ -237,7 +239,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     fs::copy("README.md", package_dir.join("README.md"))?;
     copied_count += 1;
     
-    dougu_essentials_log::log_info(log_messages::COPIED_FILES
+    log_util::log_info(log_messages::COPIED_FILES
         .replace("{count}", &copied_count.to_string()));
     
     // Create zip archive
@@ -266,10 +268,10 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     
     zip.finish()?;
     
-    dougu_essentials_log::log_info(log_messages::PACKAGE_CREATED
+    log_util::log_info(log_messages::PACKAGE_CREATED
         .replace("{path}", &zip_path.to_string_lossy()));
     
-    dougu_essentials_log::log_info(log_messages::BUILD_COMPLETE);
+    log_util::log_info(log_messages::BUILD_COMPLETE);
     
     Ok(())
 }
@@ -285,17 +287,17 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
         "all"
     };
     
-    dougu_essentials_log::log_info(log_messages::RUNNING_TESTS
+    log_util::log_info(log_messages::RUNNING_TESTS
         .replace("{type}", test_type));
     
     // If filter is specified, log it
     if let Some(filter) = &args.filter {
-        dougu_essentials_log::log_info(log_messages::TEST_FILTER
+        log_util::log_info(log_messages::TEST_FILTER
             .replace("{filter}", filter));
     }
     
     // Build cargo command
-    let mut cmd = Command::new("cargo");
+    let mut cmd = TokioCommand::new("cargo");
     cmd.arg("test");
     
     if args.release {
@@ -333,12 +335,12 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
     
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
-        dougu_essentials_log::log_error(log_messages::CARGO_TEST_FAILED
+        log_util::log_error(log_messages::CARGO_TEST_FAILED
             .replace("{code}", &code.to_string()));
         return Err(anyhow!("Tests failed with exit code {}", code));
     }
     
-    dougu_essentials_log::log_info(log_messages::BUILD_COMPLETE);
+    log_util::log_info(log_messages::BUILD_COMPLETE);
     
     Ok(())
 }
@@ -348,12 +350,12 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     let output = args.output_dir.as_deref().unwrap_or("./target");
     let mode = if args.release { "release" } else { "debug" };
     
-    dougu_essentials_log::log_info(log_messages::COMPILING_APP
+    log_util::log_info(log_messages::COMPILING_APP
         .replace("{mode}", mode)
         .replace("{output}", output));
     
     // Build cargo command
-    let mut cmd = Command::new("cargo");
+    let mut cmd = TokioCommand::new("cargo");
     cmd.arg("build");
     
     if args.release {
@@ -380,12 +382,12 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
     
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
-        dougu_essentials_log::log_error(log_messages::CARGO_BUILD_FAILED
+        log_util::log_error(log_messages::CARGO_BUILD_FAILED
             .replace("{code}", &code.to_string()));
         return Err(anyhow!("Build failed with exit code {}", code));
     }
     
-    dougu_essentials_log::log_info(log_messages::BUILD_COMPLETE);
+    log_util::log_info(log_messages::BUILD_COMPLETE);
     
     Ok(())
 }
@@ -411,7 +413,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         build_info.executable_name.clone()
     } else {
         // Fail if the executable name is not found in build info
-        dougu_essentials_log::log_error(log_messages::EXECUTABLE_NAME_MISSING_IN_BUILDINFO);
+        log_util::log_error(log_messages::EXECUTABLE_NAME_MISSING_IN_BUILDINFO);
         return Err(anyhow!(log_messages::EXECUTABLE_NAME_MISSING_IN_BUILDINFO));
     };
     
@@ -592,13 +594,13 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     }
     
     let executable_path = executable_path.ok_or_else(|| {
-        dougu_essentials_log::log_error(log_messages::EXECUTABLE_NOT_FOUND);
+        log_util::log_error(log_messages::EXECUTABLE_NOT_FOUND);
         anyhow!("No executable found")
     })?;
     
     // Validate the executable is not a zip file to prevent nesting
     if executable_path.extension().map_or(false, |ext| ext == "zip") {
-        dougu_essentials_log::log_error(log_messages::INVALID_EXECUTABLE_TYPE);
+        log_util::log_error(log_messages::INVALID_EXECUTABLE_TYPE);
         return Err(anyhow!("Found a zip file instead of an executable."));
     }
     
@@ -630,7 +632,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     // Create artifact name using the specified convention: EXECUTABLE-VERSION-PLATFORM
     let artifact_name = format!("{}-{}-{}", detected_name, version, platform);
     
-    dougu_essentials_log::log_info(format!("Verifying executable: {}", executable_path.display()));
+    log_util::log_info(format!("Verifying executable: {}", executable_path.display()));
     
     // Create VERSION.txt in the output directory
     let version_content = format!(
@@ -648,8 +650,8 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     let target_exec_path = PathBuf::from(output_dir).join(&detected_name);
     fs::copy(&executable_path, &target_exec_path)?;
     
-    dougu_essentials_log::log_info(format!("Executable copied to: {}", target_exec_path.display()));
-    dougu_essentials_log::log_info(log_messages::PACK_COMPLETE);
+    log_util::log_info(format!("Executable copied to: {}", target_exec_path.display()));
+    log_util::log_info(log_messages::PACK_COMPLETE);
     
     // Write artifact information to plain text files and standard location expected by CI
     let artifact_path_file = PathBuf::from(output_dir).join("artifact_path");
@@ -671,7 +673,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
                         detected_name
                     );
                     fs::write(github_output_path, output_line)?;
-                    dougu_essentials_log::log_info(format!(
+                    log_util::log_info(format!(
                         "Artifact information written to GitHub outputs"
                     ));
                 }
@@ -679,7 +681,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         }
     }
     
-    dougu_essentials_log::log_info(format!(
+    log_util::log_info(format!(
         "Artifact information written to {} and {}. Artifact name: {}",
         artifact_path_file.display(),
         artifact_name_file.display(),
@@ -694,28 +696,27 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         platform: platform,
     };
     
-    Ok(dougu_foundation_ui::format_commandlet_result(ui, &output))
+    Ok(dougu_foundation_ui::format_action_result(ui, &output))
 }
 
 /// Execute the spec command
-pub async fn execute_spec(args: &SpecCommandArgs, _ui: &UIManager) -> Result<String, CommandletError> {
-    // Create the spec commandlet and register all available commandlets
-    let spec_commandlet = SpecCommandlet::new();
+pub async fn execute_spec(args: &SpecCommandArgs, _ui: &UIManager) -> Result<String, ActionError> {
+    // Create the spec action and register all available actions
+    let spec_action = SpecAction::new();
     
-    // Register commandlets here - these would typically be imported at the module level
-    // Import other commandlets as needed
-    // Example: spec_commandlet.register_commandlet(FileCommandlet);
+    // Register actions here - these would typically be imported at the module level
+    // Import other actions as needed
+    // Example: spec_action.register_action(FileAction);
     
-    // Create params
+    // Execute with parameters
     let params = SpecParams {
-        commandlet_name: args.commandlet_name.clone(),
-        format: Some(args.format.clone()),
+        action_name: args.action_name.clone(),
+        format: args.format.clone(),
     };
     
-    // Execute the commandlet
-    let results = spec_commandlet.execute(params).await?;
+    // Execute the action
+    let results = spec_action.execute(params).await?;
     
-    // Return the formatted spec
     Ok(results.formatted_spec)
 }
 
