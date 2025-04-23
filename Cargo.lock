@@ -595,18 +595,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "domain"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "dougu-essentials",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -623,7 +611,7 @@ dependencies = [
  "chrono",
  "ciborium",
  "clap",
- "domain",
+ "dougu-bridge",
  "dougu-essentials",
  "dougu-essentials-archive",
  "dougu-essentials-build",
@@ -645,6 +633,18 @@ dependencies = [
  "uuid",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "dougu-bridge"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "dougu-essentials",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

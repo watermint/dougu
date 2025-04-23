@@ -6,7 +6,7 @@ members = [
     "dougu-essentials-kvs",
     "dougu-essentials-sql",
     "dougu-foundation-run",
-    "domain",
+    "dougu-bridge",
     "dougu-foundation-ui",
     "dougu-foundation-i18n",
     "dougu-essentials-build",

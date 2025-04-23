@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use domain::dropbox::DropboxClient;
+use dougu_bridge::dropbox::DropboxClient;
 use dougu_foundation_ui::UIManager;
 use serde::{Serialize, Deserialize};
 use std::path::PathBuf;
