@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "dougu",
+    "dougu-app",
     "dougu-essentials",
     "dougu-foundation-run",
     "dougu-bridge",

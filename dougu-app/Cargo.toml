@@ -1,5 +1,5 @@
 [package]
-name = "dougu"
+name = "dougu-app"
 version = "1.0.0"
 edition = "2024"
 description = "A multi-command CLI tool with nested command structure for file and Dropbox operations."
