@@ -1,5 +1,5 @@
 [package]
-name = "dougu-domain-dropbox"
+name = "domain"
 version = "1.0.0"
 edition = "2024"
 publish = false
@@ -10,4 +10,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
-anyhow = { workspace = true }
+anyhow = { workspace = true } 

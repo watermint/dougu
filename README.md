@@ -10,8 +10,8 @@ This project is organized as a Cargo workspace with multiple crates:
 - `dougu-essentials-*`: Core libraries shared across the project
   - `dougu-essentials-log`: Logging utilities
   - `dougu-essentials-i18n`: Internationalization support
-- `dougu-domain-*`: Domain-specific libraries
-  - `dougu-domain-dropbox`: Dropbox API client
+- `domain`: Domain-specific libraries organized as modules
+  - `domain/dropbox`: Dropbox API client
 - `dougu-command-*`: Individual command implementations
   - `dougu-command-file`: File operations
   - `dougu-command-dropbox`: Dropbox operations

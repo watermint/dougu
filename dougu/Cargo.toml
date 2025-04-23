@@ -18,7 +18,7 @@ dougu-essentials-build = { path = "../dougu-essentials-build" }
 dougu-essentials-obj = { path = "../dougu-essentials-obj" }
 dougu-essentials-archive = { path = "../dougu-essentials-archive" }
 dougu-essentials-fs = { path = "../dougu-essentials-fs" }
-dougu-domain-dropbox = { path = "../dougu-domain-dropbox" }
+domain = { path = "../domain" }
 dougu-foundation-run = { path = "../dougu-foundation-run", features = ["i18n"] }
 dougu-foundation-ui = { path = "../dougu-foundation-ui" }
 dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
