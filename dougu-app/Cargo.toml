@@ -14,9 +14,7 @@ build = "build.rs"
 [dependencies]
 dougu-essentials = { path = "../dougu-essentials" }
 dougu-bridge = { path = "../dougu-bridge" }
-dougu-foundation-run = { path = "../dougu-foundation-run", features = ["i18n"] }
-dougu-foundation-ui = { path = "../dougu-foundation-ui" }
-dougu-foundation-i18n = { path = "../dougu-foundation-i18n" }
+foundation = { path = "../foundation", features = ["i18n"] }
 clap = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }

@@ -1,0 +1,29 @@
+[package]
+name = "foundation"
+version = "1.0.0"
+edition = "2024"
+
+[features]
+default = []
+i18n = []
+
+[dependencies]
+# Common dependencies
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+once_cell = { workspace = true }
+chrono = { workspace = true }
+
+# UI specific dependencies
+colored = "2.1.0"
+prettytable-rs = "0.10.0"
+textwrap = "0.16.0"
+
+# Local dependencies
+dougu-essentials = { path = "../dougu-essentials" }
+
+[dev-dependencies]
+tokio = { workspace = true } 

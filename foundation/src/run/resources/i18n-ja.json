@@ -1,0 +1,103 @@
+{
+  "PARAM_PARSE_ERROR": {
+    "source": "Failed to parse parameters",
+    "context": "Error message",
+    "text": "パラメータの解析に失敗しました"
+  },
+  "RESULT_SERIALIZE_ERROR": {
+    "source": "Failed to serialize results",
+    "context": "Error message",
+    "text": "結果のシリアル化に失敗しました"
+  },
+  "RESULT_PARSE_ERROR": {
+    "source": "Failed to parse results for formatting",
+    "context": "Error message",
+    "text": "フォーマット用の結果の解析に失敗しました"
+  },
+  "UNKNOWN_ERROR": {
+    "source": "Unknown error occurred",
+    "context": "Error message",
+    "text": "不明なエラーが発生しました"
+  },
+  "RESOURCE_NOT_FOUND": {
+    "source": "Resource not found",
+    "context": "Error message",
+    "text": "リソースが見つかりません"
+  },
+  "BOOTSTRAP_FAILED": {
+    "source": "Bootstrap process failed",
+    "context": "Error message",
+    "text": "ブートストラッププロセスが失敗しました"
+  },
+  "COMMAND_EXECUTION_FAILED": {
+    "source": "Command execution failed",
+    "context": "Error message",
+    "text": "コマンド実行に失敗しました"
+  },
+  "INVALID_ARGUMENTS": {
+    "source": "Invalid command arguments",
+    "context": "Error message",
+    "text": "無効なコマンド引数です"
+  },
+  "INITIALIZATION_FAILED": {
+    "source": "Initialization failed",
+    "context": "Error message",
+    "text": "初期化に失敗しました"
+  },
+  "LAUNCHER_START": {
+    "source": "Starting command launcher",
+    "context": "Log message",
+    "text": "コマンドランチャーを開始します"
+  },
+  "LAYER_EXECUTION": {
+    "source": "Executing layer: {layer}",
+    "context": "Log message with layer name",
+    "comments": "Variable {layer} is the layer name",
+    "text": "レイヤーを実行中: {layer}"
+  },
+  "LAUNCHER_COMPLETE": {
+    "source": "Command launcher completed",
+    "context": "Log message",
+    "text": "コマンドランチャーが完了しました"
+  },
+  "SETTING_LANGUAGE": {
+    "source": "Setting application language: {lang}",
+    "context": "Log message with language code",
+    "comments": "Variable {lang} is the language code",
+    "text": "アプリケーション言語を設定しています: {lang}"
+  },
+  "USING_DEFAULT_LANGUAGE": {
+    "source": "Using default language: {lang}",
+    "context": "Log message with language code",
+    "comments": "Variable {lang} is the language code",
+    "text": "デフォルト言語を使用しています: {lang}"
+  },
+  "LANGUAGE_UNSUPPORTED": {
+    "source": "Language {requested} is unsupported, using: {fallback}",
+    "context": "Log message with language codes",
+    "comments": "Variables: {requested} is requested language, {fallback} is fallback language",
+    "text": "言語 {requested} はサポートされていないため、{fallback} を使用します"
+  },
+  "APP_INFO_NAME": {
+    "source": "Dougu - Multi-utility Command Line Tool",
+    "context": "Application name for startup banner",
+    "text": "dougu {version}"
+  },
+  "APP_INFO_COPYRIGHT": {
+    "source": "Copyright (C) {year} {owner}",
+    "context": "Copyright notice for startup banner",
+    "comments": "Variables: {year} is copyright year, {owner} is copyright owner",
+    "text": "© 2016-{year} {owner}"
+  },
+  "APP_INFO_LICENSE": {
+    "source": "Licensed under open source licenses",
+    "context": "License information for startup banner",
+    "text": "オープンソースライセンスに基づいています。詳細は `license` コマンドを使用してください。"
+  },
+  "APP_INFO_VERSION": {
+    "source": "Version {version}",
+    "context": "Version info for startup banner",
+    "comments": "Variable {version} is the app version",
+    "text": "バージョン {version}"
+  }
+} 

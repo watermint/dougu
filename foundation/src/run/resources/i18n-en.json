@@ -1,0 +1,103 @@
+{
+  "PARAM_PARSE_ERROR": {
+    "source": "Failed to parse parameters",
+    "context": "Error message",
+    "text": "Failed to parse parameters"
+  },
+  "RESULT_SERIALIZE_ERROR": {
+    "source": "Failed to serialize results",
+    "context": "Error message",
+    "text": "Failed to serialize results"
+  },
+  "RESULT_PARSE_ERROR": {
+    "source": "Failed to parse results for formatting",
+    "context": "Error message",
+    "text": "Failed to parse results for formatting"
+  },
+  "UNKNOWN_ERROR": {
+    "source": "Unknown error occurred",
+    "context": "Error message",
+    "text": "Unknown error occurred"
+  },
+  "RESOURCE_NOT_FOUND": {
+    "source": "Resource not found",
+    "context": "Error message",
+    "text": "Resource not found"
+  },
+  "BOOTSTRAP_FAILED": {
+    "source": "Bootstrap process failed",
+    "context": "Error message",
+    "text": "Bootstrap process failed"
+  },
+  "COMMAND_EXECUTION_FAILED": {
+    "source": "Command execution failed",
+    "context": "Error message",
+    "text": "Command execution failed"
+  },
+  "INVALID_ARGUMENTS": {
+    "source": "Invalid command arguments",
+    "context": "Error message",
+    "text": "Invalid command arguments"
+  },
+  "INITIALIZATION_FAILED": {
+    "source": "Initialization failed",
+    "context": "Error message",
+    "text": "Initialization failed"
+  },
+  "LAUNCHER_START": {
+    "source": "Starting command launcher",
+    "context": "Log message",
+    "text": "Starting command launcher"
+  },
+  "LAYER_EXECUTION": {
+    "source": "Executing layer: {layer}",
+    "context": "Log message with layer name",
+    "comments": "Variable {layer} is the layer name",
+    "text": "Executing layer: {layer}"
+  },
+  "LAUNCHER_COMPLETE": {
+    "source": "Command launcher completed",
+    "context": "Log message",
+    "text": "Command launcher completed"
+  },
+  "SETTING_LANGUAGE": {
+    "source": "Setting application language: {lang}",
+    "context": "Log message with language code",
+    "comments": "Variable {lang} is the language code",
+    "text": "Setting application language: {lang}"
+  },
+  "USING_DEFAULT_LANGUAGE": {
+    "source": "Using default language: {lang}",
+    "context": "Log message with language code",
+    "comments": "Variable {lang} is the language code",
+    "text": "Using default language: {lang}"
+  },
+  "LANGUAGE_UNSUPPORTED": {
+    "source": "Language {requested} is unsupported, using: {fallback}",
+    "context": "Log message with language codes",
+    "comments": "Variables: {requested} is requested language, {fallback} is fallback language",
+    "text": "Language {requested} is unsupported, using: {fallback}"
+  },
+  "APP_INFO_NAME": {
+    "source": "Dougu - Multi-utility Command Line Tool",
+    "context": "Application name for startup banner",
+    "text": "dougu {version}"
+  },
+  "APP_INFO_COPYRIGHT": {
+    "source": "Copyright (C) {year} {owner}",
+    "context": "Copyright notice for startup banner",
+    "comments": "Variables: {year} is copyright year, {owner} is copyright owner",
+    "text": "© 2016-{year} {owner}"
+  },
+  "APP_INFO_LICENSE": {
+    "source": "Licensed under open source licenses",
+    "context": "License information for startup banner",
+    "text": "Licensed under open source licenses. Use the `license` command for more detail."
+  },
+  "APP_INFO_VERSION": {
+    "source": "Version {version}",
+    "context": "Version info for startup banner",
+    "comments": "Variable {version} is the app version",
+    "text": "Version {version}"
+  }
+} 

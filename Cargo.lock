@@ -613,9 +613,7 @@ dependencies = [
  "clap",
  "dougu-bridge",
  "dougu-essentials",
- "dougu-foundation-i18n",
- "dougu-foundation-run",
- "dougu-foundation-ui",
+ "foundation",
  "hex",
  "jaq-interpret",
  "jaq-parse",
@@ -673,47 +671,6 @@ dependencies = [
  "toml",
  "walkdir",
  "zip",
-]
-
-[[package]]
-name = "dougu-foundation-i18n"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "dougu-essentials",
- "dougu-foundation-run",
- "log",
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dougu-foundation-run"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "dougu-essentials",
- "dougu-foundation-i18n",
- "dougu-foundation-ui",
- "log",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "dougu-foundation-ui"
-version = "0.1.0"
-dependencies = [
- "colored",
- "log",
- "prettytable-rs",
- "serde",
- "serde_json",
- "textwrap",
 ]
 
 [[package]]
@@ -859,6 +816,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "foundation"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "colored",
+ "dougu-essentials",
+ "log",
+ "once_cell",
+ "prettytable-rs",
+ "serde",
+ "serde_json",
+ "textwrap",
+ "tokio",
 ]
 
 [[package]]
