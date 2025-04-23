@@ -4,7 +4,8 @@ members = [
     "dougu-essentials",
     "dougu-foundation",
     "dougu-bridge",
-    "dougu-actions"
+    "dougu-actions",
+    "dougu-domain"
 ]
 resolver = "2"
 
