@@ -23,6 +23,7 @@ use dougu_foundation::ui::resources::ui_messages;
 use dougu_foundation::ui::OutputFormat;
 // Import app_info::display_app_info separately
 use dougu_foundation::run::app_info::display_app_info;
+use dougu_essentials::obj::{Notation, NotationType};
 
 // Keep the i18n module for potential future use
 mod i18n;
@@ -84,28 +85,23 @@ impl LauncherLayer for FileActionLayer {
         if let Some(args_str) = ctx.get_data("file_args") {
             info!("{}", log_messages::ACTION_START.replace("{}", "File"));
             
-            // Create the action with UI manager from context directly
             let action = FileAction;
             let runner = ActionRunner::with_ui(action, ctx.ui.clone());
             
-            // Add locale to the args if it's a JSON object
             let args_with_locale = if args_str.trim().starts_with('{') && args_str.trim().ends_with('}') {
-                // Parse the JSON, add locale, and reserialize
-                if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(args_str) {
-                    if let Some(obj) = json.as_object_mut() {
-                        // Add context object with locale if it doesn't exist
-                        if !obj.contains_key("context") {
-                            let mut context = serde_json::Map::new();
-                            context.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
-                            obj.insert("context".to_string(), serde_json::Value::Object(context));
-                        } else if let Some(context) = obj.get_mut("context") {
-                            // Add locale to existing context
-                            if let Some(context_obj) = context.as_object_mut() {
-                                context_obj.insert("locale".to_string(), serde_json::Value::String(ctx.get_locale().as_str().to_string()));
+                if let Ok(notation) = NotationType::Json.decode::<NotationType>(args_str.as_bytes()) {
+                    if let NotationType::Object(mut obj) = notation {
+                        if !obj.iter().any(|(k, _)| k == "context") {
+                            let mut context = Vec::new();
+                            context.push(("locale".to_string(), NotationType::String(ctx.get_locale().as_str().to_string())));
+                            obj.push(("context".to_string(), NotationType::Object(context)));
+                        } else if let Some((_, context)) = obj.iter_mut().find(|(k, _)| k == "context") {
+                            if let NotationType::Object(context_obj) = context {
+                                context_obj.push(("locale".to_string(), NotationType::String(ctx.get_locale().as_str().to_string())));
                             }
                         }
                         
-                        if let Ok(new_json) = serde_json::to_string(obj) {
+                        if let Ok(new_json) = NotationType::Json.encode_to_string(&NotationType::Object(obj)) {
                             new_json
                         } else {
                             args_str.to_string()
@@ -120,11 +116,9 @@ impl LauncherLayer for FileActionLayer {
                 args_str.to_string()
             };
             
-            // Run the action with the serialized arguments
             let result = runner.run(&args_with_locale).await
                 .map_err(|e| format!("File action execution failed: {}", e))?;
             
-            // Format results using ActionRunner
             runner.format_results(&result)
                 .map_err(|e| format!("Failed to format results: {}", e))?;
             
@@ -146,16 +140,14 @@ impl LauncherLayer for DropboxActionLayer {
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         if let Some(args_str) = ctx.get_data("dropbox_args") {
-            // Parse the serialized args
-            let args: DropboxArgs = serde_json::from_str(args_str)
+            // Decode using NotationType::Json
+            let args: DropboxArgs = NotationType::Json.decode::<DropboxArgs>(args_str.as_bytes())
                 .map_err(|e| format!("Failed to parse dropbox args: {}", e))?;
             
-            // For demo purposes, use a dummy token
-            let token = "dummy_dropbox_token";
+            let token = "dummy_dropbox_token"; // Replace with actual token management
             
             info!("{}", log_messages::ACTION_START.replace("{}", "Dropbox"));
             
-            // Use UI manager from context directly
             ctx.ui.heading(1, "Dropbox Operations");
             
             match &args.command {
@@ -317,8 +309,8 @@ impl LauncherLayer for BuildActionLayer {
         if let Some(args_str) = ctx.get_data("build_args") {
             info!("{}", log_messages::ACTION_START.replace("{}", "Build"));
             
-            // Parse the serialized args
-            let args: BuildArgs = serde_json::from_str(args_str)
+            // Parse the serialized args using NotationType::Json
+            let args: BuildArgs = NotationType::Json.decode::<BuildArgs>(args_str.as_bytes())
                 .map_err(|e| format!("Failed to parse build args: {}", e))?;
             
             // Execute using appropriate action type
@@ -415,8 +407,9 @@ async fn async_main() -> Result<()> {
     // Process command
     match cli.command {
         Commands::File(file_args) => {
-            // Convert args to JSON
-            let serialized = serde_json::to_string(&file_args)?;
+            // Convert args using NotationType::Json
+            let serialized = NotationType::Json.encode_to_string(&file_args)
+                .map_err(|e| anyhow::anyhow!("Failed to serialize file args: {}", e))?;
             ctx.set_data("file_args", serialized);
             
             // Launch the action
@@ -424,8 +417,9 @@ async fn async_main() -> Result<()> {
                 .map_err(|e| anyhow::anyhow!(e))?;
         },
         Commands::Dropbox(dropbox_args) => {
-            // Convert args to JSON
-            let serialized = serde_json::to_string(&dropbox_args)?;
+            // Convert args using NotationType::Json
+            let serialized = NotationType::Json.encode_to_string(&dropbox_args)
+                .map_err(|e| anyhow::anyhow!("Failed to serialize dropbox args: {}", e))?;
             ctx.set_data("dropbox_args", serialized);
             
             // Launch the action
@@ -433,8 +427,8 @@ async fn async_main() -> Result<()> {
                 .map_err(|e| anyhow::anyhow!(e))?;
         },
         Commands::Obj(obj_args) => {
-            // Convert args to string representation for parsing
-            let serialized = serde_json::to_string(&obj_args)
+            // Convert args using NotationType::Json
+            let serialized = NotationType::Json.encode_to_string(&obj_args)
                 .unwrap_or_else(|_| "{}".to_string());
                 
             ctx.set_data("obj_args", serialized);
@@ -444,8 +438,9 @@ async fn async_main() -> Result<()> {
                 .map_err(|e| anyhow::anyhow!(e))?;
         },
         Commands::Build(build_args) => {
-            // Convert args to JSON
-            let serialized = serde_json::to_string(&build_args)?;
+            // Convert args using NotationType::Json
+            let serialized = NotationType::Json.encode_to_string(&build_args)
+                .map_err(|e| anyhow::anyhow!("Failed to serialize build args: {}", e))?;
             ctx.set_data("build_args", serialized);
             
             // Launch the action

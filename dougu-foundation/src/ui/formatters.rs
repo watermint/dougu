@@ -2,7 +2,9 @@ use crate::ui::{UIFormatter, UITheme};
 use colored::Colorize;
 use prettytable::{format, Cell, Row, Table};
 use dougu_essentials::obj::{Notation, NotationType};
+use dougu_essentials::obj::notation::{JsonNotation, JsonlNotation};
 use std::collections::HashMap;
+use anyhow::Result;
 
 /// Default formatter implementation
 #[derive(Clone)]
@@ -128,12 +130,20 @@ impl UIFormatter for DefaultFormatter {
         table.to_string()
     }
     
-    fn json_value(&self, value: &dyn Notation) -> Result<String, String> {
-        Ok(value.encode_to_string()?)
+    fn json_value(&self, value: &NotationType) -> Result<String, String> {
+        let json_notation = JsonNotation::new();
+        match json_notation.encode_to_string(value) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(e.to_string()),
+        }
     }
     
-    fn jsonl_value(&self, value: &dyn Notation) -> Result<String, String> {
-        Ok(value.encode_to_string()?)
+    fn jsonl_value(&self, value: &NotationType) -> Result<String, String> {
+        let jsonl_notation = JsonlNotation::new();
+        match jsonl_notation.encode_to_string(value) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(e.to_string()),
+        }
     }
 }
 
@@ -144,55 +154,56 @@ impl JsonLinesFormatter {
         Self {}
     }
     
-    fn json_wrap(&self, json_type: &str, data: impl Notation) -> String {
-        let mut wrapper = HashMap::new();
-        wrapper.insert("type".to_string(), json_type.to_string());
-        wrapper.insert("data".to_string(), data.encode_to_string().unwrap());
+    fn json_wrap(&self, json_type: &str, data: impl Into<NotationType> + Clone) -> Result<String, String> {
+        let json_notation = JsonNotation::new();
+        let wrapper = NotationType::Object(vec![
+            (json_type.to_string(), data.into())
+        ].into_iter().collect());
         
-        let wrapper_value = NotationType::Json.encode_to_string(&wrapper).unwrap();
-        wrapper_value
+        json_notation.encode_to_string(&wrapper)
+            .map_err(|e| e.to_string())
     }
 }
 
 impl UIFormatter for JsonLinesFormatter {
     fn title(&self, text: &str) -> String {
-        self.json_wrap("title", text)
+        self.json_wrap("title", text).unwrap_or_default()
     }
     
     fn subtitle(&self, text: &str) -> String {
-        self.json_wrap("subtitle", text)
+        self.json_wrap("subtitle", text).unwrap_or_default()
     }
     
-    fn heading(&self, level: u32, text: &str) -> String {
+    fn heading(&self, level: u8, text: &str) -> String {
         let mut heading_data = HashMap::new();
         heading_data.insert("level".to_string(), level.to_string());
         heading_data.insert("text".to_string(), text.to_string());
         
-        self.json_wrap("heading", heading_data)
+        self.json_wrap("heading", heading_data).unwrap_or_default()
     }
     
     fn text(&self, text: &str) -> String {
-        self.json_wrap("text", text)
+        self.json_wrap("text", text).unwrap_or_default()
     }
     
     fn success(&self, text: &str) -> String {
-        self.json_wrap("success", text)
+        self.json_wrap("success", text).unwrap_or_default()
     }
     
     fn error(&self, text: &str) -> String {
-        self.json_wrap("error", text)
+        self.json_wrap("error", text).unwrap_or_default()
     }
     
     fn info(&self, text: &str) -> String {
-        self.json_wrap("info", text)
+        self.json_wrap("info", text).unwrap_or_default()
     }
     
     fn warning(&self, text: &str) -> String {
-        self.json_wrap("warning", text)
+        self.json_wrap("warning", text).unwrap_or_default()
     }
     
     fn block(&self, text: &str) -> String {
-        self.json_wrap("block", text)
+        self.json_wrap("block", text).unwrap_or_default()
     }
     
     fn code(&self, text: &str, language: Option<&str>) -> String {
@@ -200,11 +211,11 @@ impl UIFormatter for JsonLinesFormatter {
         code_data.insert("text".to_string(), text.to_string());
         code_data.insert("language".to_string(), language.map(|l| l.to_string()).unwrap_or_default());
         
-        self.json_wrap("code", code_data)
+        self.json_wrap("code", code_data).unwrap_or_default()
     }
     
     fn hr(&self) -> String {
-        self.json_wrap("hr", NotationType::Null)
+        self.json_wrap("hr", NotationType::Null).unwrap_or_default()
     }
     
     fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
@@ -212,7 +223,7 @@ impl UIFormatter for JsonLinesFormatter {
             .map(|(key, value)| format!("{}: {}", key, value))
             .collect();
         
-        self.json_wrap("key_value_list", list.join("\n"))
+        self.json_wrap("key_value_list", list.join("\n")).unwrap_or_default()
     }
     
     fn list_string(&self, items: &[String], ordered: bool) -> String {
@@ -222,7 +233,7 @@ impl UIFormatter for JsonLinesFormatter {
         list_data.insert("ordered".to_string(), ordered.to_string());
         list_data.insert("items".to_string(), items_array.join(","));
         
-        self.json_wrap("list", list_data)
+        self.json_wrap("list", list_data).unwrap_or_default()
     }
     
     fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String {
@@ -236,15 +247,19 @@ impl UIFormatter for JsonLinesFormatter {
         table_data.insert("headers".to_string(), headers_array.join(","));
         table_data.insert("rows".to_string(), rows_array.join("\n"));
         
-        self.json_wrap("table", table_data)
+        self.json_wrap("table", table_data).unwrap_or_default()
     }
     
-    fn json_value(&self, value: &dyn Notation) -> Result<String, String> {
-        Ok(self.json_wrap("json", value.clone()))
+    fn json_value(&self, value: &NotationType) -> Result<String, String> {
+        self.json_wrap("json", value.clone())
+            .map_err(|e| e.to_string())
+            .map(|s| s)
     }
     
-    fn jsonl_value(&self, value: &dyn Notation) -> Result<String, String> {
-        Ok(self.json_wrap("jsonl", value.clone()))
+    fn jsonl_value(&self, value: &NotationType) -> Result<String, String> {
+        self.json_wrap("jsonl", value.clone())
+            .map_err(|e| e.to_string())
+            .map(|s| s)
     }
 }
 
@@ -362,13 +377,47 @@ impl UIFormatter for MarkdownFormatter {
         format!("| {} |\n| {} |\n| {} |", header_row, separator_row.join(" | "), data_rows.replace("\n", " |\n| "))
     }
     
-    fn json_value(&self, value: &dyn Notation) -> Result<String, String> {
-        let json_str = value.encode_to_string()?;
-        Ok(format!("```json\n{}\n```", json_str))
+    fn json_value(&self, value: &NotationType) -> Result<String, String> {
+        let json_notation = JsonNotation::new();
+        match json_notation.encode_to_string(value) {
+            Ok(json_str) => {
+                Ok(format!("```json\n{}\n```", json_str))
+            },
+            Err(e) => Err(format!("Error serializing to JSON: {}", e))
+        }
     }
     
-    fn jsonl_value(&self, value: &dyn Notation) -> Result<String, String> {
-        let json_str = value.encode_to_string()?;
-        Ok(format!("```json\n{}\n```", json_str))
+    fn jsonl_value(&self, value: &NotationType) -> Result<String, String> {
+        let jsonl_notation = JsonlNotation::default();
+        match jsonl_notation.encode_to_string(value) {
+            Ok(json_str) => {
+                Ok(format!("```json\n{}\n```", json_str))
+            },
+            Err(e) => Err(format!("Error serializing to JSONL: {}", e))
+        }
+    }
+}
+
+pub struct JsonlFormatter {
+    jsonl_notation: JsonlNotation,
+}
+
+impl JsonlFormatter {
+    pub fn new() -> Self {
+        let jsonl_notation = JsonlNotation::default();
+        Self { jsonl_notation }
+    }
+
+    fn jsonl_value(&self, value: &NotationType) -> Result<String, String> {
+        match self.jsonl_notation.encode_to_string(value) {
+            Ok(json_str) => Ok(json_str),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+}
+
+impl JsonlNotation {
+    pub fn new() -> Self {
+        Self {}
     }
 } 

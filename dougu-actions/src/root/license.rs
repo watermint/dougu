@@ -1,21 +1,21 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use dougu_essentials::{
+    obj::notation::{Notation, json::JsonNotation},
+    obj::prelude::*
+};
 use dougu_foundation::{
     run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer},
     ui::UIManager
 };
-use serde::{Deserialize, Serialize};
-use serde_json;
 
 // License action
 pub struct LicenseAction;
 
-#[derive(Serialize, Deserialize)]
 pub struct LicenseParams {
     // No parameters needed for license action
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct LicenseResults {
     pub license_text: String,
     pub license_type: String,
@@ -51,6 +51,7 @@ pub fn display_license_results(ui: &UIManager, results: &LicenseResults) -> Resu
     
     // Display license text
     ui.text(&results.license_text);
+    ui.line_break();
     
     Ok(())
 }
@@ -65,24 +66,19 @@ impl LauncherLayer for LicenseActionLayer {
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the LicenseAction
-        let action = LicenseAction;
-        
-        // Create a runner with UI manager
-        let runner = ActionRunner::with_ui(action, ctx.ui.clone());
-        
-        // Execute the action with empty params
-        let params = LicenseParams {};
-        let params_str = serde_json::to_string(&params)
-            .map_err(|e| format!("Failed to serialize license params: {}", e))?;
-        
-        let result = runner.run(&params_str).await
-            .map_err(|e| format!("License action execution failed: {}", e))?;
-        
-        // Format results
-        runner.format_results(&result)
-            .map_err(|e| format!("Failed to format license results: {}", e))?;
-        
+        if let Some(args_str) = ctx.get_data("license_args") {
+            let json_notation = JsonNotation::new();
+            let params: LicenseParams = json_notation.decode(args_str.as_bytes())
+                .map_err(|e| format!("Failed to parse license args: {}", e))?;
+                
+            let action = LicenseAction;
+            let results = action.execute(params)
+                .await
+                .map_err(|e| format!("License action failed: {}", e))?;
+                
+            display_license_results(ctx.ui, &results)
+                .map_err(|e| format!("Failed to display license results: {}", e))?;
+        }
         Ok(())
     }
 } 

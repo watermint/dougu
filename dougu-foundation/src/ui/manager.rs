@@ -1,6 +1,7 @@
 use crate::ui::formatters::{DefaultFormatter, JsonLinesFormatter, MarkdownFormatter};
 use crate::ui::{OutputFormat, UIFormatter, UITheme};
 use dougu_essentials::obj::{Notation, NotationType};
+use dougu_essentials::obj::notation::{JsonNotation};
 use std::fmt::Display;
 use std::collections::HashMap;
 
@@ -41,6 +42,7 @@ impl Default for UIManager {
 impl UIManager {
     /// Create a new UIManager with the given theme
     pub fn new(theme: UITheme) -> Self {
+        let json_notation = JsonNotation::default();
         Self {
             theme: theme.clone(),
             format: OutputFormat::Default,
@@ -169,14 +171,18 @@ impl UIManager {
     }
     
     /// Serialize to JSON
-    pub fn json<T: Into<NotationType>>(&self, data: &T) -> Result<String, String> {
-        let value = data.into();
+    pub fn json<T>(&self, data: &T) -> Result<String, String> 
+    where T: Clone + Into<NotationType>
+    {
+        let value = data.clone().into();
         self.formatter().json_value(&value)
     }
     
     /// Serialize to JSON Lines
-    pub fn jsonl<T: Into<NotationType>>(&self, data: &T) -> Result<String, String> {
-        let value = data.into();
+    pub fn jsonl<T>(&self, data: &T) -> Result<String, String> 
+    where T: Clone + Into<NotationType>
+    {
+        let value = data.clone().into();
         self.formatter().jsonl_value(&value)
     }
     
@@ -188,6 +194,36 @@ impl UIManager {
     /// Wrap text to the configured width
     pub fn wrap_text(&self, text: &str) -> String {
         textwrap::wrap(text, self.theme.wrapped_width).join("\n")
+    }
+    
+    /// Display data using JSON notation
+    pub fn display_data<T>(&self, data: &T) -> Result<String, String>
+    where T: Clone + Into<NotationType>
+    {
+        let value = data.clone().into();
+        self.formatter().json_value(&value)
+    }
+    
+    /// Display data using JSONL notation
+    pub fn display_data_jsonl<T>(&self, data: &T) -> Result<String, String>
+    where T: Clone + Into<NotationType>
+    {
+        let value = data.clone().into();
+        self.formatter().jsonl_value(&value)
+    }
+    
+    /// Parse and display JSON string
+    pub fn display_json(&self, json: &str) -> Result<String, String> {
+        let json_notation = JsonNotation::new();
+        if let Ok(value) = json_notation.decode(json.as_bytes()) {
+            return self.formatter().json_value(&value);
+        }
+        Err("Invalid JSON".to_string())
+    }
+    
+    /// Format a key-value list
+    pub fn format_key_value_list(&self, pairs: &[(&str, &str)]) -> String {
+        self.formatter().key_value_list(pairs)
     }
 }
 
@@ -262,15 +298,10 @@ impl UIManager {
     pub fn format_hr(&self) -> String {
         self.formatter().hr()
     }
-    
-    /// Format a key-value list
-    pub fn format_key_value_list(&self, pairs: &[(&str, &str)]) -> String {
-        self.formatter().key_value_list(pairs)
-    }
 }
 
-// Utility functions for formatting commandlet results
-pub fn format_commandlet_result<T: Into<NotationType>>(ui: &UIManager, result: &T) -> String {
+/// Utility functions for formatting commandlet results
+pub fn format_commandlet_result<T: Clone + Into<NotationType>>(ui: &UIManager, result: &T) -> String {
     match ui.format() {
         OutputFormat::JsonLines => format_commandlet_result_json_lines(ui, result),
         OutputFormat::Markdown => format_commandlet_result_markdown(ui, result),
@@ -278,14 +309,14 @@ pub fn format_commandlet_result<T: Into<NotationType>>(ui: &UIManager, result: &
     }
 }
 
-fn format_commandlet_result_json_lines<T: Into<NotationType>>(ui: &UIManager, result: &T) -> String {
+fn format_commandlet_result_json_lines<T: Clone + Into<NotationType>>(ui: &UIManager, result: &T) -> String {
     match ui.jsonl(result) {
         Ok(json) => json,
         Err(e) => format!("{{ \"error\": \"Failed to serialize result: {}\" }}", e),
     }
 }
 
-fn format_commandlet_result_markdown<T: Into<NotationType>>(ui: &UIManager, result: &T) -> String {
+fn format_commandlet_result_markdown<T: Clone + Into<NotationType>>(ui: &UIManager, result: &T) -> String {
     // Try to serialize as JSON for display
     match ui.json(result) {
         Ok(json) => {
@@ -298,7 +329,8 @@ fn format_commandlet_result_markdown<T: Into<NotationType>>(ui: &UIManager, resu
             // If the result is a complex object, display as JSON
             if json.contains("{") || json.contains("[") {
                 // Try to parse the JSON to prettify it
-                if let Ok(value) = NotationType::Json.decode::<NotationType>(json.as_bytes()) {
+                let json_notation = JsonNotation::new();
+                if let Ok(value) = json_notation.decode(json.as_bytes()) {
                     output.push_str(&ui.format_code(&value.to_string(), Some("json")));
                     return output;
                 }
@@ -322,8 +354,8 @@ fn format_commandlet_result_markdown<T: Into<NotationType>>(ui: &UIManager, resu
     }
 }
 
-fn format_commandlet_result_default<T: Into<NotationType>>(ui: &UIManager, result: &T) -> String {
-    let value = result.into();
+fn format_commandlet_result_default<T: Clone + Into<NotationType>>(ui: &UIManager, result: &T) -> String {
+    let value = result.clone().into();
     match value {
         NotationType::Object(obj) => {
             // Handle object type results
@@ -348,24 +380,5 @@ fn format_commandlet_result_default<T: Into<NotationType>>(ui: &UIManager, resul
             // Handle primitive values
             value.to_string()
         }
-    }
-}
-
-impl<T: Into<NotationType>> UIManager {
-    pub fn display_data(&self, data: &T) -> Result<String, String> {
-        let value = data.into();
-        self.formatter.json_value(&value)
-    }
-    
-    pub fn display_data_jsonl(&self, data: &T) -> Result<String, String> {
-        let value = data.into();
-        self.formatter.jsonl_value(&value)
-    }
-    
-    pub fn display_json(&self, json: &str) -> Result<String, String> {
-        if let Ok(value) = NotationType::Json.decode::<NotationType>(json.as_bytes()) {
-            return self.formatter.json_value(&value);
-        }
-        Err("Invalid JSON".to_string())
     }
 } 

@@ -1,12 +1,14 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use dougu_essentials::{
+    obj::notation::{Notation, json::JsonNotation},
+    obj::prelude::*
+};
 use dougu_foundation::{
     i18n::t,
     run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer},
     ui::UIManager
 };
-use serde::{Deserialize, Serialize};
-use serde_json;
 
 // Import messages
 use crate::root::resources::messages::*;
@@ -14,12 +16,10 @@ use crate::root::resources::messages::*;
 // Help action
 pub struct HelpAction;
 
-#[derive(Serialize, Deserialize)]
 pub struct HelpParams {
     pub command: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct HelpResults {
     pub content: String,
 }
@@ -63,32 +63,18 @@ impl LauncherLayer for HelpActionLayer {
     }
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
-        // Create the action
-        let action = HelpAction;
-        
-        // Create a ActionRunner with UI manager from context
-        let runner = ActionRunner::with_ui(action, ctx.ui.clone());
-        
-        // Create help parameters from context data
-        let params = HelpParams {
-            command: ctx.get_data("help_command").cloned(),
-        };
-        
-        // Serialize parameters
-        let serialized_params = serde_json::to_string(&params)
-            .map_err(|e| format!("Failed to serialize help params: {}", e))?;
-        
-        // Run the action and get results
-        let result = runner.run(&serialized_params).await
-            .map_err(|e| format!("Help action execution failed: {}", e))?;
-        
-        // Parse the result
-        let results: HelpResults = serde_json::from_str(&result)
-            .map_err(|e| format!("Failed to parse help results: {}", e))?;
-        
-        // Display the help content
-        ctx.ui.text(&results.content);
-        
+        if let Some(args_str) = ctx.get_data("help_args") {
+            let json_notation = JsonNotation::new();
+            let params: HelpParams = json_notation.decode(args_str.as_bytes())
+                .map_err(|e| format!("Failed to parse help args: {}", e))?;
+                
+            let action = HelpAction;
+            let results = action.execute(params)
+                .await
+                .map_err(|e| format!("Help action failed: {}", e))?;
+                
+            ctx.ui.info(&results.content);
+        }
         Ok(())
     }
 } 

@@ -1,12 +1,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Args, Subcommand};
-use dougu_essentials::log as log_util;
+use dougu_essentials::{
+    log as log_util,
+    obj::notation::{Notation, json::JsonNotation},
+    obj::prelude::*
+};
 use dougu_foundation::{
     i18n::{tf, vars},
     run::{Action, ActionError, ActionSpec, SpecError, SpecField}
 };
-use serde::{Deserialize, Serialize};
 
 pub mod resources;
 mod launcher;
@@ -28,13 +31,13 @@ mod tests {
     }
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct FileArgs {
     #[command(subcommand)]
     pub command: FileCommands,
 }
 
-#[derive(Debug, Subcommand, Serialize, Deserialize)]
+#[derive(Debug, Subcommand)]
 pub enum FileCommands {
     /// Copy files from source to destination
     Copy(CopyArgs),
@@ -46,7 +49,7 @@ pub enum FileCommands {
     List(ListArgs),
 }
 
-#[derive(Debug, Args, Serialize, Deserialize, Clone)]
+#[derive(Debug, Args, Clone)]
 pub struct CopyArgs {
     /// Source file path
     pub source: String,
@@ -59,7 +62,7 @@ pub struct CopyArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize, Clone)]
+#[derive(Debug, Args)]
 pub struct MoveArgs {
     /// Source file path
     pub source: String,
@@ -72,7 +75,7 @@ pub struct MoveArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize, Clone)]
+#[derive(Debug, Args)]
 pub struct ListArgs {
     /// Directory to list
     pub directory: Option<String>,
@@ -86,28 +89,23 @@ pub struct ListArgs {
     pub long: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct FileCopyResult {
     pub source: String,
     pub destination: String,
     pub details: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct FileMoveResult {
     pub source: String,
     pub destination: String,
     pub details: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct FileListResult {
     pub directory: String,
     pub files: Vec<String>,
 }
 
-// Main result enum for file actions
-#[derive(Debug, Serialize, Deserialize)]
 pub enum FileActionResult {
     Copy(FileCopyResult),
     Move(FileMoveResult),

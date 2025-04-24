@@ -1,12 +1,15 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use dougu_essentials::{
+    obj::notation::{Notation, json::JsonNotation},
+    obj::prelude::*
+};
 use dougu_foundation::{
     run::{Action, ActionRunner, LauncherContext, LauncherLayer},
     resources::log_messages,
     ui::UIManager
 };
 use log::info;
-use serde_json;
 
 use crate::file::{
     FileAction, FileActionResult
@@ -34,7 +37,8 @@ impl LauncherLayer for FileActionLayer {
                 .map_err(|e| format!("File action execution failed: {}", e))?;
             
             // Parse the result to get details for display
-            let parsed_result: FileActionResult = serde_json::from_str(&result)
+            let json_notation = JsonNotation::new();
+            let parsed_result: FileActionResult = json_notation.decode(result.as_bytes())
                 .map_err(|e| format!("Failed to parse result: {}", e))?;
             
             match parsed_result {
@@ -65,8 +69,10 @@ impl LauncherLayer for FileActionLayer {
                     ctx.ui.heading(2, "File List Results");
                     ctx.ui.info(&format!("Directory: {}", list_result.directory));
                     
-                    for file in &list_result.files {
-                        ctx.ui.info(file);
+                    // Display the list of files
+                    ctx.ui.heading(3, "Files:");
+                    for file in list_result.files {
+                        ctx.ui.text(&file);
                     }
                 }
             }

@@ -1,9 +1,8 @@
-use anyhow::{anyhow, Context, Result};
-use std::str;
-use std::collections::HashMap;
+use anyhow::{anyhow, Result};
+use crate::obj::notation::{Notation, NotationType, NumberVariant};
+use thiserror::Error;
 
 use crate::obj::resources::errors::*;
-use crate::obj::notation::{Notation, NotationType};
 
 /// Query provides a wrapper around query operations on NotationType data.
 /// It adds a layer of abstraction to provide a simple interface for common query operations.
@@ -30,6 +29,18 @@ enum FilterStep {
     Field(String),
     Index(usize),
     Wildcard,
+}
+
+#[derive(Error, Debug)]
+enum QueryError {
+    #[error("Invalid query path: {0}")]
+    InvalidPath(String),
+    #[error("Type mismatch at path {path}: expected {expected}, found {found}")]
+    TypeMismatch { path: String, expected: String, found: String },
+    #[error("Index out of bounds at path {path}: index {index}, size {size}")]
+    IndexOutOfBounds { path: String, index: usize, size: usize },
+    #[error("Field not found at path {path}: field '{field}'")]
+    FieldNotFound { path: String, field: String },
 }
 
 impl Query {
@@ -110,16 +121,16 @@ impl Query {
     ///
     /// # Arguments
     ///
-    /// * `value` - The value to query against
+    /// * `value` - The value to query against. Must be Clone + Into<NotationType>.
     ///
     /// # Returns
     ///
-    /// * `Result<Vec<NotationType>>` - A vector of resulting values or an error
-    pub fn execute<T>(&self, value: &T) -> Result<Vec<NotationType>> 
+    /// * `Result<Vec<NotationType>>` - A vector of NotationType results or an error
+    pub fn execute<T>(&self, value: &T) -> Result<Vec<NotationType>>
     where
-        T: Into<NotationType>,
+        T: Clone + Into<NotationType>,
     {
-        let value = value.into();
+        let value = value.clone().into();
         let mut results = vec![value];
         
         for step in &self.compiled_filter.path {
@@ -130,7 +141,7 @@ impl Query {
                     FilterStep::Field(field) => {
                         if let NotationType::Object(obj) = result {
                             for (k, v) in obj {
-                                if k == field {
+                                if k == *field {
                                     next_results.push(v.clone());
                                 }
                             }
@@ -170,14 +181,14 @@ impl Query {
     ///
     /// # Arguments
     ///
-    /// * `value` - The value to query against
+    /// * `value` - The value to query against. Must be Clone + Into<NotationType>.
     ///
     /// # Returns
     ///
     /// * `Result<NotationType>` - A single NotationType result or an error
     pub fn execute_to_single<T>(&self, value: &T) -> Result<NotationType> 
     where
-        T: Into<NotationType>,
+        T: Clone + Into<NotationType>,
     {
         let results = self.execute(value)?;
         
@@ -195,14 +206,14 @@ impl Query {
     ///
     /// # Arguments
     ///
-    /// * `value` - The value to query against
+    /// * `value` - The value to query against. Must be Clone + Into<NotationType>.
     ///
     /// # Returns
     ///
     /// * `Result<String>` - The JSON string result or an error
     pub fn execute_to_string<T>(&self, value: &T) -> Result<String> 
     where
-        T: Into<NotationType>,
+        T: Clone + Into<NotationType>,
     {
         let results = self.execute(value)?;
         
@@ -249,67 +260,85 @@ impl Query {
         }
         
         if let Some(limit) = self.limit {
-            obj.push(("limit".to_string(), NotationType::Number(limit as f64)));
+            obj.push(("limit".to_string(), NotationType::Number(NumberVariant::Float(limit as f64))));
         }
         
         if let Some(offset) = self.offset {
-            obj.push(("offset".to_string(), NotationType::Number(offset as f64)));
+            obj.push(("offset".to_string(), NotationType::Number(NumberVariant::Float(offset as f64))));
         }
         
-        NotationType::Object(obj)
+        obj.into()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
-    
+    use crate::obj::notation::{NotationType, NumberVariant};
+
+    // Helper to create NotationType::Object from Vec<(String, NotationType)>
+    fn create_object(data: Vec<(String, NotationType)>) -> NotationType {
+        data.into() 
+    }
+
+    // Helper to create NotationType::Array from Vec<NotationType>
+    fn create_array(data: Vec<NotationType>) -> NotationType {
+        NotationType::Array(data)
+    }
+
     #[test]
     fn test_simple_query() {
-        let data = json!({
-            "name": "John Doe",
-            "age": 42,
-            "address": {
-                "street": "123 Main St",
-                "city": "Anytown"
-            }
-        });
+        let data = create_object(vec![
+            ("name".to_string(), "John Doe".into()),
+            ("age".to_string(), 42.into()),
+            ("address".to_string(), create_object(vec![
+                ("street".to_string(), "123 Main St".into()),
+                ("city".to_string(), "Anytown".into()),
+            ])),
+        ]);
         
         let query = Query::compile(".name").unwrap();
         let result = query.execute_to_string(&data).unwrap();
-        assert_eq!("\"John Doe\"", result);
+        // execute_to_string now uses fmt::Display for NotationType
+        assert_eq!("John Doe", result); 
     }
     
     #[test]
     fn test_array_query() {
-        let data = json!({
-            "items": [1, 2, 3, 4, 5]
-        });
+        let data = create_object(vec![
+            ("items".to_string(), create_array(vec![
+                NotationType::Number(NumberVariant::Int(1)), 
+                NotationType::Number(NumberVariant::Int(2)), 
+                NotationType::Number(NumberVariant::Int(3)), 
+                NotationType::Number(NumberVariant::Int(4)), 
+                NotationType::Number(NumberVariant::Int(5))
+            ]))
+        ]);
         
         let query = Query::compile(".items[]").unwrap();
         let results = query.execute(&data).unwrap();
         assert_eq!(5, results.len());
-        assert_eq!(json!(1), results[0]);
-        assert_eq!(json!(5), results[4]);
+        assert_eq!(NotationType::Number(NumberVariant::Int(1)), results[0]);
+        assert_eq!(NotationType::Number(NumberVariant::Int(5)), results[4]);
     }
     
     #[test]
     fn test_filter_query() {
-        let data = json!({
-            "people": [
-                {"name": "Alice", "age": 25},
-                {"name": "Bob", "age": 30},
-                {"name": "Charlie", "age": 35}
-            ]
-        });
+        let data = create_object(vec![
+            ("people".to_string(), create_array(vec![
+                create_object(vec![("name".to_string(), "Alice".into()), ("age".to_string(), NotationType::Number(NumberVariant::Int(25)))]),
+                create_object(vec![("name".to_string(), "Bob".into()), ("age".to_string(), NotationType::Number(NumberVariant::Int(30)))]),
+                create_object(vec![("name".to_string(), "Charlie".into()), ("age".to_string(), NotationType::Number(NumberVariant::Int(35)))]),
+            ]))
+        ]);
         
         // Access the last person in the array directly
         let query = Query::compile(".people[2]").unwrap();
         let results = query.execute(&data).unwrap();
         assert_eq!(1, results.len());
-        assert_eq!("Charlie", results[0]["name"].as_str().unwrap());
-        assert_eq!(35, results[0]["age"].as_u64().unwrap());
+        // Access fields using helper methods or pattern matching
+        assert_eq!(results[0].get("name").unwrap(), &NotationType::String("Charlie".to_string()));
+        assert_eq!(results[0].get("age").unwrap(), &NotationType::Number(NumberVariant::Int(35)));
     }
     
     #[test]

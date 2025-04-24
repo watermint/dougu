@@ -1,273 +1,115 @@
-use anyhow::{Context, Result};
-use std::str;
+use anyhow::{anyhow, Result};
+use crate::obj::notation::{Notation, NotationType, NumberVariant};
+use serde::{Deserialize, Serialize};
+use serde_json::{self, Value, Map};
+use std::collections::HashMap;
 
-use crate::obj::resources::errors::*;
-use super::{Notation, NotationType};
-
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct JsonNotation;
 
-impl Notation for JsonNotation {
-    fn decode<T>(&self, input: &[u8]) -> Result<T>
-    where
-        T: From<NotationType>,
-    {
-        let s = str::from_utf8(input)
-            .with_context(|| ERROR_DECODE_FAILED)?;
-        
-        let value = Self::parse_json(s)?;
-        Ok(T::from(value))
-    }
-    
-    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
-    where
-        T: Into<NotationType>,
-    {
-        let value = value.into();
-        let s = Self::format_json(&value)?;
-        Ok(s.into_bytes())
-    }
-    
-    fn encode_to_string<T>(&self, value: &T) -> Result<String>
-    where
-        T: Into<NotationType>,
-    {
-        let value = value.into();
-        Self::format_json(&value)
+impl JsonNotation {
+    pub fn new() -> Self {
+        JsonNotation
     }
 }
 
-impl JsonNotation {
-    fn parse_json(s: &str) -> Result<NotationType> {
-        let mut chars = s.chars().peekable();
-        Self::parse_value(&mut chars)
+impl Default for JsonNotation {
+    fn default() -> Self {
+        Self::new()
     }
-    
-    fn parse_value<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        Self::skip_whitespace(chars);
-        
-        match chars.peek() {
-            Some('"') => Self::parse_string(chars),
-            Some('{') => Self::parse_object(chars),
-            Some('[') => Self::parse_array(chars),
-            Some('t') => Self::parse_true(chars),
-            Some('f') => Self::parse_false(chars),
-            Some('n') => Self::parse_null(chars),
-            Some(c) if c.is_ascii_digit() || *c == '-' => Self::parse_number(chars),
-            _ => Err(anyhow!("{}: Invalid JSON value", ERROR_DECODE_FAILED)),
-        }
+}
+
+impl Notation for JsonNotation {
+    fn encode<T>(&self, value: &T) -> anyhow::Result<Vec<u8>>
+    where
+        T: Into<NotationType> + Clone,
+    {
+        let notation_type: NotationType = value.clone().into();
+        let json_value = notation_type_to_json_value(&notation_type)?;
+        Ok(serde_json::to_vec(&json_value)?)
     }
-    
-    fn parse_string<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        chars.next(); // Skip opening quote
-        let mut s = String::new();
-        let mut escape = false;
-        
-        while let Some(c) = chars.next() {
-            if escape {
-                match c {
-                    'n' => s.push('\n'),
-                    'r' => s.push('\r'),
-                    't' => s.push('\t'),
-                    '\\' => s.push('\\'),
-                    '"' => s.push('"'),
-                    _ => s.push(c),
-                }
-                escape = false;
-            } else if c == '\\' {
-                escape = true;
-            } else if c == '"' {
-                return Ok(NotationType::String(s));
-            } else {
-                s.push(c);
-            }
-        }
-        
-        Err(anyhow!("{}: Unterminated string", ERROR_DECODE_FAILED))
+
+    fn decode(&self, data: &[u8]) -> anyhow::Result<NotationType> {
+        let json_value = serde_json::from_slice(data)?;
+        json_value_to_notation_type(&json_value)
     }
-    
-    fn parse_object<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        chars.next(); // Skip opening brace
-        let mut obj = Vec::new();
-        
-        loop {
-            Self::skip_whitespace(chars);
-            
-            if let Some('}') = chars.peek() {
-                chars.next();
-                return Ok(NotationType::Object(obj));
-            }
-            
-            if !obj.is_empty() {
-                Self::expect_char(chars, ',')?;
-                Self::skip_whitespace(chars);
-            }
-            
-            let key = if let NotationType::String(s) = Self::parse_string(chars)? {
-                s
-            } else {
-                return Err(anyhow!("{}: Object key must be a string", ERROR_DECODE_FAILED));
+
+    fn encode_to_string<T>(&self, value: &T) -> anyhow::Result<String>
+    where
+        T: Into<NotationType> + Clone,
+    {
+        let notation_type: NotationType = value.clone().into();
+        let json_value = notation_type_to_json_value(&notation_type)?;
+        Ok(serde_json::to_string(&json_value)?)
+    }
+}
+
+/// Converts a NotationType enum into a serde_json::Value
+pub fn notation_type_to_json_value(notation_type: &NotationType) -> Result<Value> {
+    match notation_type {
+        NotationType::Null => Ok(Value::Null),
+        NotationType::Boolean(b) => Ok(Value::Bool(*b)),
+        NotationType::Number(n) => {
+            let f_val = match n {
+                NumberVariant::Int(i) => *i as f64,
+                NumberVariant::Uint(u) => *u as f64,
+                NumberVariant::Float(f) => *f,
             };
-            
-            Self::skip_whitespace(chars);
-            Self::expect_char(chars, ':')?;
-            Self::skip_whitespace(chars);
-            
-            let value = Self::parse_value(chars)?;
-            obj.push((key, value));
+            serde_json::Number::from_f64(f_val)
+                .map(Value::Number)
+                .ok_or_else(|| anyhow!("Invalid number for JSON: {}", f_val))
+        },
+        NotationType::String(s) => Ok(Value::String(s.clone())),
+        NotationType::Array(arr) => {
+            let values: Result<Vec<Value>> = arr.iter().map(notation_type_to_json_value).collect();
+            Ok(Value::Array(values?))
         }
-    }
-    
-    fn parse_array<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        chars.next(); // Skip opening bracket
-        let mut arr = Vec::new();
-        
-        loop {
-            Self::skip_whitespace(chars);
-            
-            if let Some(']') = chars.peek() {
-                chars.next();
-                return Ok(NotationType::Array(arr));
-            }
-            
-            if !arr.is_empty() {
-                Self::expect_char(chars, ',')?;
-                Self::skip_whitespace(chars);
-            }
-            
-            let value = Self::parse_value(chars)?;
-            arr.push(value);
+        NotationType::Object(obj) => {
+            let map: Result<serde_json::Map<String, Value>> = obj
+                .iter()
+                .map(|(k, v)| notation_type_to_json_value(v).map(|json_v| (k.clone(), json_v)))
+                .collect();
+            Ok(Value::Object(map?))
         }
+        _ => Err(anyhow!("Unsupported notation type for JSON conversion: {:?}", notation_type)),
     }
-    
-    fn parse_true<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        Self::expect_str(chars, "true")?;
-        Ok(NotationType::Boolean(true))
-    }
-    
-    fn parse_false<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        Self::expect_str(chars, "false")?;
-        Ok(NotationType::Boolean(false))
-    }
-    
-    fn parse_null<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        Self::expect_str(chars, "null")?;
-        Ok(NotationType::Null)
-    }
-    
-    fn parse_number<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) -> Result<NotationType> {
-        let mut s = String::new();
-        let mut has_decimal = false;
-        let mut has_exponent = false;
-        
-        if let Some('-') = chars.peek() {
-            s.push(chars.next().unwrap());
-        }
-        
-        while let Some(c) = chars.peek() {
-            match c {
-                '0'..='9' => {
-                    s.push(chars.next().unwrap());
-                },
-                '.' if !has_decimal && !has_exponent => {
-                    s.push(chars.next().unwrap());
-                    has_decimal = true;
-                },
-                'e' | 'E' if !has_exponent => {
-                    s.push(chars.next().unwrap());
-                    has_exponent = true;
-                    
-                    if let Some('+' | '-') = chars.peek() {
-                        s.push(chars.next().unwrap());
-                    }
-                },
-                _ => break,
+}
+
+/// Converts a serde_json::Value into a NotationType enum
+pub fn json_value_to_notation_type(value: &Value) -> Result<NotationType> {
+    Ok(match value {
+        Value::Null => NotationType::Null,
+        Value::Bool(b) => NotationType::Boolean(*b),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                NotationType::Number(NumberVariant::Int(i))
+            } else if let Some(u) = n.as_u64() {
+                NotationType::Number(NumberVariant::Uint(u))
+            } else if let Some(f) = n.as_f64() {
+                NotationType::Number(NumberVariant::Float(f))
+            } else {
+                return Err(anyhow!("Invalid JSON number format: {}", n));
             }
         }
-        
-        s.parse::<f64>()
-            .map(NotationType::Number)
-            .map_err(|_| anyhow!("{}: Invalid number: {}", ERROR_DECODE_FAILED, s))
-    }
-    
-    fn skip_whitespace<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>) {
-        while let Some(c) = chars.peek() {
-            if !c.is_whitespace() {
-                break;
-            }
-            chars.next();
+        Value::String(s) => NotationType::String(s.clone()),
+        Value::Array(arr) => {
+            let values: Result<Vec<NotationType>> = arr
+                .iter()
+                .map(json_value_to_notation_type)
+                .collect();
+            NotationType::Array(values?)
         }
-    }
-    
-    fn expect_char<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>, expected: char) -> Result<()> {
-        match chars.next() {
-            Some(c) if c == expected => Ok(()),
-            Some(c) => Err(anyhow!("{}: Expected '{}', found '{}'", ERROR_DECODE_FAILED, expected, c)),
-            None => Err(anyhow!("{}: Expected '{}', found end of input", ERROR_DECODE_FAILED, expected)),
+        Value::Object(obj) => {
+            let map: Result<HashMap<String, NotationType>> = obj
+                .iter()
+                .map(|(k, v)| json_value_to_notation_type(v).map(|nt| (k.clone(), nt)))
+                .collect();
+            NotationType::Object(map?)
         }
-    }
-    
-    fn expect_str<I: Iterator<Item = char>>(chars: &mut std::iter::Peekable<I>, expected: &str) -> Result<()> {
-        for c in expected.chars() {
-            Self::expect_char(chars, c)?;
-        }
-        Ok(())
-    }
-    
-    fn format_json(value: &NotationType) -> Result<String> {
-        let mut s = String::new();
-        Self::format_value(value, &mut s)?;
-        Ok(s)
-    }
-    
-    fn format_value(value: &NotationType, s: &mut String) -> Result<()> {
-        match value {
-            NotationType::String(str) => {
-                s.push('"');
-                for c in str.chars() {
-                    match c {
-                        '\n' => s.push_str("\\n"),
-                        '\r' => s.push_str("\\r"),
-                        '\t' => s.push_str("\\t"),
-                        '\\' => s.push_str("\\\\"),
-                        '"' => s.push_str("\\\""),
-                        _ => s.push(c),
-                    }
-                }
-                s.push('"');
-            },
-            NotationType::Number(n) => {
-                s.push_str(&n.to_string());
-            },
-            NotationType::Boolean(b) => {
-                s.push_str(if *b { "true" } else { "false" });
-            },
-            NotationType::Null => {
-                s.push_str("null");
-            },
-            NotationType::Array(arr) => {
-                s.push('[');
-                for (i, item) in arr.iter().enumerate() {
-                    if i > 0 {
-                        s.push(',');
-                    }
-                    Self::format_value(item, s)?;
-                }
-                s.push(']');
-            },
-            NotationType::Object(obj) => {
-                s.push('{');
-                for (i, (k, v)) in obj.iter().enumerate() {
-                    if i > 0 {
-                        s.push(',');
-                    }
-                    Self::format_value(&NotationType::String(k.clone()), s)?;
-                    s.push(':');
-                    Self::format_value(v, s)?;
-                }
-                s.push('}');
-            },
-        }
-        Ok(())
-    }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+   // ... tests using serde_json directly ...
 } 

@@ -1,15 +1,15 @@
 use anyhow::Result;
 use dougu_essentials::obj::{Notation, NotationType};
+use dougu_essentials::obj::notation::JsonNotation;
 use std::fmt::Display;
 use std::str::FromStr;
-use crate::ui::UIManager;
+use std::collections::HashMap;
 
-mod formatters;
-mod manager;
+pub mod manager;
+pub mod formatters;
 
-// Re-export main types
+pub use manager::UIManager;
 pub use formatters::*;
-pub use manager::*;
 
 // Define a format enum to represent the available output formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,9 +83,9 @@ pub trait UIFormatter: Send + Sync {
     fn list_string(&self, items: &[String], ordered: bool) -> String;
     fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String;
     
-    // Methods for serialization using serde_json::Value
-    fn json_value(&self, value: &serde_json::Value) -> Result<String, String>;
-    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String>;
+    // Methods for serialization using NotationType
+    fn json_value(&self, value: &NotationType) -> Result<String, String>;
+    fn jsonl_value(&self, value: &NotationType) -> Result<String, String>;
 }
 
 // Helper functions for UI
@@ -121,7 +121,8 @@ pub fn format_error(ui: &UIManager, message: &str, details: Option<&str>) -> Str
 
 /// Format an action result for display
 pub fn format_action_result(ui: &UIManager, result: &str) -> String {
-    match NotationType::Json.decode::<NotationType>(result.as_bytes()) {
+    let json_notation = JsonNotation::new();
+    match json_notation.decode(result.as_bytes()) {
         Ok(value) => match ui.format() {
             OutputFormat::JsonLines => ui.jsonl(&value).unwrap_or_else(|e| e),
             OutputFormat::Markdown => ui.json(&value).unwrap_or_else(|e| e),

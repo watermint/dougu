@@ -1,16 +1,29 @@
 use crate::run::resources::copyright::{COPYRIGHT_SINGLE_YEAR_FORMAT, COPYRIGHT_YEAR_RANGE_FORMAT, LICENSE_TEXT};
-use crate::ui::{OutputFormat, UIManager};
+use crate::ui::OutputFormat;
+use crate::ui::UIManager;
 use dougu_essentials::build::get_build_info;
-use serde::{Deserialize, Serialize};
+use dougu_essentials::obj::prelude::*;
+use std::collections::HashMap;
 
-/// Application info for JSON serialization
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 struct AppInfoJson {
     app_name: String,
     version: String,
     copyright: String,
     license: String,
     banner_type: String,
+}
+
+impl Into<NotationType> for AppInfoJson {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        map.insert("app_name".to_string(), self.app_name.into());
+        map.insert("version".to_string(), self.version.into());
+        map.insert("copyright".to_string(), self.copyright.into());
+        map.insert("license".to_string(), self.license.into());
+        map.insert("banner_type".to_string(), self.banner_type.into());
+        NotationType::Object(map)
+    }
 }
 
 /// Display application information banner at startup

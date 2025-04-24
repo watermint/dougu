@@ -1,41 +1,39 @@
 pub mod resources;
-pub mod i18n_adapter;
+pub mod i18n;
 pub mod app_info;
 
-use crate::i18n::{t, tf, ErrorWithDetails, I18nContext, I18nInitializer, Locale, LocaleError};
-use crate::ui::{OutputFormat, UIManager};
-use async_trait::async_trait;
-use log::{debug, error, info};
+use crate::i18n::Locale;
+use crate::ui::{OutputFormat, UIManager, format_commandlet_result};
+use dougu_essentials::obj::{Notation, NotationType};
+use dougu_essentials::obj::notation::JsonNotation;
+use log::{debug, error};
 use resources::error_messages;
-use resources::log_messages;
 use resources::spec_messages;
 use std::collections::HashMap;
-use std::str::FromStr;
-use dougu_essentials::obj::{Notation, NotationType};
-use crate::ui::format_commandlet_result;
+use serde::{Serialize, Deserialize};
+use async_trait::async_trait;
 
-// Re-export i18n adapter for convenience
-pub use i18n_adapter::I18nInitializerLayer;
+pub use crate::i18n::{I18nRunner, t, tf};
 
 /// Field specification for Action parameters and results
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecField {
     pub name: String,
-    pub description: Option<String>,
+    pub description: String,
     pub field_type: String,
     pub required: bool,
     pub default_value: Option<String>,
 }
 
 /// Error specification for Action errors
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecError {
     pub code: String,
-    pub description: String,
+    pub message: String,
 }
 
 /// Specification for an Action's inputs and outputs
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionSpec {
     pub name: String,
     pub description: Option<String>,
@@ -50,10 +48,10 @@ pub struct ActionSpec {
 #[async_trait]
 pub trait Action {
     /// The type of parameters this action accepts
-    type Params: Serialize + for<'a> Deserialize<'a> + Send + Sync;
+    type Params: Into<NotationType> + From<NotationType> + Send + Sync;
     
     /// The type of results this action returns 
-    type Results: Serialize + for<'a> Deserialize<'a> + Send + Sync;
+    type Results: Into<NotationType> + From<NotationType> + Send + Sync;
     
     /// Returns the name of this action
     fn name(&self) -> &str;
@@ -78,7 +76,7 @@ pub trait Action {
 }
 
 /// Error type for action operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ActionError {
     pub code: String,
     pub message: String,
@@ -288,13 +286,14 @@ impl ActionLauncher {
     }
 }
 
-pub struct ActionRunner {
-    action: Box<dyn Action>,
+/// A runner for actions that can format results
+pub struct ActionRunner<A: Action + 'static> {
+    action: Box<A>,
     ui: UIManager,
 }
 
-impl ActionRunner {
-    pub fn with_ui(action: impl Action + 'static, ui: UIManager) -> Self {
+impl<A: Action + 'static> ActionRunner<A> {
+    pub fn with_ui(action: A, ui: UIManager) -> Self {
         Self {
             action: Box::new(action),
             ui,
@@ -302,7 +301,8 @@ impl ActionRunner {
     }
     
     pub fn format_results(&self, serialized_results: &str) -> Result<(), ActionError> {
-        let result_value = NotationType::Json.decode::<NotationType>(serialized_results.as_bytes())
+        let json_notation = JsonNotation::new();
+        let result_value = json_notation.decode(serialized_results.as_bytes())
             .map_err(|e| ActionError::with_details(
                 "RESULT_PARSE_ERROR",
                 &error_messages::RESULT_PARSE_ERROR,
@@ -317,7 +317,8 @@ impl ActionRunner {
     }
     
     pub fn format_results_to_string(&self, serialized_results: &str) -> Result<String, ActionError> {
-        let result_value = NotationType::Json.decode::<NotationType>(serialized_results.as_bytes())
+        let json_notation = JsonNotation::new();
+        let result_value = json_notation.decode(serialized_results.as_bytes())
             .map_err(|e| ActionError::with_details(
                 "RESULT_PARSE_ERROR",
                 &error_messages::RESULT_PARSE_ERROR,
@@ -351,11 +352,127 @@ pub struct SpecParams {
     pub format: Option<String>,
 }
 
+impl From<NotationType> for SpecParams {
+    fn from(value: NotationType) -> Self {
+        let mut action_name = None;
+        let mut format = None;
+        
+        if let NotationType::Object(obj) = value {
+            if let Some(NotationType::String(name)) = obj.get("action_name") {
+                action_name = Some(name.clone());
+            }
+            if let Some(NotationType::String(fmt)) = obj.get("format") {
+                format = Some(fmt.clone());
+            }
+        }
+        
+        SpecParams {
+            action_name,
+            format,
+        }
+    }
+}
+
+impl Into<NotationType> for SpecParams {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        if let Some(name) = self.action_name {
+            map.insert("action_name".to_string(), NotationType::String(name));
+        }
+        if let Some(fmt) = self.format {
+            map.insert("format".to_string(), NotationType::String(fmt));
+        }
+        NotationType::Object(map)
+    }
+}
+
+impl Into<NotationType> for &SpecParams {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        if let Some(name) = &self.action_name {
+            map.insert("action_name".to_string(), NotationType::String(name.clone()));
+        }
+        if let Some(fmt) = &self.format {
+            map.insert("format".to_string(), NotationType::String(fmt.clone()));
+        }
+        NotationType::Object(map)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SpecResults {
     pub action_name: String,
     pub spec: ActionSpec,
     pub formatted_spec: String,
+}
+
+impl From<NotationType> for SpecResults {
+    fn from(value: NotationType) -> Self {
+        let mut action_name = String::new();
+        let mut formatted_spec = String::new();
+        let spec = ActionSpec {
+            name: String::new(),
+            description: None,
+            behavior: "Not specified".to_string(),
+            options: Vec::new(),
+            parameters: Vec::new(),
+            result_types: Vec::new(),
+            errors: Vec::new(),
+        };
+        
+        if let NotationType::Object(obj) = value {
+            if let Some(NotationType::String(name)) = obj.get("action_name") {
+                action_name = name.clone();
+            }
+            if let Some(NotationType::String(fmt_spec)) = obj.get("formatted_spec") {
+                formatted_spec = fmt_spec.clone();
+            }
+        }
+        
+        SpecResults {
+            action_name,
+            spec,
+            formatted_spec,
+        }
+    }
+}
+
+impl Into<NotationType> for SpecResults {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        map.insert("action_name".to_string(), NotationType::String(self.action_name));
+        map.insert("formatted_spec".to_string(), NotationType::String(self.formatted_spec));
+        
+        // Create a simplified spec object
+        let mut spec_map = HashMap::new();
+        spec_map.insert("name".to_string(), NotationType::String(self.spec.name));
+        if let Some(desc) = self.spec.description {
+            spec_map.insert("description".to_string(), NotationType::String(desc));
+        }
+        spec_map.insert("behavior".to_string(), NotationType::String(self.spec.behavior));
+        
+        map.insert("spec".to_string(), NotationType::Object(spec_map));
+        NotationType::Object(map)
+    }
+}
+
+impl Into<NotationType> for &SpecResults {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        map.insert("action_name".to_string(), NotationType::String(self.action_name.clone()));
+        map.insert("formatted_spec".to_string(), NotationType::String(self.formatted_spec.clone()));
+        
+        // Create a simplified spec object
+        let mut spec_map = HashMap::new();
+        spec_map.insert("name".to_string(), NotationType::String(self.spec.name.clone()));
+        if let Some(desc) = &self.spec.description {
+            spec_map.insert("description".to_string(), NotationType::String(desc.clone()));
+        }
+        spec_map.insert("behavior".to_string(), NotationType::String(self.spec.behavior.clone()));
+        
+        map.insert("spec".to_string(), NotationType::Object(spec_map));
+        NotationType::Object(map)
+    }
 }
 
 pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
@@ -384,8 +501,8 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
                 opt.name,
                 opt.field_type,
                 opt.required,
-                opt.default_value.as_deref().unwrap_or(""),
-                opt.description.as_deref().unwrap_or("")
+                opt.default_value.as_ref().unwrap_or(""),
+                opt.description.as_ref().unwrap_or("")
             ));
         }
         result.push_str("\n");
@@ -403,8 +520,8 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
                 param.name,
                 param.field_type,
                 param.required,
-                param.default_value.as_deref().unwrap_or(""),
-                param.description.as_deref().unwrap_or("")
+                param.default_value.as_ref().unwrap_or(""),
+                param.description.as_ref().unwrap_or("")
             ));
         }
         result.push_str("\n");
@@ -422,8 +539,8 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
                 result_type.name,
                 result_type.field_type,
                 result_type.required,
-                result_type.default_value.as_deref().unwrap_or(""),
-                result_type.description.as_deref().unwrap_or("")
+                result_type.default_value.as_ref().unwrap_or(""),
+                result_type.description.as_ref().unwrap_or("")
             ));
         }
         result.push_str("\n");
@@ -439,7 +556,7 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
             result.push_str(&format!(
                 "| {} | {} |\n",
                 error.code,
-                error.description
+                error.message
             ));
         }
     }
@@ -528,7 +645,7 @@ pub fn format_spec_as_text(spec: &ActionSpec) -> String {
         result.push_str("-------\n\n");
         
         for err in &spec.errors {
-            result.push_str(&format!("* {} - {}\n", err.code, err.description));
+            result.push_str(&format!("* {} - {}\n", err.code, err.message));
         }
     }
     
@@ -580,103 +697,160 @@ impl Action for SpecAction {
     type Results = SpecResults;
     
     fn name(&self) -> &str {
-        "SpecAction"
+        "spec"
     }
     
     async fn execute(&self, params: Self::Params) -> Result<Self::Results, ActionError> {
-        if let Some(action_name) = params.action_name {
-            // Generate spec for a specific action
+        let spec = if let Some(action_name) = params.action_name {
             if let Some(action) = self.find_action(&action_name) {
-                let spec = action.generate_spec();
-                
-                // Format the spec based on the requested format
-                let formatted_spec = match params.format.as_deref() {
-                    Some("json") => serde_json::to_string_pretty(&spec)
-                        .map_err(|e| ActionError::with_details(
-                            "SPEC_FORMAT_ERROR",
-                            &spec_messages::SPEC_FORMAT_ERROR,
-                            &e.to_string()
-                        ))?,
-                    Some("markdown") => format_spec_as_markdown(&spec),
-                    _ => format_spec_as_text(&spec), // Default to text format
-                };
-                
-                Ok(SpecResults {
-                    action_name: action_name.clone(),
-                    spec,
-                    formatted_spec,
-                })
+                action.generate_spec()
             } else {
-                // Commandlet not found
-                Err(ActionError::with_i18n_vars(
-                    "COMMANDLET_NOT_FOUND",
-                    "errors.commandlet_not_found",
-                    &[("name", &action_name)]
-                ))
+                return Err(ActionError::new(
+                    "ACTION_NOT_FOUND",
+                    &format!("Action '{}' not found", action_name),
+                ));
             }
         } else {
-            // No specific commandlet requested, return list of available commandlets
+            // Generate a spec for all available actions
             let available = self.list_available_actions();
-            let formatted = match params.format.as_deref() {
-                Some("json") => serde_json::to_string_pretty(&available)
-                    .map_err(|e| ActionError::with_details(
-                        "SPEC_FORMAT_ERROR",
-                        &spec_messages::SPEC_FORMAT_ERROR,
-                        &e.to_string()
-                    ))?,
-                Some("markdown") => {
-                    let mut result = String::from("# Available Actions\n\n");
-                    for cmd in &available {
-                        result.push_str(&format!("- {}\n", cmd));
-                    }
-                    result
-                },
-                _ => {
-                    let mut result = String::from("Available Actions:\n");
-                    result.push_str(&format!("{}\n\n", "=".repeat(22)));
-                    for cmd in &available {
-                        result.push_str(&format!("* {}\n", cmd));
-                    }
-                    result
+            let formatted_spec = match params.format.as_deref() {
+                Some("text") => format_spec_as_text(&ActionSpec {
+                    name: "available_actions".to_string(),
+                    description: "List of available actions".to_string(),
+                    behavior: "Lists all available actions".to_string(),
+                    options: Vec::new(),
+                    parameters: Vec::new(),
+                    result_types: Vec::new(),
+                    errors: Vec::new(),
+                }),
+                Some("json") => {
+                    let mut obj = Vec::new();
+                    obj.push(("actions".to_string(), NotationType::Array(available.iter().map(|a| NotationType::String(a.clone())).collect())));
+                    let json_notation = JsonNotation::new();
+                    json_notation.encode_to_string(&NotationType::Object(obj.into_iter().collect()))
+                        .map_err(|e| ActionError::new("SERIALIZATION_ERROR", &format!("Failed to serialize spec: {}", e)))?
                 }
+                Some("markdown") => format_spec_as_markdown(&ActionSpec {
+                    name: "available_actions".to_string(),
+                    description: "List of available actions".to_string(),
+                    behavior: "Lists all available actions".to_string(),
+                    options: Vec::new(),
+                    parameters: Vec::new(),
+                    result_types: Vec::new(),
+                    errors: Vec::new(),
+                }),
+                _ => format_spec_as_text(&ActionSpec {
+                    name: "available_actions".to_string(),
+                    description: "List of available actions".to_string(),
+                    behavior: "Lists all available actions".to_string(),
+                    options: Vec::new(),
+                    parameters: Vec::new(),
+                    result_types: Vec::new(),
+                    errors: Vec::new(),
+                }),
             };
-            
-            // Create a placeholder spec for the list
-            let spec = ActionSpec {
-                name: "Available Actions".to_string(),
-                description: Some("List of all available actions".to_string()),
-                behavior: "Lists all registered actions".to_string(),
-                options: Vec::new(),
-                parameters: Vec::new(),
-                result_types: Vec::new(),
-                errors: Vec::new(),
-            };
-            
-            Ok(SpecResults {
+
+            return Ok(SpecResults {
                 action_name: "available_actions".to_string(),
-                spec,
-                formatted_spec: formatted,
-            })
-        }
+                spec: ActionSpec {
+                    name: "available_actions".to_string(),
+                    description: "List of available actions".to_string(),
+                    behavior: "Lists all available actions".to_string(),
+                    options: Vec::new(),
+                    parameters: Vec::new(),
+                    result_types: Vec::new(),
+                    errors: Vec::new(),
+                },
+                formatted_spec,
+            });
+        };
+
+        let formatted_spec = match params.format.as_deref() {
+            Some("text") => format_spec_as_text(&spec),
+            Some("json") => {
+                let mut obj = Vec::new();
+                obj.push(("name".to_string(), NotationType::String(spec.name.clone())));
+                if let Some(desc) = &spec.description {
+                    obj.push(("description".to_string(), NotationType::String(desc.clone())));
+                }
+                obj.push(("behavior".to_string(), NotationType::String(spec.behavior.clone())));
+                obj.push(("options".to_string(), NotationType::Array(spec.options.iter().map(|o| {
+                    let mut opt = Vec::new();
+                    opt.push(("name".to_string(), NotationType::String(o.name.clone())));
+                    if let Some(desc) = &o.description {
+                        opt.push(("description".to_string(), NotationType::String(desc.clone())));
+                    }
+                    opt.push(("type".to_string(), NotationType::String(o.field_type.clone())));
+                    opt.push(("required".to_string(), NotationType::Boolean(o.required)));
+                    if let Some(default) = &o.default_value {
+                        opt.push(("default".to_string(), NotationType::String(default.clone())));
+                    }
+                    NotationType::Object(opt.into_iter().collect())
+                }).collect())));
+                obj.push(("parameters".to_string(), NotationType::Array(spec.parameters.iter().map(|p| {
+                    let mut param = Vec::new();
+                    param.push(("name".to_string(), NotationType::String(p.name.clone())));
+                    if let Some(desc) = &p.description {
+                        param.push(("description".to_string(), NotationType::String(desc.clone())));
+                    }
+                    param.push(("type".to_string(), NotationType::String(p.field_type.clone())));
+                    param.push(("required".to_string(), NotationType::Boolean(p.required)));
+                    if let Some(default) = &p.default_value {
+                        param.push(("default".to_string(), NotationType::String(default.clone())));
+                    }
+                    NotationType::Object(param.into_iter().collect())
+                }).collect())));
+                obj.push(("result_types".to_string(), NotationType::Array(spec.result_types.iter().map(|r| {
+                    let mut result = Vec::new();
+                    result.push(("name".to_string(), NotationType::String(r.name.clone())));
+                    if let Some(desc) = &r.description {
+                        result.push(("description".to_string(), NotationType::String(desc.clone())));
+                    }
+                    result.push(("type".to_string(), NotationType::String(r.field_type.clone())));
+                    result.push(("required".to_string(), NotationType::Boolean(r.required)));
+                    if let Some(default) = &r.default_value {
+                        result.push(("default".to_string(), NotationType::String(default.clone())));
+                    }
+                    NotationType::Object(result.into_iter().collect())
+                }).collect())));
+                obj.push(("errors".to_string(), NotationType::Array(spec.errors.iter().map(|e| {
+                    let mut error = Vec::new();
+                    error.push(("code".to_string(), NotationType::String(e.code.clone())));
+                    error.push(("description".to_string(), NotationType::String(e.message.clone())));
+                    NotationType::Object(error.into_iter().collect())
+                }).collect())));
+                let json_notation = JsonNotation::new();
+                json_notation.encode_to_string(&NotationType::Object(obj.into_iter().collect()))
+                    .map_err(|e| ActionError::new("SERIALIZATION_ERROR", &format!("Failed to serialize spec: {}", e)))?
+            }
+            Some("markdown") => format_spec_as_markdown(&spec),
+            _ => format_spec_as_text(&spec),
+        };
+
+        Ok(SpecResults {
+            action_name: spec.name.clone(),
+            spec,
+            formatted_spec,
+        })
     }
     
     fn generate_spec(&self) -> ActionSpec {
         ActionSpec {
             name: Action::name(self).to_string(),
-            description: Some(spec_messages::SPEC_DESCRIPTION.to_string()),
-            behavior: spec_messages::SPEC_BEHAVIOR.to_string(),
+            description: "Specification for available actions".to_string(),
+            behavior: "Lists all available actions".to_string(),
             options: Vec::new(),
             parameters: vec![
                 SpecField {
                     name: "action_name".to_string(),
-                    description: Some(spec_messages::SPEC_PARAM_NAME_DESC.to_string()),
+                    description: "Name of the action to generate spec for".to_string(),
                     field_type: "string".to_string(),
                     required: false,
                     default_value: None,
                 },
                 SpecField {
                     name: "format".to_string(),
-                    description: Some(spec_messages::SPEC_PARAM_FORMAT_DESC.to_string()),
+                    description: "Format of the spec (text, json, markdown)".to_string(),
                     field_type: "string".to_string(),
                     required: false,
                     default_value: Some("text".to_string()),
@@ -685,21 +859,21 @@ impl Action for SpecAction {
             result_types: vec![
                 SpecField {
                     name: "action_name".to_string(),
-                    description: Some("Name of the action".to_string()),
+                    description: "Name of the action".to_string(),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
                 },
                 SpecField {
                     name: "spec".to_string(),
-                    description: Some("Full specification structure".to_string()),
-                    field_type: "ActionSpec".to_string(),
+                    description: "Full specification structure".to_string(),
+                    field_type: "object".to_string(),
                     required: true,
                     default_value: None,
                 },
                 SpecField {
                     name: "formatted_spec".to_string(),
-                    description: Some("Formatted specification in the requested format".to_string()),
+                    description: "Formatted specification in the requested format".to_string(),
                     field_type: "string".to_string(),
                     required: true,
                     default_value: None,
@@ -708,11 +882,11 @@ impl Action for SpecAction {
             errors: vec![
                 SpecError {
                     code: "COMMANDLET_NOT_FOUND".to_string(),
-                    description: "The requested action was not found".to_string(),
+                    message: "The requested action was not found".to_string(),
                 },
                 SpecError {
                     code: "SPEC_FORMAT_ERROR".to_string(),
-                    description: "Error formatting the specification".to_string(),
+                    message: "Error formatting the specification".to_string(),
                 },
             ],
         }
@@ -738,4 +912,64 @@ pub struct CommandletSpec {
     pub parameters: Vec<SpecField>,
     pub result_types: Vec<SpecField>,
     pub errors: Vec<SpecError>,
+}
+
+impl ActionSpec {
+    pub fn format_as_text(&self) -> String {
+        let mut result = String::new();
+        result.push_str(&format!("Action: {}\n", self.name));
+        result.push_str(&format!("Description: {}\n", self.description));
+        result.push_str(&format!("Behavior: {}\n\n", self.behavior));
+
+        if !self.options.is_empty() {
+            result.push_str("Options:\n");
+            for opt in &self.options {
+                result.push_str(&format!("* {} ({})\n", opt.name, opt.field_type));
+                result.push_str(&format!("  Description: {}\n", opt.description));
+                if opt.required {
+                    result.push_str("  Required: Yes\n");
+                }
+                if let Some(default) = &opt.default_value {
+                    result.push_str(&format!("  Default: {}\n", default));
+                }
+            }
+            result.push('\n');
+        }
+
+        if !self.parameters.is_empty() {
+            result.push_str("Parameters:\n");
+            for param in &self.parameters {
+                result.push_str(&format!("* {} ({})\n", param.name, param.field_type));
+                result.push_str(&format!("  Description: {}\n", param.description));
+                if param.required {
+                    result.push_str("  Required: Yes\n");
+                }
+                if let Some(default) = &param.default_value {
+                    result.push_str(&format!("  Default: {}\n", default));
+                }
+            }
+            result.push('\n');
+        }
+
+        if !self.result_types.is_empty() {
+            result.push_str("Result Types:\n");
+            for res in &self.result_types {
+                result.push_str(&format!("* {} ({})\n", res.name, res.field_type));
+                result.push_str(&format!("  Description: {}\n", res.description));
+                if res.required {
+                    result.push_str("  Required: Yes\n");
+                }
+            }
+            result.push('\n');
+        }
+
+        if !self.errors.is_empty() {
+            result.push_str("Errors:\n");
+            for err in &self.errors {
+                result.push_str(&format!("* {} - {}\n", err.code, err.message));
+            }
+        }
+
+        result
+    }
 } 

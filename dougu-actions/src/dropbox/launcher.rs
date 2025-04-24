@@ -6,7 +6,7 @@ use dougu_foundation::{
     ui::UIManager
 };
 use log::info;
-use serde_json;
+use dougu_essentials::obj::prelude::*;
 
 use crate::dropbox::{
     execute_file_download, execute_file_list, execute_file_upload, execute_folder_create,
@@ -25,8 +25,9 @@ impl LauncherLayer for DropboxCommandLayer {
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         if let Some(args_str) = ctx.get_data("dropbox_args") {
-            // Parse the serialized args
-            let args: DropboxArgs = serde_json::from_str(args_str)
+            // Parse the serialized args using dougu-essentials::obj
+            let notation = NotationType::from(args_str);
+            let args: DropboxArgs = notation.try_into()
                 .map_err(|e| format!("Failed to parse dropbox args: {}", e))?;
             
             // For demo purposes, use a dummy token

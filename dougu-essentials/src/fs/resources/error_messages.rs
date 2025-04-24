@@ -9,4 +9,5 @@ pub const INVALID_PATH: &str = "Invalid path";
 pub const IO_ERROR: &str = "I/O error";
 pub const UNKNOWN_ERROR: &str = "Unknown error";
 pub const NOT_A_DIRECTORY: &str = "Path is not a directory";
-pub const NOT_A_FILE: &str = "Path is not a file"; 
+pub const NOT_A_FILE: &str = "Path is not a file";
+pub const XML_PARSING_ERROR: &str = "Failed to parse XML content"; 

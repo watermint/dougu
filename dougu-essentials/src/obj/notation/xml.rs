@@ -1,101 +1,156 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Result};
+use crate::obj::notation::{Notation, NotationType, NumberVariant};
 use quick_xml::de::from_str;
 use quick_xml::se::to_string;
-use std::str;
+use quick_xml::events::{BytesStart, BytesText, Event};
+use quick_xml::Reader;
+use quick_xml::writer::Writer;
+use std::collections::HashMap;
+use std::io::Cursor;
+use serde::{Deserialize, Serialize};
+use crate::fs::resources::error_messages;
 
-use crate::obj::resources::errors::*;
-use super::{Notation, NotationType};
-
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct XmlNotation;
 
-impl Notation for XmlNotation {
-    fn decode<T>(&self, input: &[u8]) -> Result<T>
-    where
-        T: From<NotationType>,
-    {
-        let s = str::from_utf8(input)
-            .with_context(|| ERROR_DECODE_FAILED)?;
-        let value = Self::parse_xml(s)?;
-        Ok(T::from(value))
-    }
-    
-    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
-    where
-        T: Into<NotationType>,
-    {
-        let value = value.into();
-        let s = Self::format_xml(&value)?;
-        Ok(s.into_bytes())
-    }
-    
-    fn encode_to_string<T>(&self, value: &T) -> Result<String>
-    where
-        T: Into<NotationType>,
-    {
-        let value = value.into();
-        Self::format_xml(&value)
+impl XmlNotation {
+    pub fn new() -> Self {
+        XmlNotation
     }
 }
 
-impl XmlNotation {
-    fn parse_xml(s: &str) -> Result<NotationType> {
-        // For now, we'll use quick-xml's deserialization as a base
-        // and convert to our NotationType
-        let value: quick_xml::de::Value = from_str(s)
-            .with_context(|| ERROR_DECODE_FAILED)?;
-        Self::xml_value_to_notation(&value)
+impl Default for XmlNotation {
+    fn default() -> Self {
+        Self::new()
     }
+}
+
+impl Notation for XmlNotation {
+    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
+    where
+        T: Into<NotationType> + Clone,
+    {
+        let notation_type: NotationType = value.clone().into();
+        let xml_str = notation_type_to_xml_string(&notation_type)?;
+        Ok(xml_str.into_bytes())
+    }
+
+    fn decode(&self, data: &[u8]) -> Result<NotationType> {
+        let xml_str = String::from_utf8(data.to_vec())?;
+        xml_string_to_notation_type(&xml_str)
+    }
+
+    fn encode_to_string<T>(&self, value: &T) -> Result<String>
+    where
+        T: Into<NotationType> + Clone,
+    {
+        let notation_type: NotationType = value.clone().into();
+        notation_type_to_xml_string(&notation_type)
+    }
+}
+
+fn notation_type_to_xml_string(notation_type: &NotationType) -> Result<String> {
+    match notation_type {
+        NotationType::Object(obj) => {
+            let mut xml = String::new();
+            xml.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            xml.push_str("<root>\n");
+            for (key, value) in obj {
+                xml.push_str(&format!("  <{}>{}</{}>\n", key, value, key));
+            }
+            xml.push_str("</root>");
+            Ok(xml)
+        }
+        _ => Err(anyhow!("XML root must be an object")),
+    }
+}
+
+fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
+    #[derive(Debug, serde::Deserialize)]
+    struct XmlElement {
+        #[serde(rename = "$value")]
+        value: String,
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct XmlRoot {
+        #[serde(rename = "$value")]
+        elements: Vec<XmlElement>,
+    }
+
+    let root: XmlRoot = from_str(xml_str)?;
+    let mut map = std::collections::HashMap::new();
     
-    fn xml_value_to_notation(value: &quick_xml::de::Value) -> Result<NotationType> {
-        match value {
-            quick_xml::de::Value::String(s) => Ok(NotationType::String(s.clone())),
-            quick_xml::de::Value::Number(n) => Ok(NotationType::Number(*n as f64)),
-            quick_xml::de::Value::Boolean(b) => Ok(NotationType::Boolean(*b)),
-            quick_xml::de::Value::Null => Ok(NotationType::Null),
-            quick_xml::de::Value::Array(arr) => {
-                let mut vec = Vec::new();
-                for item in arr {
-                    vec.push(Self::xml_value_to_notation(item)?);
+    for element in root.elements {
+        let value_str = element.value;
+        let value = if value_str == "true" {
+            NotationType::Boolean(true)
+        } else if value_str == "false" {
+            NotationType::Boolean(false)
+        } else if let Ok(i) = value_str.parse::<i64>() {
+            NotationType::Number(NumberVariant::Int(i))
+        } else if let Ok(f) = value_str.parse::<f64>() {
+            NotationType::Number(NumberVariant::Float(f))
+        } else if value_str == "null" {
+            NotationType::Null
+        } else {
+            NotationType::String(value_str.clone())
+        };
+        
+        map.insert(value_str, value);
+    }
+
+    Ok(NotationType::Object(map))
+}
+
+// Simplified XML Event to NotationType conversion
+fn xml_event_to_notation_type(reader: &mut quick_xml::Reader<&[u8]>) -> Result<NotationType> {
+    loop {
+        match reader.read_event()?.into_owned() {
+            Event::Start(_) => continue,
+            Event::End(_) => continue,
+            Event::Text(e) => {
+                let text = e.unescape()?.to_string();
+                if let Ok(i) = text.parse::<i64>() {
+                    return Ok(NotationType::Number(NumberVariant::Int(i)))
+                } else if let Ok(u) = text.parse::<u64>() {
+                    return Ok(NotationType::Number(NumberVariant::Uint(u)))
+                } else if let Ok(f) = text.parse::<f64>() {
+                    return Ok(NotationType::Number(NumberVariant::Float(f)))
+                } else {
+                    return Ok(NotationType::String(text))
                 }
-                Ok(NotationType::Array(vec))
             },
-            quick_xml::de::Value::Object(obj) => {
-                let mut vec = Vec::new();
-                for (k, v) in obj {
-                    vec.push((k.clone(), Self::xml_value_to_notation(v)?));
-                }
-                Ok(NotationType::Object(vec))
-            },
+            Event::Eof => break,
+            _ => continue,
         }
     }
-    
-    fn format_xml(value: &NotationType) -> Result<String> {
-        let xml_value = Self::notation_to_xml_value(value)?;
-        to_string(&xml_value)
-            .with_context(|| ERROR_ENCODE_FAILED)
-    }
-    
-    fn notation_to_xml_value(value: &NotationType) -> Result<quick_xml::de::Value> {
-        match value {
-            NotationType::String(s) => Ok(quick_xml::de::Value::String(s.clone())),
-            NotationType::Number(n) => Ok(quick_xml::de::Value::Number(*n as i64)),
-            NotationType::Boolean(b) => Ok(quick_xml::de::Value::Boolean(*b)),
-            NotationType::Null => Ok(quick_xml::de::Value::Null),
-            NotationType::Array(arr) => {
-                let mut vec = Vec::new();
-                for item in arr {
-                    vec.push(Self::notation_to_xml_value(item)?);
-                }
-                Ok(quick_xml::de::Value::Array(vec))
-            },
-            NotationType::Object(obj) => {
-                let mut map = std::collections::HashMap::new();
-                for (k, v) in obj {
-                    map.insert(k.clone(), Self::notation_to_xml_value(v)?);
-                }
-                Ok(quick_xml::de::Value::Object(map))
-            },
+    Err(anyhow!(error_messages::XML_PARSING_ERROR))
+}
+
+// Intermediate structure for simplified XML mapping
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+enum SimpleXml {
+    String(String),
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+    Array(Vec<SimpleXml>),
+    Object(HashMap<String, SimpleXml>),
+}
+
+// Conversion from this intermediate structure to NotationType
+fn simple_xml_to_notation_type(value: SimpleXml) -> NotationType {
+    match value {
+        SimpleXml::String(s) => NotationType::String(s),
+        SimpleXml::Integer(i) => NotationType::Number(NumberVariant::Int(i)),
+        SimpleXml::Float(f) => NotationType::Number(NumberVariant::Float(f)),
+        SimpleXml::Boolean(b) => NotationType::Boolean(b),
+        SimpleXml::Array(arr) => {
+            NotationType::Array(arr.into_iter().map(simple_xml_to_notation_type).collect())
+        }
+        SimpleXml::Object(obj) => {
+            NotationType::Object(obj.into_iter().map(|(k, v)| (k, simple_xml_to_notation_type(v))).collect())
         }
     }
 } 

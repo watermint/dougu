@@ -1,10 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use dougu_essentials::{
+    obj::notation::{Notation, json::JsonNotation},
+    obj::prelude::*
+};
 use dougu_foundation::{
     run::{LauncherContext, LauncherLayer},
     ui::{OutputFormat, UIManager}
 };
-use serde_json;
 
 use crate::build::{
     execute_compile, execute_pack, execute_package, execute_spec,
@@ -22,8 +25,9 @@ impl LauncherLayer for BuildActionLayer {
 
     async fn run(&self, ctx: &mut LauncherContext) -> Result<(), String> {
         if let Some(args_str) = ctx.get_data("build_args") {
-            // Parse the serialized args
-            let args: BuildArgs = serde_json::from_str(args_str)
+            // Parse the serialized args using JsonNotation
+            let json_notation = JsonNotation::new();
+            let args: BuildArgs = json_notation.decode(args_str.as_bytes())
                 .map_err(|e| format!("Failed to parse build args: {}", e))?;
                 
             // Only show UI messages for non-JSON output
@@ -48,7 +52,7 @@ impl LauncherLayer for BuildActionLayer {
                         .map_err(|e| format!("Build package failed: {}", e))?;
                     
                     if ctx.ui.format() != OutputFormat::JsonLines {
-                        ctx.ui.success("Packaging completed successfully");
+                        ctx.ui.success("Package completed successfully");
                     }
                 }
                 BuildCommands::Test(test_args) => {

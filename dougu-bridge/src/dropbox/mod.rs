@@ -1,14 +1,14 @@
 use anyhow::{anyhow, Result};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use dougu_essentials::obj::prelude::*;
 use std::time::Duration;
+use std::collections::HashMap;
 
 pub struct DropboxClient {
     _client: Client,
     _token: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub struct DropboxFile {
     pub path: String,
     pub name: String,
@@ -16,11 +16,31 @@ pub struct DropboxFile {
     pub modified: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl Into<NotationType> for DropboxFile {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        map.insert("path".to_string(), self.path.into());
+        map.insert("name".to_string(), self.name.into());
+        map.insert("size".to_string(), self.size.into());
+        map.insert("modified".to_string(), self.modified.into());
+        NotationType::Object(map)
+    }
+}
+
 pub struct DropboxListResult {
     pub files: Vec<DropboxFile>,
     pub cursor: Option<String>,
     pub has_more: bool,
+}
+
+impl Into<NotationType> for DropboxListResult {
+    fn into(self) -> NotationType {
+        let mut map = HashMap::new();
+        map.insert("files".to_string(), self.files.into());
+        map.insert("cursor".to_string(), self.cursor.map(|s| s.into()).unwrap_or(NotationType::Null));
+        map.insert("has_more".to_string(), self.has_more.into());
+        NotationType::Object(map)
+    }
 }
 
 impl DropboxClient {

@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Do not change Rust edition. Use Rust 2024 edition.
+Do not add comments that mean almost nothing (e.g. // Add XXX)
+
+`dougu-essentials` is responsible for aggregating external dependency crates. When adding external dependency crates in sub-crates other than `dougu-essentials`, please check them carefully.
+
+When implementing modules under `dougu-essentials`, please be careful not to expose external crate modules to other subcrates. Please create wrappers or alternative traits/structs to hide these external crates completely.

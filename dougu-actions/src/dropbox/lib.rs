@@ -1,9 +1,8 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use dougu_bridge::dropbox::DropboxClient;
-use dougu_essentials::log as log_util;
+use dougu_essentials::{log as log_util, obj::prelude::*};
 use dougu_foundation::ui::UIManager;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 // Now resources is handled in mod.rs
@@ -12,13 +11,21 @@ use std::path::PathBuf;
 // This is handled in mod.rs
 // pub use launcher::DropboxCommandLayer;
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct DropboxArgs {
     #[command(subcommand)]
     pub command: DropboxCommands,
 }
 
-#[derive(Debug, Subcommand, Serialize, Deserialize)]
+impl Into<NotationType> for DropboxArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("command".to_string(), self.command.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Subcommand)]
 pub enum DropboxCommands {
     /// File operations on Dropbox
     File(FileArgs),
@@ -27,13 +34,36 @@ pub enum DropboxCommands {
     Folder(FolderArgs),
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for DropboxCommands {
+    fn into(self) -> NotationType {
+        match self {
+            DropboxCommands::File(args) => NotationType::Object(vec![
+                ("type".to_string(), "file".into()),
+                ("args".to_string(), args.into()),
+            ]),
+            DropboxCommands::Folder(args) => NotationType::Object(vec![
+                ("type".to_string(), "folder".into()),
+                ("args".to_string(), args.into()),
+            ]),
+        }
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct FileArgs {
     #[command(subcommand)]
     pub command: FileCommands,
 }
 
-#[derive(Debug, Subcommand, Serialize, Deserialize)]
+impl Into<NotationType> for FileArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("command".to_string(), self.command.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Subcommand)]
 pub enum FileCommands {
     /// List files in a Dropbox folder
     List(ListArgs),
@@ -45,13 +75,40 @@ pub enum FileCommands {
     Upload(UploadArgs),
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for FileCommands {
+    fn into(self) -> NotationType {
+        match self {
+            FileCommands::List(args) => NotationType::Object(vec![
+                ("type".to_string(), "list".into()),
+                ("args".to_string(), args.into()),
+            ]),
+            FileCommands::Download(args) => NotationType::Object(vec![
+                ("type".to_string(), "download".into()),
+                ("args".to_string(), args.into()),
+            ]),
+            FileCommands::Upload(args) => NotationType::Object(vec![
+                ("type".to_string(), "upload".into()),
+                ("args".to_string(), args.into()),
+            ]),
+        }
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct FolderArgs {
     #[command(subcommand)]
     pub command: FolderCommands,
 }
 
-#[derive(Debug, Subcommand, Serialize, Deserialize)]
+impl Into<NotationType> for FolderArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("command".to_string(), self.command.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Subcommand)]
 pub enum FolderCommands {
     /// Create a folder on Dropbox
     Create(CreateFolderArgs),
@@ -60,7 +117,22 @@ pub enum FolderCommands {
     Delete(DeleteFolderArgs),
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for FolderCommands {
+    fn into(self) -> NotationType {
+        match self {
+            FolderCommands::Create(args) => NotationType::Object(vec![
+                ("type".to_string(), "create".into()),
+                ("args".to_string(), args.into()),
+            ]),
+            FolderCommands::Delete(args) => NotationType::Object(vec![
+                ("type".to_string(), "delete".into()),
+                ("args".to_string(), args.into()),
+            ]),
+        }
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct ListArgs {
     /// Path to list files from
     pub path: String,
@@ -70,7 +142,16 @@ pub struct ListArgs {
     pub recursive: bool,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for ListArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("path".to_string(), self.path.into()),
+            ("recursive".to_string(), self.recursive.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct DownloadArgs {
     /// Path to the file on Dropbox
     pub path: String,
@@ -80,7 +161,16 @@ pub struct DownloadArgs {
     pub output: Option<String>,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for DownloadArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("path".to_string(), self.path.into()),
+            ("output".to_string(), self.output.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct UploadArgs {
     /// Path to the local file
     pub local_path: String,
@@ -90,13 +180,30 @@ pub struct UploadArgs {
     pub dropbox_path: String,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for UploadArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("local_path".to_string(), self.local_path.into()),
+            ("dropbox_path".to_string(), self.dropbox_path.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct CreateFolderArgs {
     /// Path to create on Dropbox
     pub path: String,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+impl Into<NotationType> for CreateFolderArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("path".to_string(), self.path.into()),
+        ])
+    }
+}
+
+#[derive(Debug, Args)]
 pub struct DeleteFolderArgs {
     /// Path to delete on Dropbox
     pub path: String,
@@ -104,6 +211,15 @@ pub struct DeleteFolderArgs {
     /// Delete recursively
     #[arg(short, long)]
     pub recursive: bool,
+}
+
+impl Into<NotationType> for DeleteFolderArgs {
+    fn into(self) -> NotationType {
+        NotationType::Object(vec![
+            ("path".to_string(), self.path.into()),
+            ("recursive".to_string(), self.recursive.into()),
+        ])
+    }
 }
 
 // Execute functions that will be called from main.rs

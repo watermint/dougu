@@ -1,9 +1,14 @@
 use anyhow::{anyhow, Result};
+use crate::obj::prelude::*;
+use crate::obj::notation::{Notation, NotationType, JsonNotation};
+use crate::obj::notation::json::{notation_type_to_json_value};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::str;
+use serde_json;
 
 pub mod integration;
 pub mod locale;
@@ -77,23 +82,28 @@ impl I18n {
     }
 
     /// Load advanced translations with message containers from JSON file
-    pub fn load_advanced_file<P: AsRef<Path>>(&mut self, locale: &str, path: P) -> Result<()> {
-        let mut file = File::open(path)?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)?;
-        
-        let translations: AdvancedLocaleMap = serde_json::from_str(&content)?;
+    pub fn load_from_file<P: AsRef<Path>>(&mut self, locale: &str, file_path: P) -> Result<()> {
+        let content = std::fs::read(file_path.as_ref())?; // read bytes directly
+        let json_notation = JsonNotation;
+        let decoded_notation: NotationType = json_notation.decode(&content)?;
+        // Convert NotationType to AdvancedLocaleMap using the helper function
+        let json_value = notation_type_to_json_value(&decoded_notation)?;
+        let translations: AdvancedLocaleMap = serde_json::from_value(json_value)
+            .map_err(|e| anyhow!("Decoded notation is not a valid AdvancedLocaleMap: {}", e))?;
         self.advanced_locales.insert(locale.to_string(), translations);
-        
         Ok(())
     }
     
     /// Load advanced translations from string content
     /// This allows embedding translations in the binary
     pub fn load_content(&mut self, locale: &str, content: &str) -> Result<()> {
-        let translations: AdvancedLocaleMap = serde_json::from_str(content)?;
+        let json_notation = JsonNotation;
+        let decoded_notation: NotationType = json_notation.decode(content.as_bytes())?;
+        // Convert NotationType to AdvancedLocaleMap using the helper function
+        let json_value = notation_type_to_json_value(&decoded_notation)?;
+        let translations: AdvancedLocaleMap = serde_json::from_value(json_value)
+            .map_err(|e| anyhow!("Decoded notation is not a valid AdvancedLocaleMap: {}", e))?;
         self.advanced_locales.insert(locale.to_string(), translations);
-        
         Ok(())
     }
 
@@ -146,9 +156,63 @@ pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
+pub struct LocaleMap {
+    translations: HashMap<String, String>,
+}
+
+impl LocaleMap {
+    pub fn new() -> Self {
+        Self {
+            translations: HashMap::new(),
+        }
+    }
+
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        let json_notation = JsonNotation;
+        let notation: NotationType = json_notation.decode(content.as_bytes())?;
+        
+        let mut translations = HashMap::new();
+        if let NotationType::Object(obj) = notation {
+            for (key, value) in obj {
+                if let NotationType::String(s) = value {
+                    translations.insert(key, s);
+                }
+            }
+        }
+        
+        Ok(Self { translations })
+    }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.translations.get(key)
+    }
+
+    pub fn insert(&mut self, key: String, value: String) {
+        self.translations.insert(key, value);
+    }
+
+    pub fn to_string(&self) -> Result<String> {
+        let json_notation = JsonNotation;
+        json_notation.encode_to_string(&self.translations) // Encode the map directly
+    }
+}
+
+impl Into<NotationType> for LocaleMap {
+    fn into(self) -> NotationType {
+        NotationType::Object(
+            self.translations
+                .into_iter()
+                .map(|(k, v)| (k, NotationType::String(v)))
+                .collect(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn it_works() {
@@ -179,5 +243,26 @@ mod tests {
         vars.insert("name", "Alice");
         
         assert_eq!(msg.format(&vars), "Bonjour, Alice!");
+    }
+
+    #[test]
+    fn test_locale_map() -> Result<()> {
+        let mut map = LocaleMap::new();
+        
+        // Test inserting and getting translations
+        map.insert("hello".to_string(), "こんにちは".to_string());
+        assert_eq!(map.get("hello"), Some(&"こんにちは".to_string()));
+        
+        // Test serialization and deserialization
+        let temp_file = NamedTempFile::new()?;
+        let notation: NotationType = map.into();
+        let json_notation = JsonNotation;
+        let content = json_notation.encode_to_string(&notation)?;
+        std::fs::write(temp_file.path(), content)?;
+        
+        let loaded_map = LocaleMap::from_file(temp_file.path())?;
+        assert_eq!(loaded_map.get("hello"), Some(&"こんにちは".to_string()));
+        
+        Ok(())
     }
 } 

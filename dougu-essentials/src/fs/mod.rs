@@ -4,7 +4,9 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use log::{debug, info};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use crate::obj::notation::NotationType;
 
 pub mod resources;
 use resources::error_messages;
@@ -12,7 +14,6 @@ use resources::log_messages;
 pub mod providers;
 
 /// Represents file metadata across different file systems
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {
     pub name: String,
     pub path: String,
@@ -23,10 +24,9 @@ pub struct FileMetadata {
 }
 
 /// Represents a file system entry (file or directory)
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileSystemEntry {
     pub metadata: FileMetadata,
-    pub provider_info: Option<serde_json::Value>,
+    pub provider_info: Option<NotationType>,
 }
 
 /// Read options for controlling file operations
@@ -220,13 +220,76 @@ impl Default for FileSystem {
     }
 }
 
+pub struct FileInfo {
+    pub path: PathBuf,
+    pub size: u64,
+    pub modified: std::time::SystemTime,
+    pub provider_info: Option<NotationType>,
+}
+
+impl FileInfo {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        let metadata = std::fs::metadata(path)?;
+        
+        Ok(Self {
+            path: path.to_path_buf(),
+            size: metadata.len(),
+            modified: metadata.modified()?,
+            provider_info: None,
+        })
+    }
+}
+
+impl Into<NotationType> for FileInfo {
+    fn into(self) -> NotationType {
+        let mut obj = vec![
+            ("path".to_string(), self.path.to_string_lossy().to_string().into()),
+            ("size".to_string(), self.size.into()),
+            ("modified".to_string(), self.modified.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs().into()),
+        ];
+        
+        if let Some(info) = self.provider_info {
+            obj.push(("provider_info".to_string(), info));
+        }
+        
+        obj.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn it_initializes() {
         let fs = FileSystem::new();
         assert_eq!(fs.providers.len(), 0);
+    }
+
+    #[test]
+    fn test_file_info() -> Result<()> {
+        let temp_file = NamedTempFile::new()?;
+        let file_info = FileInfo::new(temp_file.path())?;
+        
+        // Test basic properties
+        assert_eq!(file_info.path, temp_file.path());
+        assert!(file_info.size >= 0);
+        assert!(file_info.modified > std::time::UNIX_EPOCH);
+        
+        // Test serialization
+        let notation: NotationType = file_info.into();
+        let obj = if let NotationType::Object(obj) = notation {
+            obj
+        } else {
+            panic!("Expected Object");
+        };
+        
+        assert!(obj.iter().any(|(k, v)| k == "path"));
+        assert!(obj.iter().any(|(k, v)| k == "size"));
+        assert!(obj.iter().any(|(k, v)| k == "modified"));
+        
+        Ok(())
     }
 } 

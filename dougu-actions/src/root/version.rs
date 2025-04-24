@@ -140,8 +140,8 @@ impl LauncherLayer for VersionActionLayer {
         
         // Execute the action with empty params
         let params = VersionParams {};
-        let params_str = serde_json::to_string(&params)
-            .map_err(|e| format!("Failed to serialize version params: {}", e))?;
+        let params_str = NotationType::Json.encode_to_string(&params)
+            .map_err(|e| format!("Failed to serialize params: {}", e))?;
         
         let result = runner.run(&params_str).await
             .map_err(|e| format!("Version action execution failed: {}", e))?;

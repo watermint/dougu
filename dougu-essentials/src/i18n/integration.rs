@@ -26,7 +26,7 @@ pub fn load_translations(locale: &str, path: &str) -> Result<(), String> {
     let mut lock = I18N.lock().map_err(|e| format!("Failed to lock i18n instance: {}", e))?;
     
     if let Some(i18n) = lock.as_mut() {
-        i18n.load_advanced_file(locale, path)
+        i18n.load_from_file(locale, path)
             .map_err(|e| format!("Failed to load translations: {}", e))?;
     } else {
         return Err("i18n not initialized".to_string());

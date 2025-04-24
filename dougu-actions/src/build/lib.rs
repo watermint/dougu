@@ -3,15 +3,13 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use dougu_essentials::{
     log as log_util,
     build::{get_build_info, BuildInfo},
-    obj::notation::{Notation, NotationType},
-    obj::notation::json::JsonNotation
+    obj::notation::{Notation, NotationType, json::JsonNotation},
+    obj::prelude::*
 };
 use dougu_foundation::{
     run::{Action, ActionError, SpecAction, SpecParams},
     ui::{UIManager, format_action_result, OutputFormat},
 };
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile;
@@ -29,13 +27,13 @@ use crate::build::resources::log_messages;
 
 pub use crate::build::launcher::BuildActionLayer;
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct BuildArgs {
     #[command(subcommand)]
     pub command: BuildCommands,
 }
 
-#[derive(Debug, Subcommand, Serialize, Deserialize)]
+#[derive(Debug, Subcommand)]
 pub enum BuildCommands {
     /// Package the application for distribution
     Package(PackageArgs),
@@ -53,7 +51,7 @@ pub enum BuildCommands {
     Spec(SpecCommandArgs),
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct PackageArgs {
     /// Output directory for packaged files
     #[arg(short, long)]
@@ -72,7 +70,7 @@ pub struct PackageArgs {
     pub build_id: Option<String>,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct TestArgs {
     /// Test filter pattern
     #[arg(short, long)]
@@ -91,7 +89,7 @@ pub struct TestArgs {
     pub integration: bool,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct CompileArgs {
     /// Target directory for compiled artifacts
     #[arg(short, long)]
@@ -102,7 +100,7 @@ pub struct CompileArgs {
     pub release: bool,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct PackArgs {
     /// Executable name for the archive
     #[arg(short, long)]
@@ -129,7 +127,7 @@ pub struct PackArgs {
     pub cargo_output: Option<String>,
 }
 
-#[derive(Debug, Args, Serialize, Deserialize)]
+#[derive(Debug, Args)]
 pub struct SpecCommandArgs {
     /// Name of the action to generate specification for
     pub action_name: Option<String>,
@@ -459,7 +457,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &UIManager) -> Result<String> {
         let mut found_in_cargo_output = false;
         // First pass: Look for the release 'dougu' binary
         for line in file_content.lines() {
-            if let Ok(value) = serde_json::from_str::<Value>(line) {
+            if let Ok(value) = NotationType::Json.decode::<NotationType>(line.as_bytes()) {
                 if value.get("reason").and_then(|v| v.as_str()) == Some("compiler-artifact") {
                     if let Some(target) = value.get("target") {
                         if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
@@ -490,7 +488,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &UIManager) -> Result<String> {
         // Second pass: If no release build found, look for the non-test 'dougu' binary
         if executable_path.is_none() {
             for line in file_content.lines() {
-                if let Ok(value) = serde_json::from_str::<Value>(line) {
+                if let Ok(value) = NotationType::Json.decode::<NotationType>(line.as_bytes()) {
                     if value.get("reason").and_then(|v| v.as_str()) == Some("compiler-artifact") {
                         if let Some(target) = value.get("target") {
                             if let Some(kind) = target.get("kind").and_then(|k| k.as_array()) {
