@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{LevelFilter, debug, error, info, warn};
+use log::{debug, error, info, warn, LevelFilter};
 use std::sync::Once;
 
 static INIT: Once = Once::new();

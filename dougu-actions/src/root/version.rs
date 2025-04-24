@@ -1,16 +1,12 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use dougu_essentials::build::get_build_info;
-use dougu_foundation_i18n::t;
-use dougu_foundation_run::{
-    Action, 
-    ActionError, 
-    ActionRunner,
-    LauncherContext, 
-    LauncherLayer
+use dougu_foundation::{
+    i18n::t,
+    run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer},
+    ui::UIManager
 };
-use dougu_foundation_ui::UIManager;
-use serde::{Serialize, Deserialize};
-use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 // Add the import for message resources

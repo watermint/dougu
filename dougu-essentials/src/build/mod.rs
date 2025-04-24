@@ -1,6 +1,6 @@
+use chrono::{Datelike, NaiveDate, Utc};
 // Build module provides utilities for managing build information and versioning
 use serde::{Deserialize, Serialize};
-use chrono::{Utc, Datelike, NaiveDate};
 
 // Minor version constants
 const MINOR_VERSION_GITHUB_MAIN: u32 = 8;

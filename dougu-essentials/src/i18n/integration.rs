@@ -1,8 +1,8 @@
+use crate::i18n::locale::{is_supported_language, Locale};
 use crate::i18n::I18n;
-use crate::i18n::locale::{Locale, is_supported_language};
-use std::sync::{Arc, Mutex};
 use once_cell::sync::Lazy;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 // Global i18n instance
 static I18N: Lazy<Arc<Mutex<Option<I18n>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));

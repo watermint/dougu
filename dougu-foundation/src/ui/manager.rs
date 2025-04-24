@@ -1,5 +1,5 @@
-use crate::ui::{UIFormatter, UITheme, OutputFormat};
 use crate::ui::formatters::{DefaultFormatter, JsonLinesFormatter, MarkdownFormatter};
+use crate::ui::{OutputFormat, UIFormatter, UITheme};
 use serde::Serialize;
 use std::fmt::Display;
 

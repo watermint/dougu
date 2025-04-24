@@ -8,6 +8,6 @@ pub mod resources;
 pub mod launcher;
 pub mod layer;
 
-pub use lib::ObjCommand;
 pub use launcher::ObjCommandLayer;
-pub use layer::CommandLayer; 
+pub use layer::CommandLayer;
+pub use lib::ObjCommand;

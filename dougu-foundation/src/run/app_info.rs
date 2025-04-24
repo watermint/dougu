@@ -1,7 +1,7 @@
-use crate::ui::{UIManager, OutputFormat};
-use dougu_essentials::build::get_build_info;
-use serde::{Serialize, Deserialize};
 use crate::run::resources::copyright::{COPYRIGHT_SINGLE_YEAR_FORMAT, COPYRIGHT_YEAR_RANGE_FORMAT, LICENSE_TEXT};
+use crate::ui::{OutputFormat, UIManager};
+use dougu_essentials::build::get_build_info;
+use serde::{Deserialize, Serialize};
 
 /// Application info for JSON serialization
 #[derive(Serialize, Deserialize)]

@@ -1,10 +1,9 @@
 use anyhow::{anyhow, Context, Result};
-use bson::{Document, from_document, to_document};
-use jaq_interpret::Val;
+use bson::{from_document, to_document, Document};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
-use std::io::Cursor;
 use serde_yaml;
+use std::io::Cursor;
 use toml;
 
 mod resources;
@@ -297,7 +296,7 @@ impl Converter {
 mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
-    
+
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct TestData {
         name: String,
@@ -397,7 +396,7 @@ mod tests {
 pub mod examples {
     use super::*;
     use serde::{Deserialize, Serialize};
-    
+
     #[derive(Debug, Serialize, Deserialize)]
     struct Person {
         name: String,

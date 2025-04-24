@@ -1,6 +1,6 @@
+use chrono::Utc;
 use std::env;
 use std::process::Command;
-use chrono::Utc;
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");

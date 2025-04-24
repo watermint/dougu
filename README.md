@@ -16,6 +16,35 @@ This project is organized as a Cargo workspace with multiple crates:
   - `dougu-command-file`: File operations
   - `dougu-command-dropbox`: Dropbox operations
 
+## Dependencies
+
+This project requires the following system dependencies:
+
+- `jq`: Used for JSON processing
+- `oniguruma`: Required by jq for regex support
+
+### Installing Dependencies
+
+#### macOS
+
+```bash
+brew install jq oniguruma
+```
+
+#### Ubuntu/Debian
+
+```bash
+apt-get install jq libonig-dev
+```
+
+If the build system cannot find the jq library, you may need to set the `JQ_LIB_DIR` environment variable:
+
+```bash
+export JQ_LIB_DIR="/path/to/jq/lib"
+```
+
+This project includes a `.cargo/config.toml` file that sets the environment variable for macOS Homebrew installations.
+
 ## Usage Examples
 
 ```

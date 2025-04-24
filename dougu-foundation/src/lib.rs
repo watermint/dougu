@@ -10,10 +10,13 @@ pub mod i18n;
 // Run module
 pub mod run;
 
+// Resources module
+pub mod resources;
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_module_structure() {
         // Test UI module

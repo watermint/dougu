@@ -1,13 +1,6 @@
 pub mod resources;
 
-use colored::Colorize;
-use log::{debug, trace, info};
-use prettytable::{Table, Row, Cell, format};
-use resources::ui_messages;
-use serde::Serialize;
-use std::fmt::Display;
 use std::str::FromStr;
-use textwrap::wrap;
 
 mod formatters;
 mod manager;
@@ -122,4 +115,16 @@ pub fn format_error(ui: &UIManager, message: &str, details: Option<&str>) -> Str
         result = format!("{}\n{}", result, ui.format_block(details));
     }
     result
+}
+
+/// Format an action result for display
+pub fn format_action_result(ui: &UIManager, result: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(result) {
+        Ok(value) => match ui.format() {
+            OutputFormat::JsonLines => ui.jsonl(&value).unwrap_or_else(|e| e),
+            OutputFormat::Markdown => ui.json(&value).unwrap_or_else(|e| e),
+            OutputFormat::Default => ui.json(&value).unwrap_or_else(|e| e),
+        },
+        Err(e) => format!("Failed to parse result: {}", e),
+    }
 } 

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::Action;
 use crate::error::{ActionError, ActionResult};
+use crate::Action;
 
 /// A registry for storing and retrieving actions
 #[derive(Default)]

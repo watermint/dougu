@@ -1,24 +1,20 @@
-// This module embeds translation resources into the binary
-// Each resource is included at compile time as a static string
-use dougu_essentials::i18n::Locale;
-
 /// Foundation English resources
-pub const FOUNDATION_EN: &str = include_str!("../../dougu-foundation-run/src/resources/i18n-en.json");
+pub const FOUNDATION_EN: &str = include_str!("../resources/i18n/en.json");
 
 /// Foundation Japanese resources
-pub const FOUNDATION_JA: &str = include_str!("../../dougu-foundation-run/src/resources/i18n-ja.json");
+pub const FOUNDATION_JA: &str = include_str!("../resources/i18n/ja.json");
 
 /// File Command English resources
-pub const FILE_COMMAND_EN: &str = include_str!("../../dougu-command-file/src/resources/i18n-en.json");
+pub const FILE_COMMAND_EN: &str = include_str!("../resources/i18n/file/en.json");
 
 /// File Command Japanese resources
-pub const FILE_COMMAND_JA: &str = include_str!("../../dougu-command-file/src/resources/i18n-ja.json");
+pub const FILE_COMMAND_JA: &str = include_str!("../resources/i18n/file/ja.json");
 
 /// Root Command English resources
-pub const ROOT_COMMAND_EN: &str = include_str!("../../dougu-command-root/src/resources/i18n-en.json");
+pub const ROOT_COMMAND_EN: &str = include_str!("../resources/i18n/root/en.json");
 
 /// Root Command Japanese resources
-pub const ROOT_COMMAND_JA: &str = include_str!("../../dougu-command-root/src/resources/i18n-ja.json");
+pub const ROOT_COMMAND_JA: &str = include_str!("../resources/i18n/root/ja.json");
 
 /// Get embedded resource content by module and locale
 pub fn get_resource(module: &str, locale: &str) -> Option<&'static str> {

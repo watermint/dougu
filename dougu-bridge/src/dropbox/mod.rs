@@ -1,11 +1,11 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 pub struct DropboxClient {
-    client: Client,
-    token: String,
+    _client: Client,
+    _token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ impl DropboxClient {
             .build()
             .expect("Failed to create HTTP client");
         
-        Self { client, token }
+        Self { _client: client, _token: token }
     }
     
     /// List files in a given Dropbox path
@@ -72,7 +72,7 @@ impl DropboxClient {
     }
     
     /// Upload a file to Dropbox
-    pub async fn upload_file(&self, path: &str, content: Vec<u8>) -> Result<DropboxFile> {
+    pub async fn upload_file(&self, path: &str, _content: Vec<u8>) -> Result<DropboxFile> {
         // Pseudo implementation
         dougu_essentials::log::log_info(format!("Uploading file to: {}", path));
         

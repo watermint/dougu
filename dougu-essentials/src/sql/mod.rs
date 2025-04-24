@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use rusqlite::{Connection, TransactionBehavior};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
+use std::sync::Mutex;
 use tokio::task;
-use std::sync::{Arc, Mutex};
 
 mod resources;
 use resources::Messages;
@@ -224,9 +224,9 @@ impl SqlProvider for SqliteProvider {
         T: Send + 'static,
     {
         if let Some(conn_mutex) = &self.memory_conn {
-            let conn = conn_mutex.lock().unwrap();
+            let mut conn = conn_mutex.lock().unwrap();
             let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)
-                .map_err(|e| anyhow!(format!("{}: {}", Messages::TRANSACTION_BEGIN_ERROR, e)))?;
+                .map_err(|e| anyhow!("Failed to start transaction: {}", e))?;
             
             match f(self) {
                 Ok(result) => {
@@ -274,7 +274,7 @@ impl SqlProvider for SqliteProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_sqlite_provider_basic() {
         let provider = SqliteProvider::memory().unwrap();

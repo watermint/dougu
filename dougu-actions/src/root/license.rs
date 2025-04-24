@@ -1,12 +1,11 @@
-use async_trait::async_trait;
-use dougu_foundation_run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer};
-use dougu_foundation_ui::UIManager;
-use serde::{Serialize, Deserialize};
 use anyhow::Result;
+use async_trait::async_trait;
+use dougu_foundation::{
+    run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer},
+    ui::UIManager
+};
+use serde::{Deserialize, Serialize};
 use serde_json;
-
-// Import messages
-use crate::root::resources::messages::*;
 
 // License action
 pub struct LicenseAction;

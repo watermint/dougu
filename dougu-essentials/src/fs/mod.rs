@@ -1,9 +1,9 @@
 // File system operations module
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use log::{debug, info};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 pub mod resources;
@@ -223,7 +223,7 @@ impl Default for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn it_initializes() {
         let fs = FileSystem::new();

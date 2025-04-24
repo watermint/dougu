@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::error::ActionResult;
+use async_trait::async_trait;
 use std::marker::PhantomData;
 
 /// Trait for executing actions with parameters

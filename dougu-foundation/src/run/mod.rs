@@ -2,21 +2,20 @@ pub mod resources;
 pub mod i18n_adapter;
 pub mod app_info;
 
+use crate::i18n::{t, tf, ErrorWithDetails, I18nContext, I18nInitializer, Locale, LocaleError};
+use crate::ui::{OutputFormat, UIManager};
+use async_trait::async_trait;
+use log::{debug, error, info};
 use resources::error_messages;
 use resources::log_messages;
 use resources::spec_messages;
-use log::{debug, info, error};
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::ui::{UIManager, OutputFormat};
+use std::collections::HashMap;
 use std::str::FromStr;
-use crate::i18n::{Locale, t};
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
-// Re-export locale from i18n module
-pub use crate::i18n::{Locale, LocaleError};
 
 /// Field specification for Action parameters and results
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -400,6 +399,7 @@ impl<A: Action> ActionRunner<A> {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecParams {
     /// Name of the action to generate spec for
     pub action_name: Option<String>,
@@ -407,6 +407,7 @@ pub struct SpecParams {
     pub format: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecResults {
     pub action_name: String,
     pub spec: ActionSpec,
@@ -620,6 +621,7 @@ impl SpecAction {
     }
 }
 
+#[async_trait]
 impl Action for SpecAction {
     type Params = SpecParams;
     type Results = SpecResults;
@@ -707,7 +709,7 @@ impl Action for SpecAction {
     
     fn generate_spec(&self) -> ActionSpec {
         ActionSpec {
-            name: self.name().to_string(),
+            name: Action::name(self).to_string(),
             description: Some(spec_messages::SPEC_DESCRIPTION.to_string()),
             behavior: spec_messages::SPEC_BEHAVIOR.to_string(),
             options: Vec::new(),
@@ -771,4 +773,16 @@ pub fn abort_if_resource_missing(resource: Option<&str>) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+/// Specification for a commandlet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandletSpec {
+    pub name: String,
+    pub description: Option<String>,
+    pub behavior: String,
+    pub options: Vec<SpecField>,
+    pub parameters: Vec<SpecField>,
+    pub result_types: Vec<SpecField>,
+    pub errors: Vec<SpecError>,
 } 

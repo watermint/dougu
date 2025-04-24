@@ -1,9 +1,9 @@
 // Archive operations module
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use log::{debug, info};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub mod resources;
@@ -265,7 +265,7 @@ impl Default for Archive {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn it_initializes() {
         let archive = Archive::new();

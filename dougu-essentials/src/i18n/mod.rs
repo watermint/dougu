@@ -1,9 +1,9 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 
 pub mod integration;
 pub mod locale;

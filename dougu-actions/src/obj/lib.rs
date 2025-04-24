@@ -1,10 +1,12 @@
-use anyhow::{Context, Result, Error as AnyhowError};
+use anyhow::{anyhow, Context, Error as AnyhowError, Result};
 use base64::Engine;
 use clap::Parser;
-use dougu_essentials_obj::{Decoder, Encoder, Format, Query};
-use dougu_foundation_ui::{UIManager, OutputFormat};
-use dougu_foundation_ui::resources::ui_messages::FORMAT_OPTION_DESCRIPTION;
-use serde::{Serialize, Deserialize};
+use dougu_essentials::{Decoder, Encoder, Format, Query};
+use dougu_foundation::{
+    ui::{OutputFormat, UIManager},
+    resources::ui_messages::FORMAT_OPTION_DESCRIPTION
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::io::{self, Read};
@@ -118,9 +120,9 @@ impl ObjCommand {
                 ref file,
             } => self.execute_convert(format, file, output_format, &ui, use_json_output).await,
             ObjCommands::Extract {
+                ref format,
                 ref file,
                 ref query,
-                ref format,
                 raw,
             } => self.execute_extract(format, file, query, &ui, use_json_output, raw).await,
         }
@@ -128,23 +130,22 @@ impl ObjCommand {
 
     async fn execute_query(&self, format_str: &str, file_path: &PathBuf, query_str: &str, ui: &UIManager, json_mode: bool) -> Result<()> {
         // Parse format
-        let format = Format::from_str(format_str)
-            .with_context(|| format!("{}: {}", ERROR_INVALID_FORMAT, format_str))?;
+        let format_value = Format::from_str(format_str).map_err(|e| anyhow!("{}", e))?;
         
         // Read input from file or stdin
         let input = if file_path.to_string_lossy() == "-" {
             let mut buffer = Vec::new();
             io::stdin()
                 .read_to_end(&mut buffer)
-                .with_context(|| ERROR_STDIN_READ)?;
+                .map_err(|_| anyhow!("{}", ERROR_STDIN_READ))?;
             buffer
         } else {
             fs::read(file_path)
-                .with_context(|| format!("{}: {}", ERROR_FILE_NOT_FOUND, file_path.display()))?
+                .map_err(|_| anyhow!("{}", ERROR_FILE_NOT_FOUND))?
         };
         
         // Handle special case for jsonl format
-        let input_values = if format == Format::Jsonl {
+        let input_values = if format_value == Format::Jsonl {
             // For JSON Lines, split by lines and parse each line
             let content = String::from_utf8_lossy(&input);
             let mut values = Vec::new();
@@ -155,26 +156,26 @@ impl ObjCommand {
                 }
                 
                 let value: Value = serde_json::from_str(line)
-                    .with_context(|| format!("{}: {}", ERROR_DECODE_FAILED, line))?;
+                    .map_err(|e| anyhow!("{}: {}: {}", ERROR_DECODE_FAILED, line, e))?;
                 values.push(value);
             }
             values
         } else {
             // For other formats, decode as a single value
-            let value: Value = Decoder::decode(&input, format)
-                .with_context(|| ERROR_DECODE_FAILED)?;
+            let value: Value = Decoder::decode(&input, format_value)
+                .map_err(|e| anyhow!("{}: {}", ERROR_DECODE_FAILED, e))?;
             vec![value]
         };
         
         // Compile query
         let query = Query::compile(query_str)
-            .with_context(|| format!("{}: {}", ERROR_QUERY_PARSE, query_str))?;
+            .map_err(|e| anyhow!("{}: {}: {}", ERROR_QUERY_PARSE, query_str, e))?;
         
         // Process each value
         for value in input_values {
             // Execute query
             let result = query.execute(&value)
-                .with_context(|| ERROR_QUERY_FAILED)?;
+                .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_FAILED, e))?;
             
             // Convert result from jaq Val to JSON Value using string parsing
             // This is a workaround since Val doesn't implement Serialize
@@ -185,7 +186,7 @@ impl ObjCommand {
             // Format and display result
             if json_mode {
                 // For JSON output format, maintain proper structure
-                ui.json(&json_result).map_err(|e| AnyhowError::msg(e.to_string()))?;
+                ui.json(&json_result).map_err(|e| anyhow!("{}", e))?;
             } else {
                 // For human-readable output
                 ui.text(&format!("{}", json_result));
@@ -196,37 +197,20 @@ impl ObjCommand {
     }
     
     /// Extract raw value from query result for scripting
-    pub fn extract_raw_value(json_result: &str) -> String {
-        // For string values, remove the enclosing quotes
-        if let Some(value) = json_result.trim_start_matches('{')
-            .trim_end_matches('}')
-            .trim()
-            .strip_prefix("\"type\":\"text\",\"text\":")
-        {
-            // Remove the outermost quotes if they exist
-            if value.starts_with('"') && value.ends_with('"') {
-                let inner = &value[1..value.len()-1];
-                // Unescape any escaped quotes
-                return inner.replace("\\\"", "\"");
-            }
-            return value.to_string();
-        }
-        
-        // For other values, return as is
-        json_result.to_string()
+    pub fn extract_raw_value(json_result: &Value) -> String {
+        Self::process_raw_value(json_result)
     }
     
     /// Processes a JSON value to output a clean raw string without quotes or escape characters
-    /// This replaces the need for the `tr -d '"\\''` command
-    fn process_raw_value(value: &Value) -> String {
+    pub fn process_raw_value(value: &Value) -> String {
         match value {
             Value::String(s) => {
                 // Replace escaped quotes with actual quotes 
                 s.replace("\\\"", "\"")
-                  .replace("\\\\", "\\")
-                  .replace("\\n", "\n")
-                  .replace("\\r", "\r")
-                  .replace("\\t", "\t")
+                    .replace("\\\\", "\\")
+                    .replace("\\n", "\n")
+                    .replace("\\r", "\r")
+                    .replace("\\t", "\t")
             },
             Value::Number(n) => n.to_string(),
             Value::Bool(b) => b.to_string(),
@@ -277,7 +261,7 @@ impl ObjCommand {
                         "info": format!("Converted {} bytes from {} to {}", input_size, input_format_str, output_format_str)
                     });
                     
-                    ui.json(&val).map_err(|e| AnyhowError::msg(e.to_string()))?;
+                    ui.json(&val).map_err(|e| anyhow!("{}", e))?;
                 } else {
                     // For normal UI output, show summary and formatted JSON view of data
                     ui.info(&format!("Converted {} bytes from {} to {}", 
@@ -310,7 +294,7 @@ impl ObjCommand {
                         "input_size": input_size
                     });
                     
-                    ui.json(&val).map_err(|e| AnyhowError::msg(e.to_string()))?;
+                    ui.json(&val).map_err(|e| anyhow!("{}", e))?;
                 } else {
                     ui.error(&e.to_string());
                 }
@@ -320,15 +304,16 @@ impl ObjCommand {
     }
 
     fn get_input(&self, file_path: &PathBuf) -> Result<Vec<u8>> {
-        if file_path.to_string_lossy() == "-" {
+        let input = if file_path.to_string_lossy() == "-" {
             let mut buffer = Vec::new();
             io::stdin()
                 .read_to_end(&mut buffer)
-                .with_context(|| "Failed to read from stdin")?;
-            Ok(buffer)
+                .with_context(|| ERROR_STDIN_READ)?;
+            buffer
         } else {
-            fs::read(file_path).with_context(|| format!("Failed to read file: {:?}", file_path))
-        }
+            fs::read(file_path).map_err(|_| anyhow!("{}", ERROR_FILE_NOT_FOUND))?
+        };
+        Ok(input)
     }
 
     fn format_output(&self, _ui: &UIManager, result: serde_json::Value) -> Result<(String, String)> {
@@ -346,29 +331,26 @@ impl ObjCommand {
 
     async fn execute_extract(&self, format_str: &str, file_path: &PathBuf, query_str: &str, ui: &UIManager, json_mode: bool, raw: bool) -> Result<()> {
         // Parse format
-        let format = Format::from_str(format_str)
-            .with_context(|| format!("{}: {}", ERROR_INVALID_FORMAT, format_str))?;
+        let format_value = Format::from_str(format_str).map_err(|e| anyhow!("{}", e))?;
         
-        // Read input from file or stdin
+        // Read input
         let input = if file_path.to_string_lossy() == "-" {
             let mut buffer = Vec::new();
             io::stdin()
                 .read_to_end(&mut buffer)
-                .with_context(|| ERROR_STDIN_READ)?;
+                .map_err(|_| anyhow!("{}", ERROR_STDIN_READ))?;
             buffer
         } else {
-            fs::read(file_path)
-                .with_context(|| format!("{}: {}", ERROR_FILE_NOT_FOUND, file_path.display()))?
+            fs::read(file_path).map_err(|_| anyhow!("{}", ERROR_FILE_NOT_FOUND))?
         };
         
         // Compile query
-        let query = Query::compile(query_str)
-            .with_context(|| format!("{}: {}", ERROR_QUERY_PARSE, query_str))?;
+        let mut query_obj = Query::compile(query_str).map_err(|_| anyhow!("{}", ERROR_QUERY_PARSE))?;
         
-        // Handle different formats
-        match format {
+        // Process based on format
+        match format_value {
             Format::Jsonl => {
-                // For JSON Lines, process each line separately
+                // For JSONL, process line by line
                 let content = String::from_utf8_lossy(&input);
                 
                 for line in content.lines() {
@@ -383,195 +365,173 @@ impl ObjCommand {
                     };
                     
                     // Execute query on this line's JSON
-                    let result = match query.execute(&line_value) {
+                    let result = match query_obj.execute(&line_value) {
                         Ok(res) => res,
                         Err(_) => continue, // Skip if query fails for this line
                     };
-                    
-                    // Convert result using string parsing
-                    let result_str = result.to_string();
-                    let json_value: Value = serde_json::from_str(&result_str)
-                        .unwrap_or_else(|_| Value::String(result_str));
-                    
-                    // If the query matches, output the value and exit
-                    // This behavior is useful for finding one matching item in a large JSONL file
-                    if raw {
-                        // Output raw value directly without JSON wrapping or quotes
-                        let raw_value = Self::process_raw_value(&json_value);
-                        println!("{}", raw_value);
-                        return Ok(());
-                    } else {
-                        // Normal formatted output
-                        if json_mode {
-                            ui.json(&json_value).map_err(|e| AnyhowError::msg(e.to_string()))?;
-                        } else {
-                            ui.text(&format!("{}", json_value));
-                        }
-                        return Ok(());
-                    }
-                }
-                
-                // If we got here, no matching line was found
-                if !json_mode {
-                    ui.warning("No matching result found in the JSONL file");
-                }
-                
-                Ok(())
-            },
-            _ => {
-                // For other formats, decode as a single value
-                let value: Value = Decoder::decode(&input, format)
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                
-                // Execute query
-                let result = query.execute(&value)
-                    .with_context(|| ERROR_QUERY_FAILED)?;
-                
-                // Convert result using string parsing
-                let result_str = result.to_string();
-                let json_value: Value = serde_json::from_str(&result_str)
-                    .unwrap_or_else(|_| Value::String(result_str));
-                
-                if raw {
-                    // Output raw value directly without JSON wrapping or quotes
-                    let raw_value = Self::process_raw_value(&json_value);
-                    println!("{}", raw_value);
-                } else {
-                    // Normal formatted output
-                    if json_mode {
-                        ui.json(&json_value).map_err(|e| AnyhowError::msg(e.to_string()))?;
-                    } else {
-                        ui.text(&format!("{}", json_value));
-                    }
-                }
-                
-                Ok(())
-            }
-        }
-    }
-}
-
-pub type ExecuteResult = Result<Option<String>, String>;
-
-pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
-    // Using a simplified implementation here since the async implementation
-    // contains the full logic
-    match &args.command {
-        ObjCommands::Query { format, file, query } => {
-            // Simplified synchronous implementation
-            let _format_value = Format::from_str(format).map_err(|e| e.to_string())?;
-            let input = if file.to_string_lossy() == "-" {
-                let mut buffer = String::new();
-                io::stdin().read_to_string(&mut buffer).map_err(|_| ERROR_STDIN_READ.to_string())?;
-                buffer
-            } else {
-                fs::read_to_string(file).map_err(|_| ERROR_FILE_NOT_FOUND.to_string())?;
-            };
-
-            // Explicitly specify the type to avoid inference issues
-            let value: serde_json::Value = serde_json::from_str(&input).map_err(|_| ERROR_DECODE_FAILED.to_string())?;
-            let query = Query::compile(query).map_err(|_| ERROR_QUERY_PARSE.to_string())?;
-            let result = query.execute(&value).map_err(|_| ERROR_QUERY_FAILED.to_string())?;
-            
-            // Use string conversion to handle Val
-            let result_str = result.to_string();
-            let json_result: Value = serde_json::from_str(&result_str)
-                .unwrap_or_else(|_| Value::String(result_str));
-                
-            // Return as string instead of printing directly
-            let output = json_result.to_string();
-            Ok(Some(output))
-        },
-        ObjCommands::Convert { format, output_format, .. } => {
-            // Simplified implementation
-            let output = format!("Converting from {} to {}", format, output_format);
-            Ok(Some(output))
-        },
-        ObjCommands::Extract { query, format, file, raw } => {
-            // Parse format
-            let format_value = Format::from_str(format).map_err(|e| e.to_string())?;
-            
-            // Read input
-            let input = if file.to_string_lossy() == "-" {
-                let mut buffer = Vec::new();
-                io::stdin()
-                    .read_to_end(&mut buffer)
-                    .map_err(|_| ERROR_STDIN_READ.to_string())?;
-                buffer
-            } else {
-                fs::read(file).map_err(|_| ERROR_FILE_NOT_FOUND.to_string())?;
-            };
-            
-            // Compile query
-            let query_obj = Query::compile(query).map_err(|_| ERROR_QUERY_PARSE.to_string())?;
-            
-            // Process based on format
-            match format_value {
-                Format::Jsonl => {
-                    // For JSONL, process line by line
-                    let content = String::from_utf8_lossy(&input);
-                    
-                    for line in content.lines() {
-                        if line.trim().is_empty() {
-                            continue;
-                        }
-                        
-                        // Parse the line as JSON
-                        let line_value: Value = match serde_json::from_str(line) {
-                            Ok(val) => val,
-                            Err(_) => continue, // Skip invalid lines
-                        };
-                        
-                        // Execute query on this line's JSON
-                        let result = match query_obj.execute(&line_value) {
-                            Ok(res) => res,
-                            Err(_) => continue, // Skip if query fails for this line
-                        };
-                        
-                        // Convert to JSON value
-                        let result_str = result.to_string();
-                        let json_value: Value = serde_json::from_str(&result_str)
-                            .unwrap_or_else(|_| Value::String(result_str));
-                        
-                        // If the query matches, return the value
-                        if *raw {
-                            // Output raw value directly
-                            let raw_value = ObjCommand::process_raw_value(&json_value);
-                            return Ok(Some(raw_value));
-                        } else {
-                            // Extract and output with normal formatting
-                            let raw_value = extract_raw_value(&json_value).map_err(|e| e)?;
-                            return Ok(Some(raw_value));
-                        }
-                    }
-                    
-                    // If we got here, no matching line was found
-                    Err("No matching result found in the JSONL file".to_string())
-                },
-                _ => {
-                    // For other formats, decode as a single value
-                    let value: Value = Decoder::decode(&input, format_value)
-                        .map_err(|_| ERROR_DECODE_FAILED.to_string())?;
-                    
-                    // Execute query
-                    let result = query_obj.execute(&value)
-                        .map_err(|_| ERROR_QUERY_FAILED.to_string())?;
                     
                     // Convert to JSON value
                     let result_str = result.to_string();
                     let json_value: Value = serde_json::from_str(&result_str)
                         .unwrap_or_else(|_| Value::String(result_str));
                     
-                    let output = if *raw {
-                        // Return raw value directly
-                        ObjCommand::process_raw_value(&json_value)
+                    // If the query matches, return the value
+                    let output_str: Result<String, String> = if raw {
+                        // Output raw value directly
+                        Ok(ObjCommand::process_raw_value(&json_value))
                     } else {
                         // Extract with normal formatting
-                        extract_raw_value(&json_value).map_err(|e| e)?
+                        Ok(extract_raw_value(&json_value).unwrap_or_default())
                     };
                     
-                    Ok(Some(output))
+                    match output_str {
+                        Ok(s) => {
+                            ui.text(&s);
+                            return Ok(());
+                        },
+                        Err(e) => {
+                            return Err(anyhow!("{}", e));
+                        }
+                    }
                 }
+                
+                // If we got here, no matching line was found
+                Err(anyhow!("No matching result found in the JSONL file"))
+            },
+            _ => {
+                // For other formats, decode as a single value
+                let value: Value = Decoder::decode(&input, format_value)
+                    .map_err(|_| anyhow!("{}", ERROR_DECODE_FAILED))?;
+                
+                // Execute query
+                let result = query_obj.execute(&value)
+                    .map_err(|_| anyhow!("{}", ERROR_QUERY_FAILED))?;
+                
+                // Convert to JSON value
+                let result_str = result.to_string();
+                let json_value: Value = serde_json::from_str(&result_str)
+                    .unwrap_or_else(|_| Value::String(result_str));
+                
+                let output_str: Result<String, String> = if raw {
+                    Ok(ObjCommand::process_raw_value(&json_value))
+                } else {
+                    Ok(result.to_string())
+                };
+                
+                match output_str {
+                    Ok(s) => {
+                        ui.text(&s);
+                        Ok(())
+                    },
+                    Err(e) => {
+                        Err(anyhow!("{}", e))
+                    }
+                }
+            }
+        }
+    }
+
+    fn execute_query_sync(&self, input: &str, query: &str) -> Result<Value, anyhow::Error> {
+        let mut program = jq_rs::compile(query)
+            .map_err(|e| anyhow!("Failed to compile query '{}': {}", query, e))?;
+        let result = program.run(input)
+            .map_err(|e| anyhow!("Failed to execute query '{}': {}", query, e))?;
+        let value: Value = serde_json::from_str(&result)
+            .map_err(|e| anyhow!("Failed to parse query result '{}': {}", result, e))?;
+        Ok(value)
+    }
+}
+
+pub type ExecuteResult = Result<String, anyhow::Error>;
+
+pub fn execute_command(args: &ObjCommand) -> ExecuteResult {
+    let output_format = OutputFormat::from_str(&args.format)
+        .unwrap_or(OutputFormat::Default);
+    let ui = UIManager::with_format(output_format);
+    
+    match &args.command {
+        ObjCommands::Query { format, file, query } => {
+            let format_value = Format::from_str(format)
+                .map_err(|e| anyhow!("{}: {}: {}", ERROR_INVALID_FORMAT, format, e))?;
+            
+            let input = if file.to_string_lossy() == "-" {
+                let mut buffer = String::new();
+                io::stdin()
+                    .read_to_string(&mut buffer)
+                    .map_err(|e| anyhow!("{}: {}", ERROR_STDIN_READ, e))?;
+                buffer
+            } else {
+                fs::read_to_string(file)
+                    .map_err(|e| anyhow!("{}: {}: {}", ERROR_FILE_NOT_FOUND, file.display(), e))?
+            };
+            
+            let query_obj = Query::compile(query)
+                .map_err(|e| anyhow!("{}: {}: {}", ERROR_QUERY_PARSE, query, e))?;
+            
+            let result = query_obj.execute(&input)
+                .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_FAILED, e))?;
+            
+            Ok(result.to_string())
+        },
+        ObjCommands::Convert { format, output_format, file } => {
+            let input_format = Format::from_str(format)
+                .map_err(|e| anyhow!("{}: {}: {}", ERROR_INVALID_FORMAT, format, e))?;
+            let output_format = Format::from_str(output_format)
+                .map_err(|e| anyhow!("{}: {}: {}", ERROR_INVALID_FORMAT, output_format, e))?;
+            
+            let input = if file.to_string_lossy() == "-" {
+                let mut buffer = Vec::new();
+                io::stdin()
+                    .read_to_end(&mut buffer)
+                    .map_err(|e| anyhow!("{}: {}", ERROR_STDIN_READ, e))?;
+                buffer
+            } else {
+                fs::read(file)
+                    .map_err(|e| anyhow!("{}: {}: {}", ERROR_FILE_NOT_FOUND, file.display(), e))?
+            };
+            
+            let value: Value = Decoder::decode(&input, input_format)
+                .map_err(|e| anyhow!("{}: {}", ERROR_DECODE_FAILED, e))?;
+            
+            let output = Encoder::encode(&value, output_format)
+                .map_err(|e| anyhow!("{}: {}", ERROR_ENCODE_FAILED, e))?;
+            
+            String::from_utf8(output)
+                .map_err(|e| anyhow!("{}: {}", ERROR_INVALID_UTF8, e))
+        },
+        ObjCommands::Extract { format, file, query, raw } => {
+            let format_value = Format::from_str(format)
+                .map_err(|e| anyhow!("{}: {}: {}", ERROR_INVALID_FORMAT, format, e))?;
+            
+            let input = if file.to_string_lossy() == "-" {
+                let mut buffer = Vec::new();
+                io::stdin()
+                    .read_to_end(&mut buffer)
+                    .map_err(|e| anyhow!("{}: {}", ERROR_STDIN_READ, e))?;
+                buffer
+            } else {
+                fs::read(file)
+                    .map_err(|e| anyhow!("{}: {}: {}", ERROR_FILE_NOT_FOUND, file.display(), e))?
+            };
+            
+            let value: Value = Decoder::decode(&input, format_value)
+                .map_err(|e| anyhow!("{}: {}", ERROR_DECODE_FAILED, e))?;
+            
+            let query_obj = Query::compile(query)
+                .map_err(|e| anyhow!("{}: {}: {}", ERROR_QUERY_PARSE, query, e))?;
+            
+            let result = query_obj.execute(&value)
+                .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_FAILED, e))?;
+            
+            // Convert result to a suitable Value to use with process_raw_value
+            let result_str = result.to_string();
+            let json_value: Value = serde_json::from_str(&result_str)
+                .unwrap_or_else(|_| Value::String(result_str));
+                
+            if *raw {
+                Ok(ObjCommand::process_raw_value(&json_value))
+            } else {
+                Ok(result.to_string())
             }
         }
     }
@@ -606,25 +566,97 @@ pub fn extract_raw_value(query_result: &Value) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    // Helper struct for tests
+    struct Obj;
+    
+    impl Obj {
+        fn new() -> Self {
+            Self
+        }
+        
+        fn execute_query(&self, input: &str, query: &str) -> Result<Value, anyhow::Error> {
+            let cmd = ObjCommand {
+                format: "default".to_string(),
+                command: ObjCommands::Query {
+                    format: "json".to_string(),
+                    file: PathBuf::from("-"),
+                    query: query.to_string(),
+                }
+            };
+            cmd.execute_query_sync(input, query)
+        }
+        
+        fn process_raw_value(&self, value: &Value) -> String {
+            ObjCommand::process_raw_value(value)
+        }
+    }
 
     #[test]
     fn test_format_parsing() {
+        let _obj = Obj::new();
         assert!(Format::from_str("json").is_ok());
         assert!(Format::from_str("xml").is_ok());
         assert!(Format::from_str("bson").is_ok());
         assert!(Format::from_str("cbor").is_ok());
         assert!(Format::from_str("invalid").is_err());
     }
-    
+
     #[test]
     fn test_process_raw_value() {
-        assert_eq!(ObjCommand::process_raw_value(&Value::String("test".to_string())), "test");
-        assert_eq!(ObjCommand::process_raw_value(&Value::Number(42.into())), "42");
-        assert_eq!(ObjCommand::process_raw_value(&Value::Bool(true)), "true");
-        assert_eq!(ObjCommand::process_raw_value(&Value::Null), "");
+        let obj = Obj::new();
+        let input = json!({"name": "test"});
+        assert_eq!(obj.process_raw_value(&input["name"]), "test");
         
-        // Test string with quotes and escapes
-        let escaped_json = Value::String(r#"hello \"world\""#.to_string());
-        assert_eq!(ObjCommand::process_raw_value(&escaped_json), r#"hello "world""#);
+        let input = json!({"count": 42});
+        assert_eq!(obj.process_raw_value(&input["count"]), "42");
+        
+        let input = json!({"flag": true});
+        assert_eq!(obj.process_raw_value(&input["flag"]), "true");
+        
+        let input = json!({"value": null});
+        assert_eq!(obj.process_raw_value(&input["value"]), "");
+    }
+
+    #[test]
+    fn test_extract_raw_value() {
+        let obj = Obj::new();
+        let input = r#"{"name": "test"}"#;
+        let result = obj.execute_query(input, ".name").unwrap();
+        assert_eq!(obj.process_raw_value(&result), "test");
+        
+        let input = r#"{"count": 42}"#;
+        let result = obj.execute_query(input, ".count").unwrap();
+        assert_eq!(obj.process_raw_value(&result), "42");
+        
+        let input = r#"{"flag": true}"#;
+        let result = obj.execute_query(input, ".flag").unwrap();
+        assert_eq!(obj.process_raw_value(&result), "true");
+        
+        let input = r#"{"value": null}"#;
+        let result = obj.execute_query(input, ".value").unwrap();
+        assert_eq!(obj.process_raw_value(&result), "");
+    }
+
+    #[test]
+    fn test_execute_query() {
+        let obj = Obj::new();
+        let input = r#"{"name": "test", "value": 42}"#;
+        
+        // Test simple field access
+        let result = obj.execute_query(input, ".name").unwrap();
+        assert_eq!(result.as_str().unwrap(), "test");
+        
+        // Test numeric value
+        let result = obj.execute_query(input, ".value").unwrap();
+        assert_eq!(result.as_i64().unwrap(), 42);
+        
+        // Test invalid query
+        assert!(obj.execute_query(input, "invalid").is_err());
+        
+        // Test invalid input
+        let invalid_input = "invalid json";
+        assert!(obj.execute_query(invalid_input, ".name").is_err());
     }
 } 

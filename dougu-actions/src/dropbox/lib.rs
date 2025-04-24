@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use dougu_bridge::dropbox::DropboxClient;
-use dougu_foundation_ui::UIManager;
-use serde::{Serialize, Deserialize};
-use std::path::PathBuf;
 use dougu_essentials::log as log_util;
+use dougu_foundation::ui::UIManager;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 // Now resources is handled in mod.rs
 // mod resources;
@@ -160,7 +160,7 @@ pub async fn execute_file_upload(args: &UploadArgs, token: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Result<()> {
+pub async fn execute_folder_create(args: &CreateFolderArgs, _token: &str) -> Result<()> {
     // Since client.create_folder doesn't exist, create a manual implementation
     log_util::log_info(format!("Creating folder: {}", args.path));
     
@@ -171,7 +171,7 @@ pub async fn execute_folder_create(args: &CreateFolderArgs, token: &str) -> Resu
     Ok(())
 }
 
-pub async fn execute_folder_delete(args: &DeleteFolderArgs, token: &str) -> Result<()> {
+pub async fn execute_folder_delete(args: &DeleteFolderArgs, _token: &str) -> Result<()> {
     // Since client.delete_folder doesn't exist, create a manual implementation
     log_util::log_info(format!("Deleting folder: {}", args.path));
     

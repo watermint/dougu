@@ -1,15 +1,14 @@
 // Import only what we need directly
 use std::path::Path;
-use std::str::FromStr;
 
 // New module for embedded resources
 pub mod embedded;
 
 // Re-export the integration functions from dougu-essentials
-pub use dougu_essentials::i18n::integration::{init, load_translations, set_locale, t, tf, init_with_locale, set_locale_object};
-pub use dougu_essentials::vars;
-pub use dougu_essentials::i18n::{Locale, LocaleError};
+pub use dougu_essentials::i18n::integration::{init, init_with_locale, load_translations, set_locale, set_locale_object, t, tf};
 pub use dougu_essentials::i18n::locale::is_supported_language;
+pub use dougu_essentials::i18n::{Locale, LocaleError};
+pub use dougu_essentials::vars;
 
 // Generic error trait for compatibility with CommandletError without direct dependency
 pub trait ErrorWithDetails {
@@ -221,7 +220,7 @@ impl I18nInitializer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     struct LauncherContext {
         data: std::collections::HashMap<String, String>,
     }

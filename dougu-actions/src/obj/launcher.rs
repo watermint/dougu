@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use dougu_foundation_run::{LauncherContext, LauncherLayer};
+use dougu_foundation::run::{LauncherContext, LauncherLayer};
 use serde_json;
 
-use crate::ObjCommand;
+use crate::obj::ObjCommand;
 
 /// Object command layer for the launcher
 pub struct ObjCommandLayer;

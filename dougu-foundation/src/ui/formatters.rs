@@ -1,6 +1,6 @@
 use crate::ui::{UIFormatter, UITheme};
 use colored::Colorize;
-use prettytable::{Table, Row, Cell, format};
+use prettytable::{format, Cell, Row, Table};
 use serde_json;
 
 /// Default formatter implementation
@@ -366,8 +366,8 @@ impl UIFormatter for MarkdownFormatter {
         let separator_row = headers
             .iter()
             .map(|_| "---")
-            .collect::<Vec<String>>()
-            .join(" | ");
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
         
         // Create data rows
         let data_rows = rows
@@ -382,7 +382,7 @@ impl UIFormatter for MarkdownFormatter {
             .join("\n");
         
         // Combine all parts
-        format!("| {} |\n| {} |\n| {} |", header_row, separator_row, data_rows.replace("\n", " |\n| "))
+        format!("| {} |\n| {} |\n| {} |", header_row, separator_row.join(" | "), data_rows.replace("\n", " |\n| "))
     }
     
     fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {

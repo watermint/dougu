@@ -2,8 +2,6 @@
 // Using resource files instead of hardcoded strings
 
 use dougu_foundation::i18n::Locale;
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
 
 // Resource keys for domain-specific messages
 pub enum ResourceKey {

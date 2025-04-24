@@ -1,19 +1,22 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Context};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use dougu_essentials_build::get_build_info;
-use dougu_foundation_run::{SpecAction, SpecParams, ActionError, Action};
-use dougu_foundation_ui::UIManager;
-use serde::{Serialize, Deserialize};
+use dougu_essentials::{
+    log as log_util,
+    build::{get_build_info, BuildInfo}
+};
+use dougu_foundation::{
+    run::{Action, ActionError, SpecAction, SpecParams},
+    ui::{UIManager, format_action_result, OutputFormat},
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tempfile;
 use tokio::process::Command as TokioCommand;
 use uuid::Uuid;
 use walkdir::WalkDir;
-use dougu_essentials::log as log_util;
-use tempfile;
-use std::collections::HashMap;
-use tokio::fs::File;
+use std::fmt;
 
 // Use the log_messages directly
 use crate::build::resources::log_messages;
@@ -134,12 +137,19 @@ pub struct SpecCommandArgs {
     pub format: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct PackOutput {
     pub name: String,
     pub path: String,
     pub version: String,
     pub platform: String,
+    pub output: String,
+}
+
+impl fmt::Display for PackOutput {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.output)
+    }
 }
 
 /// Execute the package command
@@ -161,7 +171,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
     };
     
     // Create a UI manager for the compile command
-    let ui = dougu_foundation_ui::UIManager::default();
+    let ui = UIManager::default();
     execute_compile(&build_args, &ui).await?;
     
     // Check if README.md exists
@@ -277,7 +287,7 @@ pub async fn execute_package(args: &PackageArgs) -> Result<()> {
 }
 
 /// Execute the test command
-pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) -> Result<()> {
+pub async fn execute_test(args: &TestArgs, ui: &UIManager) -> Result<()> {
     // Determine test type based on args
     let test_type = if args.unit && !args.integration {
         "lib"
@@ -346,7 +356,7 @@ pub async fn execute_test(args: &TestArgs, ui: &dougu_foundation_ui::UIManager) 
 }
 
 /// Execute the compile command
-pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIManager) -> Result<()> {
+pub async fn execute_compile(args: &CompileArgs, ui: &UIManager) -> Result<()> {
     let output = args.output_dir.as_deref().unwrap_or("./target");
     let mode = if args.release { "release" } else { "debug" };
     
@@ -393,7 +403,7 @@ pub async fn execute_compile(args: &CompileArgs, ui: &dougu_foundation_ui::UIMan
 }
 
 /// Execute the pack command
-pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) -> Result<String> {
+pub async fn execute_pack(args: &PackArgs, ui: &UIManager) -> Result<String> {
     let output_dir = args.output_dir.as_deref().unwrap_or("./target/dist");
     
     // Create output directory if it doesn't exist
@@ -663,7 +673,7 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
     // For GitHub Actions compatibility, also set the appropriate path at the workspace root
     if build_info.build_type == "github" {
         if let Ok(workspace) = std::env::var("GITHUB_WORKSPACE") {
-            let github_root = PathBuf::from(workspace);
+            let _github_root = PathBuf::from(workspace);
             if let Some(github_output) = std::env::var_os("GITHUB_OUTPUT") {
                 let github_output_path = PathBuf::from(github_output);
                 if github_output_path.exists() {
@@ -694,9 +704,10 @@ pub async fn execute_pack(args: &PackArgs, ui: &dougu_foundation_ui::UIManager) 
         path: target_exec_path.to_string_lossy().into_owned(),
         version: version.to_string(),
         platform: platform,
+        output: format_action_result(ui, &target_exec_path.to_string_lossy()),
     };
     
-    Ok(dougu_foundation_ui::format_action_result(ui, &output))
+    Ok(format_action_result(ui, &output.to_string()))
 }
 
 /// Execute the spec command
@@ -727,6 +738,7 @@ pub fn add(left: u64, right: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dougu_essentials::build::BuildInfo;
 
     #[test]
     fn it_works() {
@@ -737,8 +749,8 @@ mod tests {
 
 #[cfg(test)]
 pub mod test_utils {
-    use dougu_essentials_build::BuildInfo;
-    
+    use dougu_essentials::build::BuildInfo;
+
     /// Creates a test BuildInfo with a specified executable name
     pub fn create_test_build_info(executable_name: &str) -> BuildInfo {
         BuildInfo {

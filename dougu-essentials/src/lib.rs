@@ -9,25 +9,25 @@ pub mod archive;
 
 // Re-export public types from each module
 // I18n module
-pub use i18n::{I18nProvider, I18nManager};
+pub use i18n::{I18n, Locale, LocaleError, TranslationMessage};
 
 // Log module
-pub use log::{LogProvider, LogManager};
+pub use log::{init, log_error, log_info, log_warning};
 
 // Object module
-pub use obj::{Decoder, Encoder, Format, Query, Converter};
+pub use obj::{Converter, Decoder, Encoder, Format, Query};
 
 // FS module
-pub use fs::{FileSystem, FileSystemProvider, FileMetadata, FileSystemEntry, ReadOptions, WriteOptions};
+pub use fs::{FileMetadata, FileSystem, FileSystemEntry, FileSystemProvider, ReadOptions, WriteOptions};
 
 // KVS module
-pub use kvs::{KvsProvider, KeyValuePair, RedbKvsProvider};
+pub use kvs::{KeyValuePair, KvsProvider, RedbKvsProvider};
 
 // SQL module
-pub use sql::{SqlProvider, SqliteProvider, SqlRow, SqlValue};
+pub use sql::{SqlProvider, SqlRow, SqlValue, SqliteProvider};
 
 // Build module
-pub use build::{BuildInfo, get_build_info};
+pub use build::{get_build_info, BuildInfo};
 
 // Archive module
-pub use archive::{Archive, ArchiveProvider, ArchiveMetadata, ArchiveEntry, EntryOptions, ExtractOptions}; 
+pub use archive::{Archive, ArchiveEntry, ArchiveMetadata, ArchiveProvider, EntryOptions, ExtractOptions};

@@ -1,15 +1,14 @@
-use crate::archive::{ArchiveEntry, ArchiveMetadata, ArchiveProvider, EntryOptions, ExtractOptions};
 use crate::archive::resources::error_messages;
+use crate::archive::{ArchiveEntry, ArchiveMetadata, ArchiveProvider, EntryOptions, ExtractOptions};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tempfile::tempdir;
-use zip::{ZipArchive, ZipWriter};
+use tokio::io::AsyncWriteExt;
 use zip::write::FileOptions;
+use zip::{ZipArchive, ZipWriter};
 
 pub struct ZipArchiveProvider;
 
@@ -45,7 +44,7 @@ impl ArchiveProvider for ZipArchiveProvider {
         
         for source in sources {
             if !source.exists() {
-                return Err(anyhow!(error_messages::RESOURCE_NOT_FOUND));
+                return Err(anyhow!(error_messages::ENTRY_NOT_FOUND));
             }
             
             if source.is_dir() {
@@ -73,16 +72,16 @@ impl ArchiveProvider for ZipArchiveProvider {
                 }
             } else {
                 // Add a single file
-                let file_name = source.file_name()
-                    .ok_or_else(|| anyhow!(error_messages::INVALID_PATH))?
-                    .to_string_lossy()
-                    .to_string();
+                let entry_name = source
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .ok_or_else(|| anyhow!(error_messages::INVALID_ENTRY_PATH))?;
                 
                 let mut file = std::fs::File::open(&source)?;
                 let mut buffer = Vec::new();
                 file.read_to_end(&mut buffer)?;
                 
-                zip.start_file(file_name, zip_options)?;
+                zip.start_file(entry_name.to_string(), zip_options)?;
                 zip.write_all(&buffer)?;
             }
         }
@@ -163,6 +162,8 @@ impl ArchiveProvider for ZipArchiveProvider {
             let name = file.name().to_string();
             let path = name.clone();
             
+            let last_modified = Some(file.last_modified().to_time().unwrap().unix_timestamp() as u64);
+            
             let entry = ArchiveEntry {
                 metadata: ArchiveMetadata {
                     name,
@@ -170,9 +171,7 @@ impl ArchiveProvider for ZipArchiveProvider {
                     size: file.size(),
                     is_directory: file.is_dir(),
                     compressed_size: Some(file.compressed_size()),
-                    last_modified: file.last_modified().and_then(|dt| {
-                        dt.to_time().map(|t| t.unix_timestamp() as u64)
-                    }),
+                    last_modified,
                 },
                 provider_info: None,
             };
@@ -215,6 +214,8 @@ impl ArchiveProvider for ZipArchiveProvider {
                 fs::set_permissions(target_path, fs::Permissions::from_mode(mode))?;
             }
         }
+        
+        let last_modified = Some(entry.last_modified().to_time().unwrap().unix_timestamp() as u64);
         
         Ok(())
     }
@@ -305,7 +306,8 @@ impl ArchiveProvider for ZipArchiveProvider {
         let file = std::fs::File::open(archive_path)?;
         let mut archive = ZipArchive::new(file)?;
         
-        Ok(archive.by_name(entry_path).is_ok())
+        let exists = archive.by_name(entry_path).is_ok();
+        Ok(exists)
     }
     
     async fn get_entry_metadata(&self, archive_path: &Path, entry_path: &str) -> Result<ArchiveMetadata> {
@@ -315,15 +317,15 @@ impl ArchiveProvider for ZipArchiveProvider {
         let entry = archive.by_name(entry_path)
             .map_err(|_| anyhow!(error_messages::ENTRY_NOT_FOUND))?;
         
+        let last_modified = Some(entry.last_modified().to_time().unwrap().unix_timestamp() as u64);
+        
         Ok(ArchiveMetadata {
             name: entry.name().to_string(),
             path: entry_path.to_string(),
             size: entry.size(),
             is_directory: entry.is_dir(),
             compressed_size: Some(entry.compressed_size()),
-            last_modified: entry.last_modified().and_then(|dt| {
-                dt.to_time().map(|t| t.unix_timestamp() as u64)
-            }),
+            last_modified,
         })
     }
 } 

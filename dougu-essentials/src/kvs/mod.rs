@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use redb::{Database, ReadableTable, TableDefinition};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
-use tokio::task;
 use std::sync::Arc;
+use tokio::task;
 
 mod resources;
 use resources::Messages;
@@ -171,7 +171,7 @@ impl KvsProvider for RedbKvsProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn it_creates_key_value_pair() {
         let kv = KeyValuePair {
