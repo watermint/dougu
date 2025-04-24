@@ -15,7 +15,8 @@ pub use i18n::{I18n, Locale, LocaleError, TranslationMessage};
 pub use log::{init, log_error, log_info, log_warning};
 
 // Object module
-pub use obj::{Converter, Decoder, Encoder, Format, Query};
+pub use obj::notation::{Notation, NotationType};
+pub use obj::query::Query;
 
 // FS module
 pub use fs::{FileMetadata, FileSystem, FileSystemEntry, FileSystemProvider, ReadOptions, WriteOptions};

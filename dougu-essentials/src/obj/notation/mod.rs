@@ -13,8 +13,6 @@ pub mod jsonl;
 #[cfg(test)]
 mod tests;
 
-use crate::obj::Format;
-
 /// Notation trait abstracts encoding and decoding operations for different 
 /// object notation formats (JSON, BSON, YAML, etc.)
 pub trait Notation {
@@ -118,16 +116,3 @@ impl Notation for NotationType {
         }
     }
 }
-
-/// Get a notation implementation for the given format
-pub fn get_notation(format: Format) -> NotationType {
-    match format {
-        Format::Json => NotationType::Json(json::JsonNotation),
-        Format::Bson => NotationType::Bson(bson::BsonNotation),
-        Format::Cbor => NotationType::Cbor(cbor::CborNotation),
-        Format::Xml => NotationType::Xml(xml::XmlNotation),
-        Format::Yaml => NotationType::Yaml(yaml::YamlNotation),
-        Format::Toml => NotationType::Toml(toml::TomlNotation),
-        Format::Jsonl => NotationType::Jsonl(jsonl::JsonlNotation),
-    }
-} 

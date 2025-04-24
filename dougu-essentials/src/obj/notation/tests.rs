@@ -1,7 +1,14 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::obj::{Format, notation, Notation};
+use crate::obj::notation::{self, Notation, NotationType};
+use crate::obj::notation::json::JsonNotation;
+use crate::obj::notation::yaml::YamlNotation;
+use crate::obj::notation::toml::TomlNotation;
+use crate::obj::notation::xml::XmlNotation;
+use crate::obj::notation::bson::BsonNotation;
+use crate::obj::notation::cbor::CborNotation;
+use crate::obj::notation::jsonl::JsonlNotation;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 struct TestData {
@@ -35,7 +42,7 @@ mod tests {
     
     #[test]
     fn test_json_notation() -> Result<()> {
-        let notation = notation::json::JsonNotation;
+        let notation = JsonNotation;
         let data = create_test_data();
         
         // Test encode/decode round trip
@@ -53,7 +60,7 @@ mod tests {
     
     #[test]
     fn test_yaml_notation() -> Result<()> {
-        let notation = notation::yaml::YamlNotation;
+        let notation = YamlNotation;
         let data = create_test_data();
         
         // Test encode/decode round trip
@@ -71,7 +78,7 @@ mod tests {
     
     #[test]
     fn test_toml_notation() -> Result<()> {
-        let notation = notation::toml::TomlNotation;
+        let notation = TomlNotation;
         let data = create_test_data();
         
         // Test encode/decode round trip
@@ -89,7 +96,7 @@ mod tests {
     
     #[test]
     fn test_cbor_notation() -> Result<()> {
-        let notation = notation::cbor::CborNotation;
+        let notation = CborNotation;
         let data = create_test_data();
         
         // Test encode/decode round trip
@@ -102,7 +109,7 @@ mod tests {
     
     #[test]
     fn test_bson_notation() -> Result<()> {
-        let notation = notation::bson::BsonNotation;
+        let notation = BsonNotation;
         let data = create_test_data();
         
         // Test encode/decode round trip
@@ -115,7 +122,7 @@ mod tests {
     
     #[test]
     fn test_xml_notation() -> Result<()> {
-        let notation = notation::xml::XmlNotation;
+        let notation = XmlNotation;
         let data = create_test_data();
         
         // Test encode/decode round trip
@@ -133,7 +140,7 @@ mod tests {
     
     #[test]
     fn test_jsonl_notation() -> Result<()> {
-        let notation = notation::jsonl::JsonlNotation;
+        let notation = JsonlNotation;
         
         // Test single item encoding/decoding
         let data = create_test_data();
@@ -167,30 +174,29 @@ mod tests {
     }
     
     #[test]
-    fn test_get_notation() -> Result<()> {
+    fn test_notation_types() -> Result<()> {
         let data = create_test_data();
         
-        // Test each format using the get_notation function (excluding JSONL which needs special handling)
-        for format in [
-            Format::Json,
-            Format::Yaml,
-            Format::Toml,
-            Format::Xml,
-            Format::Bson,
-            Format::Cbor,
+        // Test each notation type
+        for notation_type in [
+            NotationType::Json(JsonNotation),
+            NotationType::Yaml(YamlNotation),
+            NotationType::Toml(TomlNotation),
+            NotationType::Xml(XmlNotation),
+            NotationType::Bson(BsonNotation),
+            NotationType::Cbor(CborNotation),
         ] {
-            let notation = notation::get_notation(format);
-            let encoded = notation.encode(&data)?;
-            let decoded: TestData = notation.decode(&encoded)?;
-            assert_eq!(data, decoded, "Round-trip failed for format: {:?}", format);
+            let encoded = notation_type.encode(&data)?;
+            let decoded: TestData = notation_type.decode(&encoded)?;
+            assert_eq!(data, decoded, "Round-trip failed for notation type: {:?}", notation_type);
         }
         
         // Test JSONL separately with proper array handling
-        let jsonl_notation = notation::get_notation(Format::Jsonl);
-        let encoded = jsonl_notation.encode(&data)?;
-        let decoded_vec: Vec<TestData> = jsonl_notation.decode(&encoded)?;
+        let jsonl_type = NotationType::Jsonl(JsonlNotation);
+        let encoded = jsonl_type.encode(&data)?;
+        let decoded_vec: Vec<TestData> = jsonl_type.decode(&encoded)?;
         assert_eq!(1, decoded_vec.len());
-        assert_eq!(data, decoded_vec[0], "Round-trip failed for JSONL format");
+        assert_eq!(data, decoded_vec[0], "Round-trip failed for JSONL notation");
         
         Ok(())
     }
@@ -200,8 +206,8 @@ mod tests {
         let data = create_test_data();
         
         // Convert from JSON to YAML
-        let json_notation = notation::json::JsonNotation;
-        let yaml_notation = notation::yaml::YamlNotation;
+        let json_notation = JsonNotation;
+        let yaml_notation = YamlNotation;
         
         let json_encoded = json_notation.encode(&data)?;
         let json_decoded: TestData = json_notation.decode(&json_encoded)?;
