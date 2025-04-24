@@ -1,14 +1,23 @@
 use anyhow::{anyhow, Context, Result};
 use std::str;
+use std::collections::HashMap;
 
 use crate::obj::resources::errors::*;
-use crate::obj::notation::NotationType;
+use crate::obj::notation::{Notation, NotationType};
 
 /// Query provides a wrapper around query operations on NotationType data.
 /// It adds a layer of abstraction to provide a simple interface for common query operations.
 pub struct Query {
     filter_str: String,
     compiled_filter: Filter,
+    select: Option<String>,
+    from: Option<String>,
+    where_: Option<String>,
+    group_by: Option<String>,
+    having: Option<String>,
+    order_by: Option<String>,
+    limit: Option<usize>,
+    offset: Option<usize>,
 }
 
 /// A compiled filter that can be executed against NotationType values
@@ -39,6 +48,14 @@ impl Query {
         Ok(Self {
             filter_str: query_str.to_string(),
             compiled_filter: Filter { path },
+            select: None,
+            from: None,
+            where_: None,
+            group_by: None,
+            having: None,
+            order_by: None,
+            limit: None,
+            offset: None,
         })
     }
     
@@ -202,6 +219,44 @@ impl Query {
     /// Returns the original query string used to compile this query.
     pub fn query_string(&self) -> &str {
         &self.filter_str
+    }
+
+    fn build_json_value(&self) -> NotationType {
+        let mut obj = Vec::new();
+        
+        if let Some(select) = &self.select {
+            obj.push(("select".to_string(), NotationType::String(select.clone())));
+        }
+        
+        if let Some(from) = &self.from {
+            obj.push(("from".to_string(), NotationType::String(from.clone())));
+        }
+        
+        if let Some(where_) = &self.where_ {
+            obj.push(("where".to_string(), NotationType::String(where_.clone())));
+        }
+        
+        if let Some(group_by) = &self.group_by {
+            obj.push(("group_by".to_string(), NotationType::String(group_by.clone())));
+        }
+        
+        if let Some(having) = &self.having {
+            obj.push(("having".to_string(), NotationType::String(having.clone())));
+        }
+        
+        if let Some(order_by) = &self.order_by {
+            obj.push(("order_by".to_string(), NotationType::String(order_by.clone())));
+        }
+        
+        if let Some(limit) = self.limit {
+            obj.push(("limit".to_string(), NotationType::Number(limit as f64)));
+        }
+        
+        if let Some(offset) = self.offset {
+            obj.push(("offset".to_string(), NotationType::Number(offset as f64)));
+        }
+        
+        NotationType::Object(obj)
     }
 }
 

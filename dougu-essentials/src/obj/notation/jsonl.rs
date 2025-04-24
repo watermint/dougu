@@ -1,10 +1,8 @@
 use anyhow::{Context, Result};
-use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
 use std::str;
 
 use crate::obj::resources::errors::*;
-use super::Notation;
+use super::{Notation, NotationType};
 
 #[derive(Debug, Clone)]
 pub struct JsonlNotation;
@@ -12,58 +10,72 @@ pub struct JsonlNotation;
 impl Notation for JsonlNotation {
     fn decode<T>(&self, input: &[u8]) -> Result<T>
     where
-        T: DeserializeOwned,
+        T: From<NotationType>,
     {
         let s = str::from_utf8(input)
             .with_context(|| ERROR_DECODE_FAILED)?;
-        
-        let values: Vec<Value> = s
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .map(|line| serde_json::from_str(line))
-            .collect::<Result<Vec<Value>, _>>()
-            .with_context(|| ERROR_DECODE_FAILED)?;
-        
-        // Convert the Vec<Value> into a single Value::Array
-        let jsonl_array = Value::Array(values);
-        
-        // Attempt to deserialize the Value::Array into the target type T
-        serde_json::from_value(jsonl_array)
-            .with_context(|| format!("Failed to deserialize JSONL array into target type: {}", std::any::type_name::<T>()))
+        let value = Self::parse_jsonl(s)?;
+        Ok(T::from(value))
     }
     
     fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
     where
-        T: Serialize + ?Sized,
+        T: Into<NotationType>,
     {
-        // For single object, encode as JSON with a newline
-        let mut json = serde_json::to_vec(value)
-            .with_context(|| ERROR_ENCODE_FAILED)?;
-        json.push(b'\n');
-        Ok(json)
+        let value = value.into();
+        let s = Self::format_jsonl(&value)?;
+        Ok(s.into_bytes())
+    }
+    
+    fn encode_to_string<T>(&self, value: &T) -> Result<String>
+    where
+        T: Into<NotationType>,
+    {
+        let value = value.into();
+        Self::format_jsonl(&value)
     }
     
     fn encode_collection<T>(&self, values: &[T]) -> Result<Vec<u8>>
     where
-        T: Serialize,
+        T: Into<NotationType>,
     {
-        let mut result = Vec::new();
-        
+        let mut buf = Vec::new();
         for value in values {
-            let mut json = serde_json::to_vec(value)
-                .with_context(|| ERROR_ENCODE_FAILED)?;
-            json.push(b'\n');
-            result.extend_from_slice(&json);
+            let value = value.into();
+            let s = Self::format_jsonl(&value)?;
+            buf.extend_from_slice(s.as_bytes());
+            buf.push(b'\n');
+        }
+        Ok(buf)
+    }
+}
+
+impl JsonlNotation {
+    fn parse_jsonl(s: &str) -> Result<NotationType> {
+        let mut lines = s.lines();
+        let first_line = lines.next()
+            .ok_or_else(|| anyhow!("{}: Empty JSONL input", ERROR_DECODE_FAILED))?;
+        
+        let first_value = super::json::JsonNotation::parse_json(first_line)?;
+        
+        if lines.next().is_none() {
+            // Single line - treat as regular JSON
+            return Ok(first_value);
         }
         
-        Ok(result)
+        // Multiple lines - treat as array of JSON objects
+        let mut arr = vec![first_value];
+        for line in lines {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let value = super::json::JsonNotation::parse_json(line)?;
+            arr.push(value);
+        }
+        Ok(NotationType::Array(arr))
     }
-
-    fn encode_to_string<T>(&self, value: &T) -> Result<String>
-    where
-        T: Serialize + ?Sized,
-    {
-        let encoded = self.encode(value)?;
-        Ok(String::from_utf8(encoded)?)
+    
+    fn format_jsonl(value: &NotationType) -> Result<String> {
+        super::json::JsonNotation::format_json(value)
     }
 } 

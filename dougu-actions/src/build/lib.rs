@@ -2,7 +2,9 @@ use anyhow::{anyhow, Result, Context};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use dougu_essentials::{
     log as log_util,
-    build::{get_build_info, BuildInfo}
+    build::{get_build_info, BuildInfo},
+    obj::notation::{Notation, NotationType},
+    obj::notation::json::JsonNotation
 };
 use dougu_foundation::{
     run::{Action, ActionError, SpecAction, SpecParams},
@@ -775,5 +777,48 @@ pub mod test_utils {
             // Default for tests if not specified
             create_test_build_info("test_exec")
         }
+    }
+}
+
+impl BuildInfo {
+    pub fn load_from_file(path: &Path) -> Result<Self> {
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read build info file: {}", path.display()))?;
+        
+        let notation = JsonNotation;
+        let value: NotationType = notation.decode(content.as_bytes())?;
+        
+        // Convert NotationType to BuildInfo
+        match value {
+            NotationType::Object(obj) => {
+                let mut build_info = BuildInfo::default();
+                for (k, v) in obj {
+                    match (k.as_str(), v) {
+                        ("version", NotationType::String(s)) => build_info.version = s,
+                        ("build_time", NotationType::String(s)) => build_info.build_time = s,
+                        ("git_commit", NotationType::String(s)) => build_info.git_commit = s,
+                        ("git_branch", NotationType::String(s)) => build_info.git_branch = s,
+                        _ => continue,
+                    }
+                }
+                Ok(build_info)
+            },
+            _ => Err(anyhow!("Invalid build info format")),
+        }
+    }
+    
+    pub fn save_to_file(&self, path: &Path) -> Result<()> {
+        let mut obj = Vec::new();
+        obj.push(("version".to_string(), NotationType::String(self.version.clone())));
+        obj.push(("build_time".to_string(), NotationType::String(self.build_time.clone())));
+        obj.push(("git_commit".to_string(), NotationType::String(self.git_commit.clone())));
+        obj.push(("git_branch".to_string(), NotationType::String(self.git_branch.clone())));
+        
+        let value = NotationType::Object(obj);
+        let notation = JsonNotation;
+        let content = notation.encode_to_string(&value)?;
+        
+        std::fs::write(path, content)
+            .with_context(|| format!("Failed to write build info file: {}", path.display()))
     }
 }

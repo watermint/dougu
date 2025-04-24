@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Error as AnyhowError, Result};
 use base64::Engine;
 use clap::Parser;
 use dougu_essentials::{Decoder, Encoder, Format, Query, obj::{Notation, NotationType}};
+use dougu_essentials::obj::notation::json::JsonNotation;
 use dougu_foundation::{
     ui::{OutputFormat, UIManager},
     resources::ui_messages::FORMAT_OPTION_DESCRIPTION
