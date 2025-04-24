@@ -8,10 +8,13 @@ use toml;
 
 mod resources;
 pub mod query;
+pub mod notation;
+pub mod examples;
 
 use resources::errors::*;
 use resources::formats::*;
 pub use query::Query;
+pub use notation::Notation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
@@ -58,55 +61,7 @@ impl Decoder {
     where
         T: DeserializeOwned,
     {
-        match format {
-            Format::Json => serde_json::from_slice(input)
-                .with_context(|| ERROR_DECODE_FAILED),
-            
-            Format::Bson => {
-                let doc = Document::from_reader(Cursor::new(input))
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                from_document(doc).with_context(|| ERROR_DECODE_FAILED)
-            },
-            
-            Format::Cbor => ciborium::de::from_reader(input)
-                .with_context(|| ERROR_DECODE_FAILED),
-            
-            Format::Xml => {
-                quick_xml::de::from_reader(input)
-                    .with_context(|| ERROR_DECODE_FAILED)
-            },
-
-            Format::Yaml => {
-                serde_yaml::from_slice(input)
-                    .with_context(|| ERROR_DECODE_FAILED)
-            },
-
-            Format::Toml => {
-                let s = std::str::from_utf8(input)
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                toml::from_str(s)
-                    .with_context(|| ERROR_DECODE_FAILED)
-            },
-            
-            Format::Jsonl => {
-                let s = std::str::from_utf8(input)
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                
-                let values: Vec<Value> = s
-                    .lines()
-                    .filter(|line| !line.trim().is_empty())
-                    .map(|line| serde_json::from_str(line))
-                    .collect::<Result<Vec<Value>, _>>()
-                    .with_context(|| ERROR_DECODE_FAILED)?;
-                
-                // Convert the Vec<Value> into a single Value::Array
-                let jsonl_array = Value::Array(values);
-                
-                // Attempt to deserialize the Value::Array into the target type T
-                serde_json::from_value(jsonl_array)
-                    .with_context(|| format!("Failed to deserialize JSONL array into target type: {}", std::any::type_name::<T>()))
-            },
-        }
+        notation::get_notation(format).decode(input)
     }
 
     pub fn decode_str<T>(input: &str, format: Format) -> Result<T>
@@ -128,110 +83,29 @@ impl Encoder {
     where
         T: Serialize,
     {
-        match format {
-            Format::Json => serde_json::to_vec(value)
-                .with_context(|| ERROR_ENCODE_FAILED),
-            
-            Format::Bson => {
-                let doc = to_document(value)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                let mut buf = Vec::new();
-                doc.to_writer(&mut buf)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                Ok(buf)
-            },
-            
-            Format::Cbor => {
-                let mut buf = Vec::new();
-                ciborium::ser::into_writer(value, &mut buf)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                Ok(buf)
-            },
-            
-            Format::Xml => {
-                let mut buf = String::new();
-                quick_xml::se::to_writer(&mut buf, value)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                Ok(buf.into_bytes())
-            },
-
-            Format::Yaml => {
-                let s = serde_yaml::to_string(value)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                Ok(s.into_bytes())
-            },
-
-            Format::Toml => {
-                let s = toml::to_string(value)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                Ok(s.into_bytes())
-            },
-            
-            Format::Jsonl => {
-                // For single object, encode as JSON with a newline
-                let mut json = serde_json::to_vec(value)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                json.push(b'\n');
-                Ok(json)
-            },
-        }
+        notation::get_notation(format).encode(value)
     }
 
     pub fn encode_to_string<T>(value: &T, format: Format) -> Result<String>
     where
         T: Serialize,
     {
-        match format {
-            Format::Json => serde_json::to_string(value)
-                .with_context(|| ERROR_ENCODE_FAILED),
-            
-            Format::Xml => {
-                let mut buf = String::new();
-                quick_xml::se::to_writer(&mut buf, value)
-                    .with_context(|| ERROR_ENCODE_FAILED)?;
-                Ok(buf)
-            },
-
-            Format::Yaml => {
-                serde_yaml::to_string(value)
-                    .with_context(|| ERROR_ENCODE_FAILED)
-            },
-
-            Format::Toml => {
-                toml::to_string(value)
-                    .with_context(|| ERROR_ENCODE_FAILED)
-            },
-            
-            _ => {
-                let bytes = Self::encode(value, format)?;
-                String::from_utf8(bytes)
-                    .with_context(|| ERROR_ENCODE_FAILED)
-            }
-        }
+        notation::get_notation(format).encode_to_string(value)
     }
     
     pub fn encode_jsonl_all<T>(values: &[T]) -> Result<Vec<u8>>
     where
         T: Serialize,
     {
-        let mut result = Vec::new();
-        
-        for value in values {
-            let mut json = serde_json::to_vec(value)
-                .with_context(|| ERROR_ENCODE_FAILED)?;
-            json.push(b'\n');
-            result.extend_from_slice(&json);
-        }
-        
-        Ok(result)
+        notation::jsonl::JsonlNotation.encode_collection(values)
     }
 }
 
-pub struct Query {
+pub struct QueryImpl {
     jaq_query: query::Query,
 }
 
-impl Query {
+impl QueryImpl {
     pub fn compile(query_str: &str) -> Result<Self> {
         let jaq_query = query::Query::compile(query_str)?;
         
@@ -256,8 +130,11 @@ impl Converter {
         T: DeserializeOwned + Serialize,
         U: Serialize,
     {
-        let decoded: T = Decoder::decode(input, from_format)?;
-        let encoded = Encoder::encode(&decoded, to_format)?;
+        let from_notation = notation::get_notation(from_format);
+        let to_notation = notation::get_notation(to_format);
+        
+        let decoded: T = from_notation.decode(input)?;
+        let encoded = to_notation.encode(&decoded)?;
         Ok(encoded)
     }
 }
@@ -321,7 +198,7 @@ mod tests {
         };
         
         // Use a simple JQ-style query
-        let query = Query::compile(".value").unwrap();
+        let query = QueryImpl::compile(".value").unwrap();
         let result = query.execute(&data).unwrap();
         
         // The result will be a JSON string with the value
@@ -337,7 +214,7 @@ mod tests {
         });
         
         // Test with a simpler query first to avoid syntax issues
-        let array_query = Query::compile(".items[1].name").unwrap();
+        let array_query = QueryImpl::compile(".items[1].name").unwrap();
         let name_result = array_query.execute(&complex_data).unwrap();
         
         assert_eq!("\"Item 2\"", name_result);
@@ -379,7 +256,7 @@ mod tests {
     }
 }
 
-pub mod examples {
+pub mod examples_impl {
     use super::*;
     use serde::{Deserialize, Serialize};
 
@@ -411,7 +288,7 @@ pub mod examples {
         println!("Decoded: {:?}", decoded);
         
         // Query the person's age
-        let query = Query::compile(".age")?;
+        let query = QueryImpl::compile(".age")?;
         let age = query.execute(&person)?;
         // NOTE: Commented out due to API changes in jaq-interpret
         // println!("Age: {}", age.as_u64().unwrap());
