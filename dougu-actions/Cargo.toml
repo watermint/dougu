@@ -1,17 +1,21 @@
 [package]
 name = "dougu-actions"
-version = "0.1.0"
-edition = "2021"
-description = "Actions for the dougu multi-utility command line tool"
-authors = ["Original authors"]
-license = "MIT OR Apache-2.0"
+version = "1.0.0"
+edition = "2024"
+description = "The dougu-actions is a collection of application service."
+license = "Apache-2.0"
+authors = ["Takayuki Okazaki <watermint@users.noreply.github.com>"]
+repository = "https://github.com/watermint/dougu"
+publish = false
 
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.7"
 clap = { workspace = true }
-jq-rs = "0.4.1"
+jaq-parse = "1.0.0"
+jaq-interpret = "1.0.0"
+jaq-std = "1.0.0"
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -2,6 +2,11 @@
 name = "dougu-domain"
 version = "1.0.0"
 edition = "2024"
+description = "The dougu-domain is the business domain. Contains business models and logic."
+license = "Apache-2.0"
+authors = ["Takayuki Okazaki <watermint@users.noreply.github.com>"]
+repository = "https://github.com/watermint/dougu"
+publish = false
 
 [features]
 default = []

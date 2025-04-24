@@ -230,51 +230,53 @@ pub struct Query {
 
 impl Query {
     pub fn compile(query_str: &str) -> Result<Self> {
-        // Just validate that the query can be parsed
-        // NOTE: Commented out due to API changes in jaq-parse
-        // let _ = parse(query_str)
-        //     .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_PARSE, e))?;
+        // Basic validation - should start with .
+        if !query_str.starts_with('.') {
+            return Err(anyhow!("{}: Query must start with '.'", ERROR_QUERY_PARSE));
+        }
         
         Ok(Self {
             filter_str: query_str.to_string(),
         })
     }
     
-    pub fn execute<T>(&self, _value: &T) -> Result<String>
+    pub fn execute<T>(&self, value: &T) -> Result<String>
     where
         T: Serialize,
     {
-        // NOTE: Commented out due to API changes in jaq-interpret
-        // let json_value = serde_json::to_value(value)
-        //     .with_context(|| ERROR_VALUE_CONVERSION)?;
+        let json_value = serde_json::to_value(value)
+            .with_context(|| ERROR_VALUE_CONVERSION)?;
             
-        // let filter = parse(&self.filter_str)
-        //     .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_PARSE, e))?;
-            
-        // // Create a filter from the parsed expression
-        // let mut defs = ParseCtx::new(Vec::new());
-        // let filter = FilterT::from_jq(filter, &mut defs)
-        //     .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_PARSE, e))?;
-            
-        // // Create evaluation context
-        // let mut ctx = Ctx::new(None, Vec::new());
-            
-        // // Convert JSON value to jaq Val
-        // let val = Val::from_json(json_value);
-            
-        // // Execute the query
-        // let results: Vec<Val> = filter.run(&ctx, RcIter::one(val))
-        //     .map_err(|e| anyhow!("{}: {}", ERROR_QUERY_EXECUTION, e))?
-        //     .collect();
-            
-        // if results.is_empty() {
-        //     Err(anyhow!("Query returned no results"))
-        // } else {
-        //     Ok(results[0].clone())
-        // }
+        // Very simple implementation that just supports basic field access
+        // For example: ".name" or ".address.street"
+        let path = self.filter_str.trim_start_matches('.');
+        let parts: Vec<&str> = path.split('.').collect();
         
-        // Temporary placeholder implementation
-        Ok(self.filter_str.clone())
+        let mut current = &json_value;
+        
+        for part in parts {
+            if let Value::Object(map) = current {
+                match map.get(part) {
+                    Some(val) => current = val,
+                    None => return Err(anyhow!("Field '{}' not found in object", part)),
+                }
+            } else if let Value::Array(arr) = current {
+                if let Ok(index) = part.parse::<usize>() {
+                    if index < arr.len() {
+                        current = &arr[index];
+                    } else {
+                        return Err(anyhow!("Array index {} out of bounds", index));
+                    }
+                } else {
+                    return Err(anyhow!("Invalid array index: {}", part));
+                }
+            } else {
+                return Err(anyhow!("Cannot access field '{}' on non-object value", part));
+            }
+        }
+        
+        Ok(serde_json::to_string(current)
+            .map_err(|e| anyhow!("{}: {}", ERROR_VALUE_CONVERSION, e))?)
     }
 }
 
@@ -352,9 +354,9 @@ mod tests {
         let query = Query::compile(".value").unwrap();
         let result = query.execute(&data).unwrap();
         
-        // NOTE: Commented out due to API changes in jaq-interpret
-        // assert_eq!(result.as_u64(), Some(42));
-        assert_eq!(result, ".value");
+        // Parse the result back to get the number
+        let value: Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value.as_i64(), Some(42));
     }
     
     #[test]

@@ -432,13 +432,22 @@ impl ObjCommand {
     }
 
     fn execute_query_sync(&self, input: &str, query: &str) -> Result<Value, anyhow::Error> {
-        let mut program = jq_rs::compile(query)
+        // Parse the input as JSON
+        let input_json: serde_json::Value = serde_json::from_str(input)
+            .map_err(|e| anyhow!("Failed to parse input as JSON: {}", e))?;
+            
+        // Use our simplified Query implementation
+        let query_obj = Query::compile(query)
             .map_err(|e| anyhow!("Failed to compile query '{}': {}", query, e))?;
-        let result = program.run(input)
+        
+        let result = query_obj.execute(&input_json)
             .map_err(|e| anyhow!("Failed to execute query '{}': {}", query, e))?;
-        let value: Value = serde_json::from_str(&result)
-            .map_err(|e| anyhow!("Failed to parse query result '{}': {}", result, e))?;
-        Ok(value)
+        
+        // Parse the result back to JSON
+        let result_json: Value = serde_json::from_str(&result)
+            .map_err(|e| anyhow!("Failed to parse query result as JSON: {}", e))?;
+        
+        Ok(result_json)
     }
 }
 

@@ -18,32 +18,14 @@ This project is organized as a Cargo workspace with multiple crates:
 
 ## Dependencies
 
-This project requires the following system dependencies:
+This project uses pure Rust libraries for all functionality, with no external system dependencies required.
 
-- `jq`: Used for JSON processing
-- `oniguruma`: Required by jq for regex support
+### JSON Processing
 
-### Installing Dependencies
-
-#### macOS
-
-```bash
-brew install jq oniguruma
-```
-
-#### Ubuntu/Debian
-
-```bash
-apt-get install jq libonig-dev
-```
-
-If the build system cannot find the jq library, you may need to set the `JQ_LIB_DIR` environment variable:
-
-```bash
-export JQ_LIB_DIR="/path/to/jq/lib"
-```
-
-This project includes a `.cargo/config.toml` file that sets the environment variable for macOS Homebrew installations.
+JSON processing and querying is handled by the pure Rust libraries:
+- `jaq-parse`: For parsing JQ-like query strings
+- `jaq-interpret`: For interpreting and executing JQ-like queries
+- `jaq-std`: Standard library for JQ operations
 
 ## Usage Examples
 

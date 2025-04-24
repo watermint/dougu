@@ -6,7 +6,6 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
-use tokio::io::AsyncWriteExt;
 use zip::write::FileOptions;
 use zip::{ZipArchive, ZipWriter};
 
@@ -215,7 +214,8 @@ impl ArchiveProvider for ZipArchiveProvider {
             }
         }
         
-        let last_modified = Some(entry.last_modified().to_time().unwrap().unix_timestamp() as u64);
+        // No need to store last_modified if we're not using it
+        let _last_modified = entry.last_modified().to_time().unwrap().unix_timestamp() as u64;
         
         Ok(())
     }

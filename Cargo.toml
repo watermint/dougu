@@ -20,11 +20,11 @@ async-trait = "0.1.77"
 ciborium = "0.2.1"
 bson = "2.9.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-jaq-parse = "1.0.2"
-jaq-interpret = "1.2.0"
+jaq-parse = "1.0.3"
+jaq-interpret = "1.5.0"
 jaq-syn = "1.0.0"
 hex = "0.4.3"
 reqwest = { version = "0.11", features = ["json"] }
 env_logger = "0.10"
 once_cell = "1.18"
-chrono = { version = "0.4.31", features = ["serde"] } 
+chrono = { version = "0.4.31", features = ["serde"] }

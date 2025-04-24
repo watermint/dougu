@@ -1,0 +1,38 @@
+{
+    "foundation.error.invalid_params": {
+        "source": "Invalid parameters",
+        "text": "Invalid parameters"
+    },
+    "foundation.error.invalid_results": {
+        "source": "Invalid results",
+        "text": "Invalid results"
+    },
+    "foundation.error.execution_failed": {
+        "source": "Action execution failed",
+        "text": "Action execution failed"
+    },
+    "foundation.error.not_found": {
+        "source": "Action not found",
+        "text": "Action not found"
+    },
+    "foundation.error.initialization_failed": {
+        "source": "Initialization failed",
+        "text": "Initialization failed"
+    },
+    "foundation.error.validation_failed": {
+        "source": "Validation failed",
+        "text": "Validation failed"
+    },
+    "foundation.info.initializing": {
+        "source": "Initializing...",
+        "text": "Initializing..."
+    },
+    "foundation.info.executing": {
+        "source": "Executing action: {0}",
+        "text": "Executing action: {0}"
+    },
+    "foundation.info.completed": {
+        "source": "Action completed successfully",
+        "text": "Action completed successfully"
+    }
+} 
