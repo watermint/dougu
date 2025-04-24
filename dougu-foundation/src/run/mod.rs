@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
+use dougu_essentials::obj::{Notation, NotationType};
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
@@ -308,24 +309,36 @@ impl<A: Action> ActionRunner<A> {
         }
     }
     
-    pub async fn run(&self, serialized_params: &str) -> Result<String, ActionError> {
-        let params = serde_json::from_str::<A::Params>(serialized_params)
-            .map_err(|e| ActionError::with_details(
-                "PARAM_PARSE_ERROR",
-                &error_messages::PARAM_PARSE_ERROR,
-                &e.to_string()
-            ))?;
+    pub fn run_with_params(&self, serialized_params: &str) -> Result<String, String> {
+        let params = match NotationType::Json.decode::<A::Params>(serialized_params.as_bytes()) {
+            Ok(p) => p,
+            Err(e) => return Err(format!("Failed to deserialize params: {}", e)),
+        };
         
-        let results = self.action.execute(params).await?;
+        let results = self.action.execute(params)?;
         
-        let serialized_results = serde_json::to_string(&results)
-            .map_err(|e| ActionError::with_details(
-                "RESULT_SERIALIZE_ERROR",
-                &error_messages::RESULT_SERIALIZE_ERROR,
-                &e.to_string()
-            ))?;
+        let serialized_results = match NotationType::Json.encode_to_string(&results) {
+            Ok(s) => s,
+            Err(e) => return Err(format!("Failed to serialize results: {}", e)),
+        };
         
         Ok(serialized_results)
+    }
+    
+    pub fn run_with_context(&self, params_json: &str) -> Result<String, String> {
+        if let Ok(value) = NotationType::Json.decode::<HashMap<String, String>>(params_json.as_bytes()) {
+            if let Some(locale_str) = value.get("locale") {
+                // ... existing code ...
+            }
+            
+            if let Some(ctx_map) = value.get("context") {
+                if let Some(locale_str) = ctx_map.get("locale") {
+                    // ... existing code ...
+                }
+            }
+        }
+        
+        // ... existing code ...
     }
     
     pub fn format_results(&self, serialized_results: &str) -> Result<(), ActionError> {
@@ -396,6 +409,20 @@ impl<A: Action> ActionRunner<A> {
         }
         
         None
+    }
+    
+    pub fn get_spec(&self, format: Option<&str>) -> Result<String, String> {
+        match format {
+            Some("json") => NotationType::Json.encode_to_string(&self.generate_spec()),
+            // ... existing code ...
+        }
+    }
+    
+    pub fn get_available_actions(&self, format: Option<&str>) -> Result<String, String> {
+        match format {
+            Some("json") => NotationType::Json.encode_to_string(&self.list_available_actions()),
+            // ... existing code ...
+        }
     }
 }
 

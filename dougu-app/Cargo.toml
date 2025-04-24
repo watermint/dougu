@@ -20,16 +20,11 @@ clap = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
 async-trait = { workspace = true }
 chrono = "0.4.31"
 ciborium = { workspace = true }
 bson = { workspace = true }
 quick-xml = { workspace = true }
-jaq-parse = { workspace = true }
-jaq-interpret = { workspace = true }
-jaq-syn = { workspace = true }
 hex = { workspace = true }
 uuid = { version = "1.4", features = ["v4"] }
 walkdir = "2.3"

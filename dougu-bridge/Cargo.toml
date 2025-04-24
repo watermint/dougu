@@ -10,8 +10,6 @@ publish = false
 
 [dependencies]
 dougu-essentials = { path = "../dougu-essentials" }
-serde = { workspace = true }
-serde_json = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
 anyhow = { workspace = true } 

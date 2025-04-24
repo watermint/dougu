@@ -2,6 +2,8 @@ use crate::ui::formatters::{DefaultFormatter, JsonLinesFormatter, MarkdownFormat
 use crate::ui::{OutputFormat, UIFormatter, UITheme};
 use serde::Serialize;
 use std::fmt::Display;
+use dougu_essentials::obj::{Notation, NotationType};
+use std::collections::HashMap;
 
 pub struct UIManager {
     theme: UITheme,
@@ -169,25 +171,21 @@ impl UIManager {
     
     /// Serialize to JSON
     pub fn json<T: Serialize>(&self, data: &T) -> Result<String, String> {
-        // Convert to Value first
-        let value = match serde_json::to_value(data) {
+        let value = match NotationType::Json.encode_to_string(data) {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed to serialize to JSON: {}", e)),
         };
         
-        // Format using the current formatter
         self.formatter().json_value(&value)
     }
     
     /// Serialize to JSON Lines
     pub fn jsonl<T: Serialize>(&self, data: &T) -> Result<String, String> {
-        // Convert to Value first
-        let value = match serde_json::to_value(data) {
+        let value = match NotationType::Json.encode_to_string(data) {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed to serialize to JSON: {}", e)),
         };
         
-        // Format using the current formatter
         self.formatter().jsonl_value(&value)
     }
     
@@ -337,10 +335,10 @@ fn format_commandlet_result_markdown<T: Serialize>(ui: &UIManager, result: &T) -
 
 fn format_commandlet_result_default<T: Serialize>(ui: &UIManager, result: &T) -> String {
     // Try to serialize as JSON for inspection
-    match serde_json::to_value(result) {
+    match NotationType::Json.encode_to_string(result) {
         Ok(value) => {
             match value {
-                serde_json::Value::Object(map) => {
+                NotationType::Json::Object(map) => {
                     // Handle object type results
                     let mut output = String::new();
                     
@@ -364,7 +362,7 @@ fn format_commandlet_result_default<T: Serialize>(ui: &UIManager, result: &T) ->
                     // For regular objects, format as key-value pairs
                     for (key, val) in map.iter() {
                         let val_str = match val {
-                            serde_json::Value::String(s) => s.clone(),
+                            NotationType::Json::String(s) => s.clone(),
                             _ => val.to_string(),
                         };
                         
@@ -373,7 +371,7 @@ fn format_commandlet_result_default<T: Serialize>(ui: &UIManager, result: &T) ->
                     
                     output
                 },
-                serde_json::Value::Array(arr) => {
+                NotationType::Json::Array(arr) => {
                     // Handle array type results
                     let items: Vec<String> = arr.iter()
                         .map(|v| v.to_string())
@@ -389,6 +387,50 @@ fn format_commandlet_result_default<T: Serialize>(ui: &UIManager, result: &T) ->
         },
         Err(e) => {
             ui.format_error(&format!("Failed to serialize result: {}", e))
+        }
+    }
+}
+
+impl<T: Serialize> UIManager<T> {
+    pub fn display_data(&self, data: &T) -> Result<String, String> {
+        let value = match NotationType::Json.encode_to_string(data) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed to serialize data: {}", e)),
+        };
+        
+        self.formatter.json_value(&value)
+    }
+    
+    pub fn display_data_jsonl(&self, data: &T) -> Result<String, String> {
+        let value = match NotationType::Json.encode_to_string(data) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed to serialize data: {}", e)),
+        };
+        
+        self.formatter.jsonl_value(&value)
+    }
+    
+    pub fn display_json(&self, json: &str) -> Result<String, String> {
+        if let Ok(value) = NotationType::Json.decode::<HashMap<String, String>>(json.as_bytes()) {
+            if let Ok(pretty) = NotationType::Json.encode_to_string(&value) {
+                return self.formatter.json_value(&pretty);
+            }
+        }
+        Err("Invalid JSON".to_string())
+    }
+    
+    pub fn display_result(&self, result: &T) -> Result<String, String> {
+        match NotationType::Json.encode_to_string(result) {
+            Ok(value) => {
+                if let NotationType::Json::Object(map) = value {
+                    // Handle object case
+                    // ... existing code ...
+                } else {
+                    // Handle other cases
+                    // ... existing code ...
+                }
+            }
+            Err(e) => Err(format!("Failed to serialize result: {}", e)),
         }
     }
 } 

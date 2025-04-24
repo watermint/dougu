@@ -1,7 +1,8 @@
 use crate::ui::{UIFormatter, UITheme};
 use colored::Colorize;
 use prettytable::{format, Cell, Row, Table};
-use serde_json;
+use dougu_essentials::obj::{Notation, NotationType};
+use std::collections::HashMap;
 
 /// Default formatter implementation
 #[derive(Clone)]
@@ -127,12 +128,12 @@ impl UIFormatter for DefaultFormatter {
         table.to_string()
     }
     
-    fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {
-        serde_json::to_string_pretty(value).map_err(|e| e.to_string())
+    fn json_value(&self, value: &dyn Notation) -> Result<String, String> {
+        Ok(value.encode_to_string()?)
     }
     
-    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String> {
-        serde_json::to_string(value).map_err(|e| e.to_string())
+    fn jsonl_value(&self, value: &dyn Notation) -> Result<String, String> {
+        Ok(value.encode_to_string()?)
     }
 }
 
@@ -143,131 +144,107 @@ impl JsonLinesFormatter {
         Self {}
     }
     
-    fn json_wrap(&self, json_type: &str, data: serde_json::Value) -> String {
-        let mut wrapper = serde_json::Map::new();
-        wrapper.insert("type".to_string(), serde_json::Value::String(json_type.to_string()));
-        wrapper.insert("data".to_string(), data);
+    fn json_wrap(&self, json_type: &str, data: impl Notation) -> String {
+        let mut wrapper = HashMap::new();
+        wrapper.insert("type".to_string(), json_type.to_string());
+        wrapper.insert("data".to_string(), data.encode_to_string().unwrap());
         
-        let wrapper_value = serde_json::Value::Object(wrapper);
-        serde_json::to_string(&wrapper_value)
-            .unwrap_or_else(|_| "{}".to_string())
+        let wrapper_value = NotationType::Json.encode_to_string(&wrapper).unwrap();
+        wrapper_value
     }
 }
 
 impl UIFormatter for JsonLinesFormatter {
     fn title(&self, text: &str) -> String {
-        self.json_wrap("title", serde_json::Value::String(text.to_string()))
+        self.json_wrap("title", text)
     }
     
     fn subtitle(&self, text: &str) -> String {
-        self.json_wrap("subtitle", serde_json::Value::String(text.to_string()))
+        self.json_wrap("subtitle", text)
     }
     
-    fn heading(&self, level: u8, text: &str) -> String {
-        let mut heading_data = serde_json::Map::new();
-        heading_data.insert("level".to_string(), serde_json::Value::Number(serde_json::Number::from(level)));
-        heading_data.insert("text".to_string(), serde_json::Value::String(text.to_string()));
+    fn heading(&self, level: u32, text: &str) -> String {
+        let mut heading_data = HashMap::new();
+        heading_data.insert("level".to_string(), level.to_string());
+        heading_data.insert("text".to_string(), text.to_string());
         
-        self.json_wrap("heading", serde_json::Value::Object(heading_data))
+        self.json_wrap("heading", heading_data)
     }
     
     fn text(&self, text: &str) -> String {
-        self.json_wrap("text", serde_json::Value::String(text.to_string()))
+        self.json_wrap("text", text)
     }
     
     fn success(&self, text: &str) -> String {
-        self.json_wrap("success", serde_json::Value::String(text.to_string()))
+        self.json_wrap("success", text)
     }
     
     fn error(&self, text: &str) -> String {
-        self.json_wrap("error", serde_json::Value::String(text.to_string()))
+        self.json_wrap("error", text)
     }
     
     fn info(&self, text: &str) -> String {
-        self.json_wrap("info", serde_json::Value::String(text.to_string()))
+        self.json_wrap("info", text)
     }
     
     fn warning(&self, text: &str) -> String {
-        self.json_wrap("warning", serde_json::Value::String(text.to_string()))
+        self.json_wrap("warning", text)
     }
     
     fn block(&self, text: &str) -> String {
-        self.json_wrap("block", serde_json::Value::String(text.to_string()))
+        self.json_wrap("block", text)
     }
     
     fn code(&self, text: &str, language: Option<&str>) -> String {
-        let mut code_data = serde_json::Map::new();
-        code_data.insert("text".to_string(), serde_json::Value::String(text.to_string()));
-        code_data.insert("language".to_string(), match language {
-            Some(lang) => serde_json::Value::String(lang.to_string()),
-            None => serde_json::Value::Null,
-        });
+        let mut code_data = HashMap::new();
+        code_data.insert("text".to_string(), text.to_string());
+        code_data.insert("language".to_string(), language.map(|l| l.to_string()).unwrap_or_default());
         
-        self.json_wrap("code", serde_json::Value::Object(code_data))
+        self.json_wrap("code", code_data)
     }
     
     fn hr(&self) -> String {
-        self.json_wrap("hr", serde_json::Value::Null)
+        self.json_wrap("hr", NotationType::Null)
     }
     
     fn key_value_list(&self, pairs: &[(&str, &str)]) -> String {
-        let list: Vec<serde_json::Value> = pairs
-            .iter()
-            .map(|(key, value)| {
-                let mut item = serde_json::Map::new();
-                item.insert("key".to_string(), serde_json::Value::String(key.to_string()));
-                item.insert("value".to_string(), serde_json::Value::String(value.to_string()));
-                serde_json::Value::Object(item)
-            })
+        let list: Vec<String> = pairs.iter()
+            .map(|(key, value)| format!("{}: {}", key, value))
             .collect();
         
-        self.json_wrap("key_value_list", serde_json::Value::Array(list))
+        self.json_wrap("key_value_list", list.join("\n"))
     }
     
     fn list_string(&self, items: &[String], ordered: bool) -> String {
-        let items_array: Vec<serde_json::Value> = items
-            .iter()
-            .map(|item| serde_json::Value::String(item.to_string()))
-            .collect();
+        let items_array: Vec<String> = items.iter().map(|item| item.to_string()).collect();
         
-        let mut list_data = serde_json::Map::new();
-        list_data.insert("ordered".to_string(), serde_json::Value::Bool(ordered));
-        list_data.insert("items".to_string(), serde_json::Value::Array(items_array));
+        let mut list_data = HashMap::new();
+        list_data.insert("ordered".to_string(), ordered.to_string());
+        list_data.insert("items".to_string(), items_array.join(","));
         
-        self.json_wrap("list", serde_json::Value::Object(list_data))
+        self.json_wrap("list", list_data)
     }
     
     fn table_string(&self, headers: &[&str], rows: &[Vec<String>]) -> String {
-        let headers_array: Vec<serde_json::Value> = headers
-            .iter()
-            .map(|h| serde_json::Value::String(h.to_string()))
+        let headers_array: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
+        
+        let rows_array: Vec<String> = rows.iter()
+            .map(|row| row.iter().map(|cell| cell.to_string()).collect::<Vec<String>>().join(","))
             .collect();
         
-        let rows_array: Vec<serde_json::Value> = rows
-            .iter()
-            .map(|row| {
-                let row_array: Vec<serde_json::Value> = row
-                    .iter()
-                    .map(|cell| serde_json::Value::String(cell.to_string()))
-                    .collect();
-                serde_json::Value::Array(row_array)
-            })
-            .collect();
+        let mut table_data = HashMap::new();
+        table_data.insert("headers".to_string(), headers_array.join(","));
+        table_data.insert("rows".to_string(), rows_array.join("\n"));
         
-        let mut table_data = serde_json::Map::new();
-        table_data.insert("headers".to_string(), serde_json::Value::Array(headers_array));
-        table_data.insert("rows".to_string(), serde_json::Value::Array(rows_array));
-        
-        self.json_wrap("table", serde_json::Value::Object(table_data))
+        self.json_wrap("table", table_data)
     }
     
-    fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {
-        self.json_wrap("json", value.clone());
-        Ok(serde_json::to_string(value).map_err(|e| e.to_string())?)
+    fn json_value(&self, value: &dyn Notation) -> Result<String, String> {
+        Ok(self.json_wrap("json", value.clone()))
     }
     
-    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String> {
-        Ok(serde_json::to_string(value).map_err(|e| e.to_string())?)
+    fn jsonl_value(&self, value: &dyn Notation) -> Result<String, String> {
+        Ok(self.json_wrap("jsonl", value.clone()))
     }
 }
 
@@ -385,13 +362,13 @@ impl UIFormatter for MarkdownFormatter {
         format!("| {} |\n| {} |\n| {} |", header_row, separator_row.join(" | "), data_rows.replace("\n", " |\n| "))
     }
     
-    fn json_value(&self, value: &serde_json::Value) -> Result<String, String> {
-        let json_str = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    fn json_value(&self, value: &dyn Notation) -> Result<String, String> {
+        let json_str = value.encode_to_string()?;
         Ok(format!("```json\n{}\n```", json_str))
     }
     
-    fn jsonl_value(&self, value: &serde_json::Value) -> Result<String, String> {
-        let json_str = serde_json::to_string(value).map_err(|e| e.to_string())?;
+    fn jsonl_value(&self, value: &dyn Notation) -> Result<String, String> {
+        let json_str = value.encode_to_string()?;
         Ok(format!("```json\n{}\n```", json_str))
     }
 } 

@@ -16,8 +16,6 @@ i18n = []
 # Common dependencies
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
 chrono = { workspace = true }
