@@ -1,110 +1,95 @@
 use anyhow::{anyhow, Context, Result};
-use jaq_interpret::{Ctx, FilterT, ParseCtx, RcIter, Val};
-use jaq_parse;
-use serde::Serialize;
-use serde_json::Value;
+use std::str;
 
 use crate::obj::resources::errors::*;
+use crate::obj::notation::NotationType;
 
-/// JaqQuery provides a wrapper around the jaq-parse library for executing JQ-like queries on JSON data.
-/// It adds a layer of abstraction to hide the complexity of the underlying library and provide
-/// a simple interface for common query operations.
+/// Query provides a wrapper around query operations on NotationType data.
+/// It adds a layer of abstraction to provide a simple interface for common query operations.
 pub struct Query {
     filter_str: String,
-    compiled_filter: jaq_interpret::Filter,
+    compiled_filter: Filter,
+}
+
+/// A compiled filter that can be executed against NotationType values
+struct Filter {
+    path: Vec<FilterStep>,
+}
+
+/// A single step in a filter path
+enum FilterStep {
+    Field(String),
+    Index(usize),
+    Wildcard,
 }
 
 impl Query {
-    /// Compiles a JQ query string into an executable filter.
+    /// Compiles a query string into an executable filter.
     ///
     /// # Arguments
     ///
-    /// * `query_str` - The JQ query string to compile
+    /// * `query_str` - The query string to compile
     ///
     /// # Returns
     ///
-    /// * `Result<Self>` - A compiled JaqQuery instance or an error
+    /// * `Result<Self>` - A compiled Query instance or an error
     pub fn compile(query_str: &str) -> Result<Self> {
-        // Parse the filter using jaq_parse
-        let (parsed_filter, parse_errors) = jaq_parse::parse(query_str, jaq_parse::main());
-        
-        if !parse_errors.is_empty() {
-            return Err(anyhow!(
-                "{}: Failed to parse query: {} errors occurred", 
-                ERROR_QUERY_PARSE, 
-                parse_errors.len()
-            ));
-        }
-        
-        let parsed_filter = parsed_filter.ok_or_else(|| anyhow!("{}: No filter parsed", ERROR_QUERY_PARSE))?;
-        
-        // Compile the filter in the context
-        let mut ctx = ParseCtx::new(Vec::new());
-        let compiled_filter = ctx.compile(parsed_filter);
-        
-        if !ctx.errs.is_empty() {
-            return Err(anyhow!(
-                "{}: Failed to compile query: {} errors occurred", 
-                ERROR_QUERY_PARSE, 
-                ctx.errs.len()
-            ));
-        }
+        let path = Self::parse_path(query_str)?;
         
         Ok(Self {
             filter_str: query_str.to_string(),
-            compiled_filter,
+            compiled_filter: Filter { path },
         })
     }
     
-    /// Executes the compiled query against a JSON-serializable value.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to query against
-    ///
-    /// # Returns
-    ///
-    /// * `Result<Vec<Value>>` - A vector of resulting JSON values or an error
-    pub fn execute<T>(&self, value: &T) -> Result<Vec<Value>> 
-    where
-        T: Serialize,
-    {
-        // Convert the input value to serde_json Value
-        let json_value = serde_json::to_value(value)
-            .with_context(|| ERROR_VALUE_CONVERSION)?;
+    /// Parses a query string into a path of filter steps
+    fn parse_path(query_str: &str) -> Result<Vec<FilterStep>> {
+        let mut path = Vec::new();
+        let mut current = String::new();
+        let mut in_brackets = false;
         
-        // Set up the execution context
-        let inputs = RcIter::new(std::iter::empty());
-        let ctx = Ctx::new([], &inputs);
-        
-        // Run the filter
-        let results: Vec<Result<Val, jaq_interpret::Error>> = 
-            self.compiled_filter
-                .run((ctx, Val::from(json_value)))
-                .collect();
-        
-        // Convert the results to serde_json Values
-        let mut output = Vec::new();
-        for result in results {
-            match result {
-                Ok(val) => {
-                    let value: Value = val.into();
-                    output.push(value);
+        for c in query_str.chars() {
+            match c {
+                '.' if !in_brackets => {
+                    if !current.is_empty() {
+                        path.push(FilterStep::Field(current));
+                        current = String::new();
+                    }
                 },
-                Err(err) => {
-                    return Err(anyhow!(
-                        "{}: Failed to execute query: {}", 
-                        ERROR_QUERY_EXECUTION, 
-                        err
-                    ));
-                }
+                '[' if !in_brackets => {
+                    if !current.is_empty() {
+                        path.push(FilterStep::Field(current));
+                        current = String::new();
+                    }
+                    in_brackets = true;
+                },
+                ']' if in_brackets => {
+                    if current == "*" {
+                        path.push(FilterStep::Wildcard);
+                    } else if let Ok(index) = current.parse::<usize>() {
+                        path.push(FilterStep::Index(index));
+                    } else {
+                        return Err(anyhow!("{}: Invalid array index: {}", ERROR_QUERY_PARSE, current));
+                    }
+                    current = String::new();
+                    in_brackets = false;
+                },
+                _ => current.push(c),
             }
         }
         
-        Ok(output)
+        if !current.is_empty() {
+            path.push(FilterStep::Field(current));
+        }
+        
+        if path.is_empty() {
+            return Err(anyhow!("{}: Empty query", ERROR_QUERY_PARSE));
+        }
+        
+        Ok(path)
     }
     
-    /// Executes the compiled query and returns a single JSON value result.
+    /// Executes the compiled query against a NotationType value.
     ///
     /// # Arguments
     ///
@@ -112,10 +97,70 @@ impl Query {
     ///
     /// # Returns
     ///
-    /// * `Result<Value>` - A single JSON value result or an error
-    pub fn execute_to_single<T>(&self, value: &T) -> Result<Value> 
+    /// * `Result<Vec<NotationType>>` - A vector of resulting values or an error
+    pub fn execute<T>(&self, value: &T) -> Result<Vec<NotationType>> 
     where
-        T: Serialize,
+        T: Into<NotationType>,
+    {
+        let value = value.into();
+        let mut results = vec![value];
+        
+        for step in &self.compiled_filter.path {
+            let mut next_results = Vec::new();
+            
+            for result in results {
+                match step {
+                    FilterStep::Field(field) => {
+                        if let NotationType::Object(obj) = result {
+                            for (k, v) in obj {
+                                if k == field {
+                                    next_results.push(v.clone());
+                                }
+                            }
+                        }
+                    },
+                    FilterStep::Index(index) => {
+                        if let NotationType::Array(arr) = result {
+                            if *index < arr.len() {
+                                next_results.push(arr[*index].clone());
+                            }
+                        }
+                    },
+                    FilterStep::Wildcard => {
+                        match result {
+                            NotationType::Array(arr) => {
+                                next_results.extend(arr.iter().cloned());
+                            },
+                            NotationType::Object(obj) => {
+                                next_results.extend(obj.iter().map(|(_, v)| v.clone()));
+                            },
+                            _ => (),
+                        }
+                    },
+                }
+            }
+            
+            results = next_results;
+            if results.is_empty() {
+                break;
+            }
+        }
+        
+        Ok(results)
+    }
+    
+    /// Executes the compiled query and returns a single NotationType result.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to query against
+    ///
+    /// # Returns
+    ///
+    /// * `Result<NotationType>` - A single NotationType result or an error
+    pub fn execute_to_single<T>(&self, value: &T) -> Result<NotationType> 
+    where
+        T: Into<NotationType>,
     {
         let results = self.execute(value)?;
         
@@ -140,7 +185,7 @@ impl Query {
     /// * `Result<String>` - The JSON string result or an error
     pub fn execute_to_string<T>(&self, value: &T) -> Result<String> 
     where
-        T: Serialize,
+        T: Into<NotationType>,
     {
         let results = self.execute(value)?;
         
@@ -151,8 +196,7 @@ impl Query {
             ));
         }
         
-        serde_json::to_string(&results[0])
-            .with_context(|| ERROR_VALUE_CONVERSION)
+        Ok(results[0].to_string())
     }
     
     /// Returns the original query string used to compile this query.

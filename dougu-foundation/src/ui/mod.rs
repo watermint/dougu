@@ -1,6 +1,8 @@
-pub mod resources;
-
+use anyhow::Result;
+use dougu_essentials::obj::{Notation, NotationType};
+use std::fmt::Display;
 use std::str::FromStr;
+use crate::ui::UIManager;
 
 mod formatters;
 mod manager;
@@ -29,8 +31,8 @@ impl FromStr for OutputFormat {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "default" => Ok(OutputFormat::Default),
-            "json" | "jsonl" | "jsonlines" => Ok(OutputFormat::JsonLines),
-            "markdown" => Ok(OutputFormat::Markdown),
+            "jsonl" | "jsonlines" => Ok(OutputFormat::JsonLines),
+            "markdown" | "md" => Ok(OutputFormat::Markdown),
             _ => Err(format!("Invalid output format: {}", s)),
         }
     }
@@ -119,12 +121,12 @@ pub fn format_error(ui: &UIManager, message: &str, details: Option<&str>) -> Str
 
 /// Format an action result for display
 pub fn format_action_result(ui: &UIManager, result: &str) -> String {
-    match serde_json::from_str::<serde_json::Value>(result) {
+    match NotationType::Json.decode::<NotationType>(result.as_bytes()) {
         Ok(value) => match ui.format() {
             OutputFormat::JsonLines => ui.jsonl(&value).unwrap_or_else(|e| e),
             OutputFormat::Markdown => ui.json(&value).unwrap_or_else(|e| e),
             OutputFormat::Default => ui.json(&value).unwrap_or_else(|e| e),
         },
-        Err(e) => format!("Failed to parse result: {}", e),
+        Err(_) => result.to_string(),
     }
 } 

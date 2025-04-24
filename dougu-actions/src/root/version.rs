@@ -6,8 +6,6 @@ use dougu_foundation::{
     run::{Action, ActionError, ActionRunner, LauncherContext, LauncherLayer},
     ui::UIManager
 };
-use serde::{Deserialize, Serialize};
-use serde_json;
 
 // Add the import for message resources
 use crate::root::resources::messages::*;
@@ -15,12 +13,10 @@ use crate::root::resources::messages::*;
 // Version action
 pub struct VersionAction;
 
-#[derive(Serialize, Deserialize)]
 pub struct VersionParams {
     // No parameters needed for version action
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct VersionResults {
     pub build_release: u32,
     pub build_timestamp: String,
@@ -41,30 +37,18 @@ impl Action for VersionAction {
         "VersionAction"
     }
     
-    async fn execute(&self, _params: Self::Params) -> Result<Self::Results, ActionError> {
-        // Get build information
+    async fn execute(&self, _params: &Self::Params, _ctx: &LauncherContext) -> Result<Self::Results, ActionError> {
         let build_info = get_build_info();
         
-        // Generate semantic version from build info instead of using CARGO_PKG_VERSION
-        let version = build_info.semantic_version();
-        
-        // Extract fields from build_info
-        let build_timestamp = build_info.build_timestamp.clone();
-        let build_type = build_info.build_type.clone();
-        let build_release = build_info.build_release;
-        let repository_owner = build_info.repository_owner.clone();
-        let repository_name = build_info.repository_name.clone();
-        let executable_name = build_info.executable_name.clone();
-        
         Ok(VersionResults {
-            version,
-            build_type,
-            build_release,
-            rust_version: std::env::var("RUSTC_VERSION").unwrap_or_else(|_| "unknown".to_string()),
-            build_timestamp,
-            repository_owner,
-            repository_name,
-            executable_name,
+            build_release: build_info.build_release,
+            build_timestamp: build_info.build_timestamp,
+            build_type: build_info.build_type,
+            repository_name: build_info.repository_name,
+            repository_owner: build_info.repository_owner,
+            rust_version: build_info.rust_version,
+            version: build_info.version,
+            executable_name: build_info.executable_name,
         })
     }
 }

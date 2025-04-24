@@ -9,8 +9,6 @@ repository = "https://github.com/watermint/dougu"
 publish = false
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
@@ -19,9 +17,6 @@ async-trait = { workspace = true }
 ciborium = { workspace = true }
 bson = { workspace = true }
 quick-xml = { workspace = true }
-jaq-parse = { workspace = true }
-jaq-interpret = { workspace = true }
-jaq-syn = { workspace = true }
 hex = { workspace = true }
 reqwest = { workspace = true }
 env_logger = { workspace = true }
@@ -37,6 +32,3 @@ sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
 zip = "0.6"
 tempfile = "3.8"
 walkdir = "2.3"
-
-[features]
-examples = [] 

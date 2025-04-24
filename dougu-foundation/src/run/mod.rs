@@ -9,17 +9,16 @@ use log::{debug, error, info};
 use resources::error_messages;
 use resources::log_messages;
 use resources::spec_messages;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use dougu_essentials::obj::{Notation, NotationType};
+use crate::ui::format_commandlet_result;
 
 // Re-export i18n adapter for convenience
 pub use i18n_adapter::I18nInitializerLayer;
 
 /// Field specification for Action parameters and results
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SpecField {
     pub name: String,
     pub description: Option<String>,
@@ -29,14 +28,14 @@ pub struct SpecField {
 }
 
 /// Error specification for Action errors
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SpecError {
     pub code: String,
     pub description: String,
 }
 
 /// Specification for an Action's inputs and outputs
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ActionSpec {
     pub name: String,
     pub description: Option<String>,
@@ -289,60 +288,21 @@ impl ActionLauncher {
     }
 }
 
-pub struct ActionRunner<A: Action> {
-    action: A,
+pub struct ActionRunner {
+    action: Box<dyn Action>,
     ui: UIManager,
 }
 
-impl<A: Action> ActionRunner<A> {
-    pub fn new(action: A) -> Self {
+impl ActionRunner {
+    pub fn with_ui(action: impl Action + 'static, ui: UIManager) -> Self {
         Self {
-            action,
-            ui: UIManager::default(),
-        }
-    }
-    
-    pub fn with_ui(action: A, ui: UIManager) -> Self {
-        Self {
-            action,
+            action: Box::new(action),
             ui,
         }
     }
     
-    pub fn run_with_params(&self, serialized_params: &str) -> Result<String, String> {
-        let params = match NotationType::Json.decode::<A::Params>(serialized_params.as_bytes()) {
-            Ok(p) => p,
-            Err(e) => return Err(format!("Failed to deserialize params: {}", e)),
-        };
-        
-        let results = self.action.execute(params)?;
-        
-        let serialized_results = match NotationType::Json.encode_to_string(&results) {
-            Ok(s) => s,
-            Err(e) => return Err(format!("Failed to serialize results: {}", e)),
-        };
-        
-        Ok(serialized_results)
-    }
-    
-    pub fn run_with_context(&self, params_json: &str) -> Result<String, String> {
-        if let Ok(value) = NotationType::Json.decode::<HashMap<String, String>>(params_json.as_bytes()) {
-            if let Some(locale_str) = value.get("locale") {
-                // ... existing code ...
-            }
-            
-            if let Some(ctx_map) = value.get("context") {
-                if let Some(locale_str) = ctx_map.get("locale") {
-                    // ... existing code ...
-                }
-            }
-        }
-        
-        // ... existing code ...
-    }
-    
     pub fn format_results(&self, serialized_results: &str) -> Result<(), ActionError> {
-        let result_value: serde_json::Value = serde_json::from_str(serialized_results)
+        let result_value = NotationType::Json.decode::<NotationType>(serialized_results.as_bytes())
             .map_err(|e| ActionError::with_details(
                 "RESULT_PARSE_ERROR",
                 &error_messages::RESULT_PARSE_ERROR,
@@ -350,14 +310,14 @@ impl<A: Action> ActionRunner<A> {
             ))?;
         
         // Format and display the results based on UI manager
-        let formatted = crate::ui::format_commandlet_result(&self.ui, &result_value);
+        let formatted = format_commandlet_result(&self.ui, &result_value);
         println!("{}", formatted);
         
         Ok(())
     }
     
     pub fn format_results_to_string(&self, serialized_results: &str) -> Result<String, ActionError> {
-        let result_value: serde_json::Value = serde_json::from_str(serialized_results)
+        let result_value = NotationType::Json.decode::<NotationType>(serialized_results.as_bytes())
             .map_err(|e| ActionError::with_details(
                 "RESULT_PARSE_ERROR",
                 &error_messages::RESULT_PARSE_ERROR,
@@ -365,7 +325,7 @@ impl<A: Action> ActionRunner<A> {
             ))?;
         
         // Format the results based on UI manager
-        let formatted = crate::ui::format_commandlet_result(&self.ui, &result_value);
+        let formatted = format_commandlet_result(&self.ui, &result_value);
         
         Ok(formatted)
     }
@@ -381,52 +341,9 @@ impl<A: Action> ActionRunner<A> {
     pub fn get_locale(ctx: &LauncherContext) -> &Locale {
         &ctx.locale
     }
-    
-    pub fn get_context_locale(params_json: &str) -> Option<Locale> {
-        // Parse the parameters as an untyped JSON value 
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(params_json) {
-            if let serde_json::Value::Object(map) = value {
-                // Check if there's a locale parameter
-                if let Some(locale_value) = map.get("locale") {
-                    if let serde_json::Value::String(locale_str) = locale_value {
-                        // Try to parse the locale
-                        if let Ok(locale) = Locale::from_str(locale_str) {
-                            return Some(locale);
-                        }
-                    }
-                }
-                
-                // Check if there's a context parameter with locale
-                if let Some(serde_json::Value::Object(ctx_map)) = map.get("context") {
-                    if let Some(serde_json::Value::String(locale_str)) = ctx_map.get("locale") {
-                        // Try to parse the locale
-                        if let Ok(locale) = Locale::from_str(locale_str) {
-                            return Some(locale);
-                        }
-                    }
-                }
-            }
-        }
-        
-        None
-    }
-    
-    pub fn get_spec(&self, format: Option<&str>) -> Result<String, String> {
-        match format {
-            Some("json") => NotationType::Json.encode_to_string(&self.generate_spec()),
-            // ... existing code ...
-        }
-    }
-    
-    pub fn get_available_actions(&self, format: Option<&str>) -> Result<String, String> {
-        match format {
-            Some("json") => NotationType::Json.encode_to_string(&self.list_available_actions()),
-            // ... existing code ...
-        }
-    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SpecParams {
     /// Name of the action to generate spec for
     pub action_name: Option<String>,
@@ -434,7 +351,7 @@ pub struct SpecParams {
     pub format: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SpecResults {
     pub action_name: String,
     pub spec: ActionSpec,
@@ -461,15 +378,16 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
         result.push_str("| Name | Type | Required | Default | Description |\n");
         result.push_str("|------|------|----------|---------|-------------|\n");
         
-        for option in &spec.options {
-            let desc = option.description.as_deref().unwrap_or("-");
-            let default = option.default_value.as_deref().unwrap_or("-");
-            let required = if option.required { "Yes" } else { "No" };
-            
-            result.push_str(&format!("| {} | {} | {} | {} | {} |\n", 
-                option.name, option.field_type, required, default, desc));
+        for opt in &spec.options {
+            result.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                opt.name,
+                opt.field_type,
+                opt.required,
+                opt.default_value.as_deref().unwrap_or(""),
+                opt.description.as_deref().unwrap_or("")
+            ));
         }
-        
         result.push_str("\n");
     }
     
@@ -480,30 +398,34 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
         result.push_str("|------|------|----------|---------|-------------|\n");
         
         for param in &spec.parameters {
-            let desc = param.description.as_deref().unwrap_or("-");
-            let default = param.default_value.as_deref().unwrap_or("-");
-            let required = if param.required { "Yes" } else { "No" };
-            
-            result.push_str(&format!("| {} | {} | {} | {} | {} |\n", 
-                param.name, param.field_type, required, default, desc));
+            result.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                param.name,
+                param.field_type,
+                param.required,
+                param.default_value.as_deref().unwrap_or(""),
+                param.description.as_deref().unwrap_or("")
+            ));
         }
-        
         result.push_str("\n");
     }
     
     // Result Types
     if !spec.result_types.is_empty() {
         result.push_str("## Result Types\n\n");
-        result.push_str("| Name | Type | Description |\n");
-        result.push_str("|------|------|-------------|\n");
+        result.push_str("| Name | Type | Required | Default | Description |\n");
+        result.push_str("|------|------|----------|---------|-------------|\n");
         
-        for res in &spec.result_types {
-            let desc = res.description.as_deref().unwrap_or("-");
-            
-            result.push_str(&format!("| {} | {} | {} |\n", 
-                res.name, res.field_type, desc));
+        for result_type in &spec.result_types {
+            result.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                result_type.name,
+                result_type.field_type,
+                result_type.required,
+                result_type.default_value.as_deref().unwrap_or(""),
+                result_type.description.as_deref().unwrap_or("")
+            ));
         }
-        
         result.push_str("\n");
     }
     
@@ -513,8 +435,12 @@ pub fn format_spec_as_markdown(spec: &ActionSpec) -> String {
         result.push_str("| Code | Description |\n");
         result.push_str("|------|-------------|\n");
         
-        for err in &spec.errors {
-            result.push_str(&format!("| {} | {} |\n", err.code, err.description));
+        for error in &spec.errors {
+            result.push_str(&format!(
+                "| {} | {} |\n",
+                error.code,
+                error.description
+            ));
         }
     }
     

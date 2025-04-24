@@ -1,6 +1,5 @@
 use anyhow::Result;
-use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
+use std::str;
 
 pub mod json;
 pub mod bson;
@@ -19,17 +18,17 @@ pub trait Notation {
     /// Decode bytes into a value of type T
     fn decode<T>(&self, input: &[u8]) -> Result<T>
     where
-        T: DeserializeOwned;
+        T: From<NotationType>;
     
     /// Encode a value of type T into bytes
     fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
     where
-        T: Serialize + ?Sized;
+        T: Into<NotationType>;
     
     /// Encode a value of type T into a string
     fn encode_to_string<T>(&self, value: &T) -> Result<String>
     where
-        T: Serialize + ?Sized {
+        T: Into<NotationType> {
         let bytes = self.encode(value)?;
         Ok(String::from_utf8(bytes)?)
     }
@@ -37,7 +36,7 @@ pub trait Notation {
     /// Optional method for encoding collections (mainly for JSONL)
     fn encode_collection<T>(&self, values: &[T]) -> Result<Vec<u8>>
     where
-        T: Serialize {
+        T: Into<NotationType> {
         // Default implementation encodes as a regular array/collection
         self.encode(values)
     }
@@ -46,73 +45,77 @@ pub trait Notation {
 /// An enum representing all available notation types
 #[derive(Debug, Clone)]
 pub enum NotationType {
-    Json(json::JsonNotation),
-    Bson(bson::BsonNotation),
-    Cbor(cbor::CborNotation),
-    Xml(xml::XmlNotation),
-    Yaml(yaml::YamlNotation),
-    Toml(toml::TomlNotation),
-    Jsonl(jsonl::JsonlNotation),
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Null,
+    Array(Vec<NotationType>),
+    Object(Vec<(String, NotationType)>),
 }
 
-impl Notation for NotationType {
-    fn decode<T>(&self, input: &[u8]) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
-        match self {
-            NotationType::Json(n) => n.decode(input),
-            NotationType::Bson(n) => n.decode(input),
-            NotationType::Cbor(n) => n.decode(input),
-            NotationType::Xml(n) => n.decode(input),
-            NotationType::Yaml(n) => n.decode(input),
-            NotationType::Toml(n) => n.decode(input),
-            NotationType::Jsonl(n) => n.decode(input),
-        }
+impl From<String> for NotationType {
+    fn from(s: String) -> Self {
+        NotationType::String(s)
     }
-    
-    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
-    where
-        T: Serialize + ?Sized,
-    {
-        match self {
-            NotationType::Json(n) => n.encode(value),
-            NotationType::Bson(n) => n.encode(value),
-            NotationType::Cbor(n) => n.encode(value),
-            NotationType::Xml(n) => n.encode(value),
-            NotationType::Yaml(n) => n.encode(value),
-            NotationType::Toml(n) => n.encode(value),
-            NotationType::Jsonl(n) => n.encode(value),
-        }
+}
+
+impl From<f64> for NotationType {
+    fn from(n: f64) -> Self {
+        NotationType::Number(n)
     }
-    
-    fn encode_to_string<T>(&self, value: &T) -> Result<String>
-    where
-        T: Serialize + ?Sized,
-    {
-        match self {
-            NotationType::Json(n) => n.encode_to_string(value),
-            NotationType::Bson(n) => n.encode_to_string(value),
-            NotationType::Cbor(n) => n.encode_to_string(value),
-            NotationType::Xml(n) => n.encode_to_string(value),
-            NotationType::Yaml(n) => n.encode_to_string(value),
-            NotationType::Toml(n) => n.encode_to_string(value),
-            NotationType::Jsonl(n) => n.encode_to_string(value),
-        }
+}
+
+impl From<bool> for NotationType {
+    fn from(b: bool) -> Self {
+        NotationType::Boolean(b)
     }
-    
-    fn encode_collection<T>(&self, values: &[T]) -> Result<Vec<u8>>
-    where
-        T: Serialize,
-    {
+}
+
+impl<T: Into<NotationType>> From<Vec<T>> for NotationType {
+    fn from(v: Vec<T>) -> Self {
+        NotationType::Array(v.into_iter().map(|x| x.into()).collect())
+    }
+}
+
+impl<T: Into<NotationType>> From<Vec<(String, T)>> for NotationType {
+    fn from(v: Vec<(String, T)>) -> Self {
+        NotationType::Object(v.into_iter().map(|(k, v)| (k, v.into())).collect())
+    }
+}
+
+impl From<()> for NotationType {
+    fn from(_: ()) -> Self {
+        NotationType::Null
+    }
+}
+
+impl std::fmt::Display for NotationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NotationType::Json(n) => n.encode_collection(values),
-            NotationType::Bson(n) => n.encode_collection(values),
-            NotationType::Cbor(n) => n.encode_collection(values),
-            NotationType::Xml(n) => n.encode_collection(values),
-            NotationType::Yaml(n) => n.encode_collection(values),
-            NotationType::Toml(n) => n.encode_collection(values),
-            NotationType::Jsonl(n) => n.encode_collection(values),
+            NotationType::String(s) => write!(f, "{}", s),
+            NotationType::Number(n) => write!(f, "{}", n),
+            NotationType::Boolean(b) => write!(f, "{}", b),
+            NotationType::Null => write!(f, "null"),
+            NotationType::Array(arr) => {
+                write!(f, "[")?;
+                for (i, item) in arr.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            },
+            NotationType::Object(obj) => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in obj.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", k, v)?;
+                }
+                write!(f, "}}")
+            },
         }
     }
 }
