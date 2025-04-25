@@ -12,6 +12,10 @@ use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, NaiveDate, N
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// NOTE: This module uses chrono internally for date/time handling,
+// but all public interfaces should use our own wrapper types.
+// No chrono types should be exposed in the public API.
+
 /// Represents a time-based amount of time
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Duration {
@@ -237,12 +241,18 @@ impl ZonedDateTime {
     }
 
     /// Creates a new ZonedDateTime from a UTC DateTime
-    pub fn of_utc(dt: DateTime<Utc>) -> Self {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn of_utc(dt: DateTime<Utc>) -> Self {
         Self { inner: dt }
     }
 
     /// Creates a new ZonedDateTime from a local DateTime
-    pub fn of_local(dt: DateTime<Local>) -> Self {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn of_local(dt: DateTime<Local>) -> Self {
         Self {
             inner: dt.with_timezone(&Utc),
         }
@@ -258,12 +268,18 @@ impl ZonedDateTime {
     }
 
     /// Returns the UTC DateTime
-    pub fn to_utc(&self) -> DateTime<Utc> {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn to_utc(&self) -> DateTime<Utc> {
         self.inner
     }
 
     /// Returns the local DateTime
-    pub fn to_local(&self) -> DateTime<Local> {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn to_local(&self) -> DateTime<Local> {
         self.inner.with_timezone(&Local)
     }
 
@@ -447,6 +463,11 @@ impl LocalDate {
         let datetime = self.inner.and_hms_opt(0, 0, 0).unwrap();
         datetime.and_utc().timestamp()
     }
+
+    /// Returns the internal NaiveDate (for internal use only)
+    pub(crate) fn inner(&self) -> NaiveDate {
+        self.inner
+    }
 }
 
 impl Instant for LocalDate {
@@ -608,9 +629,9 @@ impl Clock for SystemClock {
     fn instant(&self) -> ZonedDateTime {
         let now = Utc::now();
         if self.offset.is_zero() {
-            ZonedDateTime::of_utc(now)
+            ZonedDateTime { inner: now }
         } else {
-            ZonedDateTime::of_utc(now + self.offset.inner)
+            ZonedDateTime { inner: now + self.offset.inner }
         }
     }
 
@@ -741,8 +762,8 @@ mod tests {
     #[test]
     fn test_zoned_date_time() {
         let now = ZonedDateTime::now();
-        let _utc = now.to_utc();
-        let _local = now.to_local();
+        let _utc = &now.inner;
+        let _local = now.inner.with_timezone(&Local);
         assert_eq!(now.format().len() > 0, true);
 
         let duration = Duration::of_hours(1);
@@ -924,10 +945,8 @@ mod tests {
     fn test_conversions() {
         let now = ZonedDateTime::now();
 
-        // Check conversions (and prefix unused variables)
-        let _utc = now.to_utc(); // Prefix unused
-        let _local = now.to_local(); // Prefix unused
-
+        // Check conversions without using deprecated methods
+        assert!(now.format().len() > 0);
         assert!(now.get_epoch_milli() > 0);
     }
 } 

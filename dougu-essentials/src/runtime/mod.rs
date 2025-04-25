@@ -1,5 +1,5 @@
-use chrono::{Datelike, NaiveDate, Utc};
-// Build module provides utilities for managing build information and versioning
+use crate::time::{LocalDate, Period, ZonedDateTime};
+// Runtime module provides utilities for managing build information and versioning
 use serde::{Deserialize, Serialize};
 
 // Minor version constants
@@ -82,10 +82,13 @@ impl BuildInfo {
                 const EPOCH_MONTH: u32 = 1;
                 const EPOCH_DAY: u32 = 1;
 
-                let epoch_date = NaiveDate::from_ymd_opt(EPOCH_YEAR, EPOCH_MONTH, EPOCH_DAY)
+                let epoch_date = LocalDate::of(EPOCH_YEAR, EPOCH_MONTH, EPOCH_DAY)
                     .expect("Invalid epoch date components");
-                let current_date = Utc::now().date_naive();
-                current_date.signed_duration_since(epoch_date).num_days() as u32
+                let current_date = LocalDate::now();
+
+                // Calculate days between dates using Period
+                let period = Period::of_total_days_between(&epoch_date, &current_date);
+                period.total_days() as u32
             };
 
             // Create build metadata from build_type and timestamp for non-CI builds
@@ -110,7 +113,7 @@ impl BuildInfo {
 
     /// Create a new BuildInfo with default values for local development
     fn new_local() -> Self {
-        let build_timestamp = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let build_timestamp = ZonedDateTime::now().format();
         let (repository_owner, repository_name) = detect_repository();
         // Use the major version from Cargo.toml as release
         let version_str = env!("CARGO_PKG_VERSION");
@@ -124,7 +127,7 @@ impl BuildInfo {
             repository_owner,
             repository_name,
             copyright_owner: "Takayuki Okazaki".to_string(),
-            copyright_year: Utc::now().year() as u32,
+            copyright_year: ZonedDateTime::now().year() as u32,
             copyright_start_year: 2025,
             executable_name: "dougu".to_string(),
         }
@@ -149,9 +152,9 @@ impl BuildInfo {
             if let Some(year) = option_env!("DOUGU_COPYRIGHT_YEAR").and_then(|y| y.parse::<u32>().ok()) {
                 year
             } else if let Ok(year_str) = std::env::var("DOUGU_COPYRIGHT_YEAR") {
-                year_str.parse::<u32>().unwrap_or_else(|_| Utc::now().year() as u32)
+                year_str.parse::<u32>().unwrap_or_else(|_| ZonedDateTime::now().year() as u32)
             } else {
-                Utc::now().year() as u32
+                ZonedDateTime::now().year() as u32
             }
         };
 
@@ -168,7 +171,7 @@ impl BuildInfo {
         Self {
             build_release,
             build_type: "github".to_string(),
-            build_timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            build_timestamp: ZonedDateTime::now().format(),
             repository_owner,
             repository_name,
             copyright_owner,

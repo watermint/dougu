@@ -1,6 +1,5 @@
-use chrono::NaiveDate;
 use dougu_essentials::time::{
-    Duration, Instant, Period, ZonedDateTime,
+    Duration, Instant, LocalDate, Period, ZonedDateTime,
 };
 use std::collections::HashMap;
 
@@ -222,12 +221,12 @@ fn test_time_period_processing() {
     let start_date_zoned = ZonedDateTime::parse("2024-04-01T00:00:00Z").unwrap();
     let end_date_zoned = ZonedDateTime::parse("2024-04-30T23:59:59Z").unwrap();
 
-    // Convert ZonedDateTime to NaiveDate for Period::between
-    let start_date = NaiveDate::from_ymd_opt(2024, 4, 1).unwrap();
-    let end_date = NaiveDate::from_ymd_opt(2024, 4, 30).unwrap();
+    // Use LocalDate for Period::between
+    let start_date = LocalDate::of(2024, 4, 1).unwrap();
+    let end_date = LocalDate::of(2024, 4, 30).unwrap();
 
     // Create a period representing the month of April 2024
-    let _april_period = Period::between(start_date, end_date);
+    let _april_period = Period::between(&start_date, &end_date);
 
     // Create test data
     let mut processor = TimeseriesProcessor::new();

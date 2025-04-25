@@ -1,6 +1,6 @@
 // Essentials
 pub mod obj;
-pub mod build;
+pub mod runtime;
 pub mod core;
 pub mod data;
 pub mod text;
@@ -15,8 +15,8 @@ pub use obj::notation::{Notation, NotationType};
 pub use obj::query::Query;
 
 
-// Build module
-pub use build::{get_build_info, BuildInfo};
+// Runtime module
+pub use runtime::{get_build_info, BuildInfo};
 
 pub use data::address::{AddressType, Email, Uri, Url};
 // Data module

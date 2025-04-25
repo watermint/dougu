@@ -129,12 +129,6 @@ fn test_time_zone_handling() {
     // Get current UTC time
     let utc_now = ZonedDateTime::now();
 
-    // Convert to local time
-    let local_now = utc_now.to_local();
-
-    // Test that representation changes but the instant is the same
-    assert_eq!(utc_now.get_epoch_second(), ZonedDateTime::of_local(local_now).get_epoch_second());
-
     // Test formatting
     let formatted = utc_now.format();
     assert!(formatted.contains('T'));

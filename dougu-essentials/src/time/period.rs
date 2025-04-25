@@ -1,3 +1,5 @@
+use crate::time::LocalDate;
+// Internal use only
 use chrono::{Datelike, NaiveDate};
 
 /// Represents a period of time between two dates
@@ -46,10 +48,17 @@ impl Period {
     }
 
     /// Creates a new Period between two dates
-    pub fn between(start: NaiveDate, end: NaiveDate) -> Self {
-        let mut years = end.year() - start.year();
-        let mut months = end.month() as i32 - start.month() as i32;
-        let mut days = end.day() as i32 - start.day() as i32;
+    ///
+    /// This method calculates the exact years, months, and days between dates
+    pub fn between(start: &LocalDate, end: &LocalDate) -> Self {
+        // Access the internal NaiveDates
+        let start_inner = start.inner();
+        let end_inner = end.inner();
+
+        // Use the NaiveDate implementation to calculate the period
+        let mut years = end_inner.year() - start_inner.year();
+        let mut months = end_inner.month() as i32 - start_inner.month() as i32;
+        let mut days = end_inner.day() as i32 - start_inner.day() as i32;
 
         // Adjust for negative months
         if months < 0 {
@@ -61,13 +70,13 @@ impl Period {
         if days < 0 {
             months -= 1;
             // Get the last day of the previous month
-            let last_day = if start.month() == 1 {
-                NaiveDate::from_ymd_opt(start.year() - 1, 12, 1)
+            let last_day = if start_inner.month() == 1 {
+                NaiveDate::from_ymd_opt(start_inner.year() - 1, 12, 1)
                     .unwrap()
                     .with_day(31)
                     .unwrap()
             } else {
-                NaiveDate::from_ymd_opt(start.year(), start.month() - 1, 1)
+                NaiveDate::from_ymd_opt(start_inner.year(), start_inner.month() - 1, 1)
                     .unwrap()
                     .with_day(31)
                     .unwrap()
@@ -79,6 +88,21 @@ impl Period {
             years,
             months,
             days,
+        }
+    }
+
+    /// Creates a new Period representing the total days between two dates
+    ///
+    /// This method calculates only total days and doesn't break down into years/months
+    pub fn of_total_days_between(start: &LocalDate, end: &LocalDate) -> Self {
+        // Get the total days between dates
+        let days_total = (end.to_unix() - start.to_unix()) / 86400;
+
+        // Simple implementation - just use days
+        Self {
+            years: 0,
+            months: 0,
+            days: days_total as i32,
         }
     }
 
@@ -168,12 +192,18 @@ impl Period {
             days,
         }
     }
+
+    /// Returns the total number of days in this period, including years and months converted to days
+    pub fn total_days(&self) -> i32 {
+        // Approximate conversion (this is simplified)
+        self.years * 365 + self.months * 30 + self.days
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::NaiveDate;
+    use crate::time::LocalDate;
 
     #[test]
     fn test_period_creation() {
@@ -200,9 +230,9 @@ mod tests {
 
     #[test]
     fn test_period_between() {
-        let start = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
-        let end = NaiveDate::from_ymd_opt(2021, 3, 15).unwrap();
-        let period = Period::between(start, end);
+        let start = LocalDate::of(2020, 1, 1).unwrap();
+        let end = LocalDate::of(2021, 3, 15).unwrap();
+        let period = Period::between(&start, &end);
 
         assert_eq!(period.get_years(), 1);
         assert_eq!(period.get_months(), 2);

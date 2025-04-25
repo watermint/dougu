@@ -1,6 +1,11 @@
 use crate::time::duration::Duration as TimeDuration;
 use crate::time::error::TimeError;
+// Internal use only
 use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, NaiveDate, NaiveTime, TimeZone, Timelike, Utc};
+
+// NOTE: This module uses chrono internally for date/time handling,
+// but all public interfaces should use our own wrapper types.
+// No chrono types should be exposed in the public API.
 
 /// Represents an instant in time
 pub trait Instant {
@@ -49,12 +54,18 @@ impl ZonedDateTime {
     }
 
     /// Creates a new ZonedDateTime from a UTC DateTime
-    pub fn of_utc(dt: DateTime<Utc>) -> Self {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn of_utc(dt: DateTime<Utc>) -> Self {
         Self { inner: dt }
     }
 
     /// Creates a new ZonedDateTime from a local DateTime
-    pub fn of_local(dt: DateTime<Local>) -> Self {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn of_local(dt: DateTime<Local>) -> Self {
         Self {
             inner: dt.with_timezone(&Utc),
         }
@@ -86,12 +97,18 @@ impl ZonedDateTime {
     }
 
     /// Returns the UTC DateTime
-    pub fn to_utc(&self) -> DateTime<Utc> {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn to_utc(&self) -> DateTime<Utc> {
         self.inner
     }
 
     /// Returns the local DateTime
-    pub fn to_local(&self) -> DateTime<Local> {
+    ///
+    /// Note: This method is intended for internal use only
+    #[doc(hidden)]
+    pub(crate) fn to_local(&self) -> DateTime<Local> {
         self.inner.with_timezone(&Local)
     }
 
@@ -358,16 +375,15 @@ mod tests {
         let now = ZonedDateTime::now();
         assert!(now.format().len() > 0);
 
-        // Test conversion (and prefix unused variables)
-        let _utc = now.to_utc();
-        let _local = now.to_local();
+        // Test properties directly
+        assert!(now.year() > 2000);
+        assert!(now.month() >= 1 && now.month() <= 12);
     }
 
     #[test]
     fn test_zoned_date_time() {
         let now = ZonedDateTime::now();
-        let _utc = now.to_utc();
-        let _local = now.to_local();
+        // Access inner properties directly
         assert_eq!(now.format().len() > 0, true);
 
         let duration = TimeDuration::of_hours(1);
@@ -442,9 +458,9 @@ mod tests {
     fn test_instant_conversions() {
         let now = ZonedDateTime::now();
 
-        // Test conversion (and prefix unused variables)
-        let _utc = now.to_utc();
-        let _local = now.to_local();
-        // Add basic assertions if needed, e.g. check timezone
+        // Test time-related properties instead of conversions
+        assert!(now.get_epoch_second() > 0);
+        assert!(now.get_epoch_milli() > 0);
+        assert!(now.format().contains("T"));  // ISO format contains 'T' separator
     }
 } 
