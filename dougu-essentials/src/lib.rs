@@ -37,10 +37,6 @@ pub use i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, Resource
 // Math module
 pub use math::FixedDecimal;
 
-// FS module
-pub use fs::path::{Path, PathType, PathComponents, PathNamespace};
-pub use fs::path::{create_local_path, create_path};
-
 // Log module
 pub use log::{
     get_logger, get_named_logger, init_logger, init_named,
@@ -50,6 +46,9 @@ pub use log::{
     LogRecord, LogValue, Logger, LtsvFormatter,
     ModuleFilter, RotateWriter, TextFormatter, TraceInfo, Writer, WriterConfig,
 };
+
+// File system module
+pub use fs::path::{CloudPath, Components, LocalPath, Namespace, Path, ServicePath, create_local_path, create_path};
 
 // The log macros are exported at the crate root by #[macro_export]
 // We don't need to re-export them here
@@ -64,8 +63,7 @@ pub mod prelude {
     pub use crate::data::encoding::BinaryTextCodec;
     pub use crate::data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
     pub use crate::data::version::Version;
-    pub use crate::fs::path::{Path, PathType, PathComponents, PathNamespace};
-    pub use crate::fs::path::{create_local_path, create_path};
+    pub use crate::fs::path::{CloudPath, Components, LocalPath, Namespace, Path, ServicePath, create_local_path, create_path};
     pub use crate::i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
     pub use crate::i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, ResourceManager};
     pub use crate::log::interface::LoggerExt;
