@@ -1,7 +1,7 @@
+use super::error::{AddressError, Result};
 use crate::obj::notation::NotationType;
 use std::fmt;
 use std::str::FromStr;
-use super::error::{AddressError, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Email {
@@ -25,43 +25,43 @@ impl Email {
     pub fn is_valid(address: &str) -> bool {
         // Simple regex check for valid email format
         let parts: Vec<&str> = address.split('@').collect();
-        
+
         if parts.len() != 2 {
             return false;
         }
-        
+
         let local_part = parts[0];
         let domain_part = parts[1];
-        
+
         // Check if local part and domain part are not empty
         if local_part.is_empty() || domain_part.is_empty() {
             return false;
         }
-        
+
         // Check if domain has at least one dot and has valid domain parts
         if !domain_part.contains('.') {
             return false;
         }
-        
+
         // Check that domain doesn't start or end with a dot
         if domain_part.starts_with('.') || domain_part.ends_with('.') {
             return false;
         }
-        
+
         // Check for consecutive dots in domain
         if domain_part.contains("..") {
             return false;
         }
-        
+
         // Basic character check
         if local_part.chars().any(|c| !c.is_alphanumeric() && !".!#$%&'*+-/=?^_`{|}~".contains(c)) {
             return false;
         }
-        
+
         if domain_part.chars().any(|c| !c.is_alphanumeric() && c != '.' && c != '-') {
             return false;
         }
-        
+
         true
     }
 }
@@ -136,7 +136,7 @@ mod tests {
     fn test_serialization() {
         let email = Email::new("user@example.com").unwrap();
         let notation = NotationType::from(email.clone());
-        
+
         if let NotationType::String(ref s) = notation {
             assert_eq!(s, "user@example.com");
         } else {

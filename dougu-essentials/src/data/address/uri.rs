@@ -1,8 +1,8 @@
+use super::error::{AddressError, Result};
 use crate::obj::notation::NotationType;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
-use super::error::{AddressError, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Uri {
@@ -17,11 +17,11 @@ pub struct Uri {
 impl Uri {
     pub fn new<T: Into<String>>(uri: T) -> Result<Self> {
         let uri_str = uri.into();
-        
+
         if !Self::is_valid(&uri_str) {
             return Err(AddressError::InvalidUriFormat(uri_str));
         }
-        
+
         // Extract scheme if present
         let (scheme, rest) = match uri_str.split_once(':') {
             Some((s, r)) => {
@@ -30,15 +30,15 @@ impl Uri {
                 } else {
                     (None, uri_str.clone())
                 }
-            },
+            }
             None => (None, uri_str.clone()),
         };
-        
+
         // Extract authority if present
         let (authority, path_part) = if let Some(_) = &scheme {
             if rest.starts_with("//") {
                 match rest[2..].find('/') {
-                    Some(idx) => (Some(rest[2..2+idx].to_string()), rest[2+idx..].to_string()),
+                    Some(idx) => (Some(rest[2..2 + idx].to_string()), rest[2 + idx..].to_string()),
                     None => {
                         if !rest[2..].is_empty() {
                             (Some(rest[2..].to_string()), "/".to_string())
@@ -53,25 +53,25 @@ impl Uri {
         } else {
             (None, rest)
         };
-        
+
         // Extract path, query, and fragment
         let (path, fragment) = match path_part.split_once('#') {
             Some((p, f)) => (p, Some(f.to_string())),
             None => (path_part.as_str(), None),
         };
-        
+
         let (path, query) = match path.split_once('?') {
             Some((p, q)) => (p, Some(q.to_string())),
             None => (path, None),
         };
-        
+
         // For absolute URIs without a scheme-specific part, the path must start with a /
         let path = if path.is_empty() && scheme.is_some() && authority.is_none() {
             "/".to_string()
         } else {
             path.to_string()
         };
-        
+
         Ok(Self {
             uri: uri_str,
             scheme,
@@ -81,45 +81,45 @@ impl Uri {
             fragment,
         })
     }
-    
+
     pub fn uri(&self) -> &str {
         &self.uri
     }
-    
+
     pub fn scheme(&self) -> Option<&str> {
         self.scheme.as_deref()
     }
-    
+
     pub fn authority(&self) -> Option<&str> {
         self.authority.as_deref()
     }
-    
+
     pub fn path(&self) -> &str {
         &self.path
     }
-    
+
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
     }
-    
+
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
-    
+
     pub fn is_valid(uri: &str) -> bool {
         // Basic URI validation - more permissive than URL validation
         if uri.is_empty() {
             return false;
         }
-        
+
         // RFC 3986 allows URIs to be a path-reference, absolute-path, or complete URI
         // For simplicity, we'll allow any non-empty string that doesn't have invalid characters
-        
+
         // Check for invalid characters
         if uri.contains(' ') || uri.contains('\n') || uri.contains('\r') || uri.contains('\t') {
             return false;
         }
-        
+
         true
     }
 }
@@ -142,25 +142,25 @@ impl From<Uri> for NotationType {
     fn from(uri: Uri) -> Self {
         let mut obj = HashMap::new();
         obj.insert("uri".to_string(), NotationType::String(uri.uri));
-        
+
         if let Some(scheme) = uri.scheme {
             obj.insert("scheme".to_string(), NotationType::String(scheme));
         }
-        
+
         if let Some(authority) = uri.authority {
             obj.insert("authority".to_string(), NotationType::String(authority));
         }
-        
+
         obj.insert("path".to_string(), NotationType::String(uri.path));
-        
+
         if let Some(query) = uri.query {
             obj.insert("query".to_string(), NotationType::String(query));
         }
-        
+
         if let Some(fragment) = uri.fragment {
             obj.insert("fragment".to_string(), NotationType::String(fragment));
         }
-        
+
         NotationType::Object(obj)
     }
 }
@@ -178,7 +178,7 @@ impl TryFrom<NotationType> for Uri {
                 } else {
                     Err(AddressError::InvalidUriFormat("Missing uri field in object".to_string()))
                 }
-            },
+            }
             _ => Err(AddressError::InvalidUriFormat("Invalid notation type".to_string())),
         }
     }
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(uri.path(), "/path");
         assert_eq!(uri.query(), Some("query=value"));
         assert_eq!(uri.fragment(), Some("fragment"));
-        
+
         let path_uri = Uri::new("/path/to/resource").unwrap();
         assert_eq!(path_uri.scheme(), None);
         assert_eq!(path_uri.authority(), None);
@@ -225,15 +225,15 @@ mod tests {
     fn test_serialization() {
         let uri = Uri::new("https://example.com/path?query=value#fragment").unwrap();
         let notation = NotationType::from(uri.clone());
-        
+
         assert!(matches!(notation, NotationType::Object(_)));
-        
+
         if let NotationType::Object(obj) = &notation {
             assert_eq!(obj.get("uri").and_then(|v| v.as_str()), Some("https://example.com/path?query=value#fragment"));
             assert_eq!(obj.get("scheme").and_then(|v| v.as_str()), Some("https"));
             assert_eq!(obj.get("authority").and_then(|v| v.as_str()), Some("example.com"));
         }
-        
+
         let uri_back = Uri::try_from(notation);
         assert!(uri_back.is_ok());
         assert_eq!(uri_back.unwrap().uri(), uri.uri());

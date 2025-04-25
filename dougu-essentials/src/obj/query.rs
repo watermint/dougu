@@ -1,7 +1,7 @@
+use crate::bail;
 use crate::core::error::{error, ErrorTrait, Result};
 use crate::obj::notation::{NotationType, NumberVariant};
 use crate::obj::resources::errors::*;
-use crate::bail;
 
 /// Query provides a wrapper around query operations on NotationType data.
 /// It adds a layer of abstraction to provide a simple interface for common query operations.

@@ -6,13 +6,31 @@ pub type Result<T> = std::result::Result<T, AddressError>;
 pub enum AddressError {
     #[error("invalid email format: {0}")]
     InvalidEmailFormat(String),
-    
+
     #[error("invalid URL format: {0}")]
     InvalidUrlFormat(String),
-    
+
     #[error("invalid URI format: {0}")]
     InvalidUriFormat(String),
-    
+
     #[error("invalid address type: {0}")]
     InvalidAddressType(String),
+
+    #[error("invalid domain format: {0}")]
+    InvalidDomainFormat(String),
+
+    #[error("invalid IP address format: {0}")]
+    InvalidIpFormat(String),
+
+    #[error("invalid socket address format: {0}")]
+    InvalidSocketFormat(String),
+
+    #[error("invalid MAC address format: {0}")]
+    InvalidMacFormat(String),
+
+    #[error("invalid URN format: {0}")]
+    InvalidUrnFormat(String),
+
+    #[error("invalid GeoURI format: {0}")]
+    InvalidGeoUriFormat(String),
 } 

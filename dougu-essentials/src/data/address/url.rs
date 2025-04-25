@@ -1,8 +1,8 @@
+use super::error::{AddressError, Result};
 use crate::obj::notation::NotationType;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
-use super::error::{AddressError, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Url {
@@ -17,34 +17,34 @@ pub struct Url {
 impl Url {
     pub fn new<T: Into<String>>(url: T) -> Result<Self> {
         let url_str = url.into();
-        
+
         if !Self::is_valid(&url_str) {
             return Err(AddressError::InvalidUrlFormat(url_str));
         }
-        
+
         // Parse URL components
         let (scheme, rest) = match url_str.split_once("://") {
             Some((s, r)) => (s.to_string(), r.to_string()),
             None => return Err(AddressError::InvalidUrlFormat(url_str)),
         };
-        
+
         // Extract host and path
         let (host_part, path_part) = match rest.find('/') {
             Some(idx) => (&rest[..idx], &rest[idx..]),
             None => (rest.as_str(), "/"),
         };
-        
+
         // Extract query and fragment
         let (path, fragment) = match path_part.split_once('#') {
             Some((p, f)) => (p, Some(f.to_string())),
             None => (path_part, None),
         };
-        
+
         let (path, query) = match path.split_once('?') {
             Some((p, q)) => (p, Some(q.to_string())),
             None => (path, None),
         };
-        
+
         Ok(Self {
             url: url_str,
             scheme,
@@ -54,68 +54,68 @@ impl Url {
             fragment,
         })
     }
-    
+
     pub fn url(&self) -> &str {
         &self.url
     }
-    
+
     pub fn scheme(&self) -> &str {
         &self.scheme
     }
-    
+
     pub fn host(&self) -> &str {
         &self.host
     }
-    
+
     pub fn path(&self) -> &str {
         &self.path
     }
-    
+
     pub fn query(&self) -> Option<&str> {
         self.query.as_deref()
     }
-    
+
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
-    
+
     pub fn is_valid(url: &str) -> bool {
         // Basic URL validation
         if url.is_empty() {
             return false;
         }
-        
+
         if !url.contains("://") {
             return false;
         }
-        
+
         let parts: Vec<&str> = url.split("://").collect();
         if parts.len() != 2 {
             return false;
         }
-        
+
         let scheme = parts[0];
         let rest = parts[1];
-        
+
         // Validate scheme
         if scheme.is_empty() || !scheme.chars().all(|c| c.is_alphanumeric() || c == '+' || c == '.' || c == '-') {
             return false;
         }
-        
+
         // Validate host
         if rest.is_empty() {
             return false;
         }
-        
+
         let host_part = match rest.find('/') {
             Some(idx) => &rest[..idx],
             None => rest,
         };
-        
+
         if host_part.is_empty() {
             return false;
         }
-        
+
         true
     }
 }
@@ -141,15 +141,15 @@ impl From<Url> for NotationType {
         obj.insert("scheme".to_string(), NotationType::String(url.scheme));
         obj.insert("host".to_string(), NotationType::String(url.host));
         obj.insert("path".to_string(), NotationType::String(url.path));
-        
+
         if let Some(query) = url.query {
             obj.insert("query".to_string(), NotationType::String(query));
         }
-        
+
         if let Some(fragment) = url.fragment {
             obj.insert("fragment".to_string(), NotationType::String(fragment));
         }
-        
+
         NotationType::Object(obj)
     }
 }
@@ -167,7 +167,7 @@ impl TryFrom<NotationType> for Url {
                 } else {
                     Err(AddressError::InvalidUrlFormat("Missing url field in object".to_string()))
                 }
-            },
+            }
             _ => Err(AddressError::InvalidUrlFormat("Invalid notation type".to_string())),
         }
     }
@@ -208,15 +208,15 @@ mod tests {
     fn test_serialization() {
         let url = Url::new("https://example.com/path?query=value#fragment").unwrap();
         let notation = NotationType::from(url.clone());
-        
+
         assert!(matches!(notation, NotationType::Object(_)));
-        
+
         if let NotationType::Object(obj) = &notation {
             assert_eq!(obj.get("url").and_then(|v| v.as_str()), Some("https://example.com/path?query=value#fragment"));
             assert_eq!(obj.get("scheme").and_then(|v| v.as_str()), Some("https"));
             assert_eq!(obj.get("host").and_then(|v| v.as_str()), Some("example.com"));
         }
-        
+
         let url_back = Url::try_from(notation);
         assert!(url_back.is_ok());
         assert_eq!(url_back.unwrap().url(), url.url());
