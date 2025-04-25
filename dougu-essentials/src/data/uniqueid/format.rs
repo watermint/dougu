@@ -1,5 +1,5 @@
-use crate::data::uuid::error::Result;
-use crate::data::uuid::types::Uuid;
+use crate::data::uniqueid::error::Result;
+use crate::data::uniqueid::types::Uuid;
 
 /// Formatter for UUID string representations
 #[derive(Debug, Clone, Copy)]

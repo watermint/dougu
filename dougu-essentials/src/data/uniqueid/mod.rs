@@ -11,5 +11,4 @@ pub use error::{Error, Result};
 pub use format::UuidFormatter;
 pub use parse::UuidParser;
 pub use timestamp::UuidTimestamp;
-pub use types::{Uuid, UuidVersion, UuidVariant};
-
+pub use types::{Uuid, UuidVersion, UuidVariant}; 

@@ -1,4 +1,4 @@
-use crate::data::uuid::error::Result;
+use crate::data::uniqueid::error::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -122,7 +122,7 @@ impl fmt::Display for Uuid {
 }
 
 impl FromStr for Uuid {
-    type Err = crate::data::uuid::error::Error;
+    type Err = crate::data::uniqueid::error::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         let raw = RawUuid::parse_str(s)?;

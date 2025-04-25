@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::data::uuid::{Uuid, UuidParser, UuidFormatter, UuidVersion, UuidVariant};
+    use crate::data::uniqueid::{Uuid, UuidParser, UuidFormatter, UuidVersion, UuidVariant};
     use std::str::FromStr;
 
     #[test]

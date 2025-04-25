@@ -1,6 +1,6 @@
-use crate::data::uuid::error::{Error, Result};
-use crate::data::uuid::types::{Uuid, UuidVersion};
-use chrono::{DateTime, TimeZone, Utc};
+use crate::data::uniqueid::error::{Error, Result};
+use crate::data::uniqueid::types::{Uuid, UuidVersion};
+use crate::time::{ZonedDateTime, TimeError};
 use uuid::Uuid as RawUuid;
 
 /// Helper for extracting timestamps from UUIDs
@@ -15,7 +15,7 @@ impl UuidTimestamp {
     /// - V2: DCE Security UUID
     /// - V6: Reordered time-based UUID
     /// - V7: Time-ordered UUID with Unix timestamp
-    pub fn extract(uuid: &Uuid) -> Result<DateTime<Utc>> {
+    pub fn extract(uuid: &Uuid) -> Result<ZonedDateTime> {
         if !uuid.has_timestamp() {
             return Err(Error::TimestampExtraction(format!(
                 "UUID version {:?} does not contain timestamp information",
@@ -34,7 +34,7 @@ impl UuidTimestamp {
     }
 
     /// Extract timestamp from V1 UUID
-    fn extract_v1_timestamp(uuid: &Uuid) -> Result<DateTime<Utc>> {
+    fn extract_v1_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
         let raw_uuid = RawUuid::from_bytes(*uuid.bytes());
         
         // The uuid crate doesn't expose timestamp extraction directly,
@@ -55,7 +55,7 @@ impl UuidTimestamp {
     }
 
     /// Extract timestamp from V6 UUID
-    fn extract_v6_timestamp(uuid: &Uuid) -> Result<DateTime<Utc>> {
+    fn extract_v6_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
         // V6 is similar to V1 but with the timestamp fields reordered for better sorting
         Err(Error::TimestampExtraction(
             "V6 timestamp extraction not fully implemented".to_string(),
@@ -63,7 +63,7 @@ impl UuidTimestamp {
     }
 
     /// Extract timestamp from V7 UUID
-    fn extract_v7_timestamp(uuid: &Uuid) -> Result<DateTime<Utc>> {
+    fn extract_v7_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
         // V7 contains a Unix timestamp in milliseconds in the first 48 bits
         let bytes = uuid.bytes();
         
@@ -79,11 +79,9 @@ impl UuidTimestamp {
         let secs = (msec / 1000) as i64;
         let nsecs = ((msec % 1000) * 1_000_000) as u32;
         
-        // Create DateTime from timestamp
-        let dt = Utc.timestamp_opt(secs, nsecs).single().ok_or_else(|| {
-            Error::TimestampExtraction("Invalid timestamp value in V7 UUID".to_string())
-        })?;
-        
-        Ok(dt)
+        // Create ZonedDateTime from timestamp
+        ZonedDateTime::of_unix_nanos(secs, nsecs).map_err(|e| {
+            Error::TimestampExtraction(format!("Invalid timestamp value in V7 UUID: {}", e))
+        })
     }
 } 

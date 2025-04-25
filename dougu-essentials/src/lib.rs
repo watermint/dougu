@@ -18,7 +18,7 @@ pub use build::{get_build_info, BuildInfo};
 // Data module
 pub use data::encoding::BinaryTextCodec;
 pub use data::version::Version;
-pub use data::uuid::{Uuid, UuidVersion, UuidVariant, UuidParser, UuidFormatter, UuidTimestamp};
+pub use data::uniqueid::{Uuid, UuidVersion, UuidVariant, UuidParser, UuidFormatter, UuidTimestamp};
 
 // Text module
 pub use text::case::{Case, CaseExt, CaseConverter};
@@ -32,7 +32,7 @@ pub mod prelude {
     pub use crate::core::error::{Error, Result, ErrorExt};
     pub use crate::data::encoding::BinaryTextCodec;
     pub use crate::data::version::Version;
-    pub use crate::data::uuid::{Uuid, UuidVersion, UuidVariant, UuidParser, UuidFormatter, UuidTimestamp};
+    pub use crate::data::uniqueid::{Uuid, UuidVersion, UuidVariant, UuidParser, UuidFormatter, UuidTimestamp};
     pub use crate::text::case::{Case, CaseExt, CaseConverter};
     pub use crate::time::{ZonedDateTime, LocalDate, LocalTime, TimeError};
 }

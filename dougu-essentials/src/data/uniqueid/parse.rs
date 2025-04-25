@@ -1,5 +1,5 @@
-use crate::data::uuid::error::{Error, Result};
-use crate::data::uuid::types::{Uuid, UuidVariant, UuidVersion};
+use crate::data::uniqueid::error::{Error, Result};
+use crate::data::uniqueid::types::{Uuid, UuidVariant, UuidVersion};
 use std::str::FromStr;
 use uuid::Uuid as RawUuid;
 
