@@ -13,5 +13,3 @@ pub use parse::UuidParser;
 pub use timestamp::UuidTimestamp;
 pub use types::{Uuid, UuidVersion, UuidVariant};
 
-// Re-export the standard Uuid type from uuid crate for compatibility when needed
-pub use uuid::Uuid as RawUuid; 
