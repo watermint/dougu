@@ -223,7 +223,7 @@ pub trait Instant {
 }
 
 /// Represents a point in time with timezone information
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct ZonedDateTime {
     inner: DateTime<Utc>,
 }
@@ -741,8 +741,8 @@ mod tests {
     #[test]
     fn test_zoned_date_time() {
         let now = ZonedDateTime::now();
-        let utc = now.to_utc();
-        let local = now.to_local();
+        let _utc = now.to_utc();
+        let _local = now.to_local();
         assert_eq!(now.format().len() > 0, true);
 
         let duration = Duration::of_hours(1);
@@ -918,5 +918,16 @@ mod tests {
 
         let minus_clock = clock.minus(Duration::of_minutes(30));
         assert_eq!(minus_clock.instant().get_epoch_second() - base_instant.get_epoch_second(), 1800);
+    }
+
+    #[test]
+    fn test_conversions() {
+        let now = ZonedDateTime::now();
+
+        // Check conversions (and prefix unused variables)
+        let _utc = now.to_utc(); // Prefix unused
+        let _local = now.to_local(); // Prefix unused
+
+        assert!(now.get_epoch_milli() > 0);
     }
 } 

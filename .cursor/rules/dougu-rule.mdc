@@ -3,9 +3,22 @@ description:
 globs: 
 alwaysApply: true
 ---
-Do not change Rust edition. Use Rust 2024 edition.
-Do not add comments that mean almost nothing (e.g. // Add XXX)
+# Project wide rules
+
+* Do not change Rust edition. Use Rust 2024 edition.
+* Write comments concisely to explain the intent of the processing and the specifications of functions, structs, traits and variables.
+* Do not add comments that obvious from the code (e.g. // Import XXX, // Keep this).
+* When rewriting a process, delete the previous process instead of commenting it out.
+* Backward compatibility is not required for this project.
+* Do not perform fallback processing due to lack of resource or other issues. Instead, process as “fail fast.”
+
+# dougu-essentials
 
 `dougu-essentials` is responsible for aggregating external dependency crates. When adding external dependency crates in sub-crates other than `dougu-essentials`, please check them carefully.
 
-When implementing modules under `dougu-essentials`, please be careful not to expose external crate modules to other subcrates. Please create wrappers or alternative traits/structs to hide these external crates completely.
+When implementing modules under `dougu-essentials`, please be careful not to expose external crate modules to other subcrates. Create or update wrappers to hide these external crates completely.
+
+* Use `dougu-essentials::core` instead of anyhow, thiserror
+* Use `dougu-essentials::time` instead of chrono
+* Use `dougu-essentials::obj` instead of serde, serde_json
+

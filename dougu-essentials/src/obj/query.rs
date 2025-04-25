@@ -252,44 +252,6 @@ impl Query {
     pub fn query_string(&self) -> &str {
         &self.filter_str
     }
-
-    fn build_json_value(&self) -> NotationType {
-        let mut obj = Vec::new();
-
-        if let Some(select) = &self.select {
-            obj.push(("select".to_string(), NotationType::String(select.clone())));
-        }
-
-        if let Some(from) = &self.from {
-            obj.push(("from".to_string(), NotationType::String(from.clone())));
-        }
-
-        if let Some(where_) = &self.where_ {
-            obj.push(("where".to_string(), NotationType::String(where_.clone())));
-        }
-
-        if let Some(group_by) = &self.group_by {
-            obj.push(("group_by".to_string(), NotationType::String(group_by.clone())));
-        }
-
-        if let Some(having) = &self.having {
-            obj.push(("having".to_string(), NotationType::String(having.clone())));
-        }
-
-        if let Some(order_by) = &self.order_by {
-            obj.push(("order_by".to_string(), NotationType::String(order_by.clone())));
-        }
-
-        if let Some(limit) = self.limit {
-            obj.push(("limit".to_string(), NotationType::Number(NumberVariant::Float(limit as f64))));
-        }
-
-        if let Some(offset) = self.offset {
-            obj.push(("offset".to_string(), NotationType::Number(NumberVariant::Float(offset as f64))));
-        }
-
-        obj.into()
-    }
 }
 
 #[cfg(test)]

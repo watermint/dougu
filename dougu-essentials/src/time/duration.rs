@@ -1,5 +1,4 @@
 use crate::time::error::TimeError;
-use chrono::Duration as ChronoDuration;
 
 /// Represents a duration of time
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -9,14 +8,6 @@ pub struct Duration {
 }
 
 impl Duration {
-    /// Creates a new Duration from a chrono::Duration
-    pub fn of(duration: ChronoDuration) -> Self {
-        Self {
-            inner: duration.num_seconds(),
-            nanos: duration.num_nanoseconds().unwrap_or(0) % 1_000_000_000,
-        }
-    }
-
     /// Creates a new Duration from seconds
     pub fn of_seconds(seconds: i64) -> Self {
         Self { inner: seconds, nanos: 0 }

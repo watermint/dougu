@@ -10,7 +10,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 struct ScheduledTask {
     id: u32,
-    name: String,
+    _name: String,
     execution_time: ZonedDateTime,
     duration: Duration,
 }
@@ -19,7 +19,7 @@ impl ScheduledTask {
     fn new(id: u32, name: &str, execution_time: ZonedDateTime, duration: Duration) -> Self {
         Self {
             id,
-            name: name.to_string(),
+            _name: name.to_string(),
             execution_time,
             duration,
         }
@@ -62,7 +62,7 @@ impl Ord for ScheduledTask {
 
 /// A simple task scheduler that executes tasks at specified times
 struct TaskScheduler {
-    clock: Arc<dyn Clock>,
+    _clock: Arc<dyn Clock>,
     tasks: BinaryHeap<Reverse<ScheduledTask>>,
     executed_tasks: Vec<ScheduledTask>,
 }
@@ -70,7 +70,7 @@ struct TaskScheduler {
 impl TaskScheduler {
     fn new(clock: Arc<dyn Clock>) -> Self {
         Self {
-            clock,
+            _clock: clock,
             tasks: BinaryHeap::new(),
             executed_tasks: Vec::new(),
         }

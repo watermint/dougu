@@ -352,13 +352,22 @@ impl Instant for LocalTime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{Datelike, Timelike};
+
+    #[test]
+    fn test_now() {
+        let now = ZonedDateTime::now();
+        assert!(now.format().len() > 0);
+
+        // Test conversion (and prefix unused variables)
+        let _utc = now.to_utc();
+        let _local = now.to_local();
+    }
 
     #[test]
     fn test_zoned_date_time() {
         let now = ZonedDateTime::now();
-        let utc = now.to_utc();
-        let local = now.to_local();
+        let _utc = now.to_utc();
+        let _local = now.to_local();
         assert_eq!(now.format().len() > 0, true);
 
         let duration = TimeDuration::of_hours(1);
@@ -427,5 +436,15 @@ mod tests {
         assert!(dt1.is_before(&dt2));
         assert!(dt1.is_equal(&date));
         assert!(!time.is_equal(&dt1));
+    }
+
+    #[test]
+    fn test_instant_conversions() {
+        let now = ZonedDateTime::now();
+
+        // Test conversion (and prefix unused variables)
+        let _utc = now.to_utc();
+        let _local = now.to_local();
+        // Add basic assertions if needed, e.g. check timezone
     }
 } 

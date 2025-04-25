@@ -96,6 +96,10 @@ impl LocaleId {
             None => self.language.as_str().to_string(),
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        self.language.as_str()
+    }
 }
 
 impl FromStr for LocaleId {

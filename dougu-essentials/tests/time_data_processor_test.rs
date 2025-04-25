@@ -227,7 +227,7 @@ fn test_time_period_processing() {
     let end_date = NaiveDate::from_ymd_opt(2024, 4, 30).unwrap();
 
     // Create a period representing the month of April 2024
-    let april_period = Period::between(start_date, end_date);
+    let _april_period = Period::between(start_date, end_date);
 
     // Create test data
     let mut processor = TimeseriesProcessor::new();
