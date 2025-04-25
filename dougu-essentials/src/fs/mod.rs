@@ -1,4 +1,3 @@
 pub mod path;
 
-// Re-export core modules for external use
-pub use path::{Path, PathComponents, PathNamespace}; 
+pub use path::{Path, PathType, PathComponents, PathNamespace}; 
