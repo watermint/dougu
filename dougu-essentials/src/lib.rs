@@ -6,6 +6,7 @@ pub mod data;
 pub mod text;
 pub mod fs;
 pub mod time;
+pub mod i18n;
 
 // Object module
 pub use obj::notation::{Notation, NotationType};
@@ -27,6 +28,9 @@ pub use text::case::{Case, CaseConverter, CaseExt};
 // Time module
 pub use time::{LocalDate, LocalTime, TimeError, ZonedDateTime};
 
+// i18n module
+pub use i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
+
 // Core module - these macros are exported at the crate root because of #[macro_export]
 // No need to re-export them here
 
@@ -37,6 +41,7 @@ pub mod prelude {
     pub use crate::data::encoding::BinaryTextCodec;
     pub use crate::data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
     pub use crate::data::version::Version;
+    pub use crate::i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
     pub use crate::text::case::{Case, CaseConverter, CaseExt};
     pub use crate::time::{LocalDate, LocalTime, TimeError, ZonedDateTime};
     pub use crate::{bail, ensure};
