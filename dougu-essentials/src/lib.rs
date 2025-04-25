@@ -8,6 +8,7 @@ pub mod fs;
 pub mod time;
 pub mod i18n;
 pub mod math;
+pub mod log;
 
 // Object module
 pub use obj::notation::{Notation, NotationType};
@@ -36,6 +37,19 @@ pub use i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, Resource
 // Math module
 pub use math::FixedDecimal;
 
+// Log module
+pub use log::{
+    get_logger, get_named_logger, init_logger, init_named,
+    CborFormatter, CompositeFilter, CompositeWriter, CompressWriter, Config, ConsoleWriter,
+    FileWriter, Filter, FilterConfig, Formatter, FormatterConfig, FormatterType,
+    JsonFormatter, LevelFilter, LogFramework, LogLevel,
+    LogRecord, LogValue, Logger, LtsvFormatter,
+    ModuleFilter, RotateWriter, TextFormatter, TraceInfo, Writer, WriterConfig,
+};
+
+// The log macros are exported at the crate root by #[macro_export]
+// We don't need to re-export them here
+
 // Core module - these macros are exported at the crate root because of #[macro_export]
 // No need to re-export them here
 
@@ -48,8 +62,16 @@ pub mod prelude {
     pub use crate::data::version::Version;
     pub use crate::i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
     pub use crate::i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, ResourceManager};
+    pub use crate::log::interface::LoggerExt;
+    pub use crate::log::{
+        get_logger, get_named_logger, init_logger, init_named,
+        Config, ConsoleWriter, FileWriter,
+        Filter, LevelFilter, LogLevel,
+        LogRecord, LogValue, Logger, ModuleFilter, Writer,
+    };
     pub use crate::math::FixedDecimal;
     pub use crate::text::case::{Case, CaseConverter, CaseExt};
     pub use crate::time::{LocalDate, LocalTime, TimeError, ZonedDateTime};
     pub use crate::{bail, ensure};
+    pub use crate::{debug, error, fatal, info, trace, warn};
 }
