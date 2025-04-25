@@ -9,7 +9,6 @@ pub use duration::Duration as TimeDuration;
 pub use period::Period;
 
 use chrono::{DateTime, Duration as ChronoDuration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc, Datelike, Timelike};
-use thiserror::Error;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 

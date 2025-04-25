@@ -1,5 +1,6 @@
 use super::*;
 use std::collections::HashMap;
+use crate::core::error::error;
 
 #[derive(Clone, Debug, PartialEq)]
 struct TestData {
@@ -47,7 +48,7 @@ impl TestData {
                 }
                 Ok(data)
             }
-            _ => Err(anyhow!("Expected object")),
+            _ => Err(error("Expected object")),
         }
     }
 

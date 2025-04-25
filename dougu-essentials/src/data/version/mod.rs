@@ -2,10 +2,10 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-use thiserror::Error;
+use crate::core::error::ErrorTrait;
 
 /// Error types related to semantic versioning.
-#[derive(Debug, Error)]
+#[derive(Debug, ErrorTrait)]
 pub enum VersionError {
     #[error("invalid version format: {0}")]
     InvalidFormat(String),

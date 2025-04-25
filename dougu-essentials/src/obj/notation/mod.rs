@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use crate::core::error::{error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -277,14 +277,14 @@ impl Notation for NotationType {
     fn decode(&self, input: &[u8]) -> Result<NotationType>
     {
         match self {
-            NotationType::Json(json) => json.decode(input),
-            NotationType::Yaml(yaml) => yaml.decode(input),
-            NotationType::Toml(toml) => toml.decode(input),
-            NotationType::Xml(xml) => xml.decode(input),
-            NotationType::Bson(bson) => bson.decode(input),
-            NotationType::Cbor(cbor) => cbor.decode(input),
-            NotationType::Jsonl(jsonl) => jsonl.decode(input),
-            _ => Err(anyhow!("Notation type does not support decoding")),
+            NotationType::Json(notation) => notation.decode(input),
+            NotationType::Yaml(notation) => notation.decode(input),
+            NotationType::Toml(notation) => notation.decode(input),
+            NotationType::Xml(notation) => notation.decode(input),
+            NotationType::Bson(notation) => notation.decode(input),
+            NotationType::Cbor(notation) => notation.decode(input),
+            NotationType::Jsonl(notation) => notation.decode(input),
+            _ => Err(error("Notation type does not support decoding")),
         }
     }
 
@@ -293,14 +293,14 @@ impl Notation for NotationType {
         T: Into<NotationType> + Clone,
     {
         match self {
-            NotationType::Json(json) => json.encode(value),
-            NotationType::Yaml(yaml) => yaml.encode(value),
-            NotationType::Toml(toml) => toml.encode(value),
-            NotationType::Xml(xml) => xml.encode(value),
-            NotationType::Bson(bson) => bson.encode(value),
-            NotationType::Cbor(cbor) => cbor.encode(value),
-            NotationType::Jsonl(jsonl) => jsonl.encode(value),
-            _ => Err(anyhow!("Notation type does not support encoding")),
+            NotationType::Json(notation) => notation.encode(value),
+            NotationType::Yaml(notation) => notation.encode(value),
+            NotationType::Toml(notation) => notation.encode(value),
+            NotationType::Xml(notation) => notation.encode(value),
+            NotationType::Bson(notation) => notation.encode(value),
+            NotationType::Cbor(notation) => notation.encode(value),
+            NotationType::Jsonl(notation) => notation.encode(value),
+            _ => Err(error("Notation type does not support encoding")),
         }
     }
 
@@ -309,14 +309,11 @@ impl Notation for NotationType {
         T: Into<NotationType> + Clone,
     {
         match self {
-            NotationType::Json(json) => json.encode_to_string(value),
-            NotationType::Yaml(yaml) => yaml.encode_to_string(value),
-            NotationType::Toml(toml) => toml.encode_to_string(value),
-            NotationType::Xml(xml) => xml.encode_to_string(value),
-            NotationType::Bson(bson) => bson.encode_to_string(value),
-            NotationType::Cbor(cbor) => cbor.encode_to_string(value),
-            NotationType::Jsonl(jsonl) => jsonl.encode_to_string(value),
-            _ => Err(anyhow!("Notation type does not support encoding to string")),
+            NotationType::Json(notation) => notation.encode_to_string(value),
+            NotationType::Yaml(notation) => notation.encode_to_string(value),
+            NotationType::Toml(notation) => notation.encode_to_string(value),
+            NotationType::Xml(notation) => notation.encode_to_string(value),
+            _ => Err(error("Notation type does not support encoding to string")),
         }
     }
 }

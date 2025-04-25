@@ -1,7 +1,7 @@
-use thiserror::Error;
+use crate::core::error::ErrorTrait;
 
 /// Errors that can occur when working with time operations
-#[derive(Error, Debug)]
+#[derive(ErrorTrait, Debug)]
 pub enum TimeError {
     #[error("Invalid date format: {0}")]
     InvalidDateFormat(String),

@@ -1,7 +1,7 @@
-use thiserror::Error;
+use crate::core::error::ErrorTrait;
 
 /// Error types for UUID operations
-#[derive(Error, Debug)]
+#[derive(ErrorTrait, Debug)]
 pub enum Error {
     /// Error parsing a UUID from string
     #[error("Failed to parse UUID: {0}")]

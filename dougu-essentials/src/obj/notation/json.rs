@@ -1,5 +1,5 @@
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
+use crate::core::error::{error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ impl Default for JsonNotation {
 }
 
 impl Notation for JsonNotation {
-    fn encode<T>(&self, value: &T) -> anyhow::Result<Vec<u8>>
+    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
     where
         T: Into<NotationType> + Clone,
     {
@@ -29,12 +29,12 @@ impl Notation for JsonNotation {
         Ok(serde_json::to_vec(&json_value)?)
     }
 
-    fn decode(&self, data: &[u8]) -> anyhow::Result<NotationType> {
+    fn decode(&self, data: &[u8]) -> Result<NotationType> {
         let json_value = serde_json::from_slice(data)?;
         json_value_to_notation_type(&json_value)
     }
 
-    fn encode_to_string<T>(&self, value: &T) -> anyhow::Result<String>
+    fn encode_to_string<T>(&self, value: &T) -> Result<String>
     where
         T: Into<NotationType> + Clone,
     {
@@ -57,7 +57,7 @@ pub fn notation_type_to_json_value(notation_type: &NotationType) -> Result<Value
             };
             serde_json::Number::from_f64(f_val)
                 .map(Value::Number)
-                .ok_or_else(|| anyhow!("Invalid number for JSON: {}", f_val))
+                .ok_or_else(|| error(format!("Invalid number for JSON: {}", f_val)))
         }
         NotationType::String(s) => Ok(Value::String(s.clone())),
         NotationType::Array(arr) => {
@@ -71,7 +71,7 @@ pub fn notation_type_to_json_value(notation_type: &NotationType) -> Result<Value
                 .collect();
             Ok(Value::Object(map?))
         }
-        _ => Err(anyhow!("Unsupported notation type for JSON conversion: {:?}", notation_type)),
+        _ => Err(error(format!("Unsupported notation type for JSON conversion: {:?}", notation_type))),
     }
 }
 
@@ -88,7 +88,7 @@ pub fn json_value_to_notation_type(value: &Value) -> Result<NotationType> {
             } else if let Some(f) = n.as_f64() {
                 NotationType::Number(NumberVariant::Float(f))
             } else {
-                return Err(anyhow!("Invalid JSON number format: {}", n));
+                return Err(error(format!("Invalid JSON number format: {}", n)));
             }
         }
         Value::String(s) => NotationType::String(s.clone()),

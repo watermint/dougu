@@ -1,7 +1,6 @@
 use crate::obj::notation::{NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
-use thiserror::Error;
-
+use crate::core::error::{Error, ErrorTrait, Result, error};
+use crate::{bail};
 use crate::obj::resources::errors::*;
 
 /// Query provides a wrapper around query operations on NotationType data.
@@ -31,7 +30,7 @@ enum FilterStep {
     Wildcard,
 }
 
-#[derive(Error, Debug)]
+#[derive(ErrorTrait, Debug)]
 enum QueryError {
     #[error("Invalid query path: {0}")]
     InvalidPath(String),
@@ -78,7 +77,7 @@ impl Query {
 
         // Query must start with a dot
         if !query_str.starts_with('.') {
-            return Err(anyhow!("{}: Query must start with '.'", ERROR_QUERY_PARSE));
+            bail!("{}: Query must start with '.'", ERROR_QUERY_PARSE);
         }
 
         for c in query_str.chars() {
@@ -104,7 +103,7 @@ impl Query {
                     } else if let Ok(index) = current.parse::<usize>() {
                         path.push(FilterStep::Index(index));
                     } else {
-                        return Err(anyhow!("{}: Invalid array index: {}", ERROR_QUERY_PARSE, current));
+                        bail!("{}: Invalid array index: {}", ERROR_QUERY_PARSE, current);
                     }
                     current = String::new();
                     in_brackets = false;
@@ -113,7 +112,7 @@ impl Query {
                     if !c.is_whitespace() {
                         // Only allow alphanumeric characters and underscores in field names
                         if !in_brackets && !c.is_alphanumeric() && c != '_' {
-                            return Err(anyhow!("{}: Invalid character in field name: {}", ERROR_QUERY_PARSE, c));
+                            bail!("{}: Invalid character in field name: {}", ERROR_QUERY_PARSE, c);
                         }
                         current.push(c);
                     }
@@ -124,17 +123,17 @@ impl Query {
         if !current.is_empty() {
             // Only allow field names outside brackets
             if in_brackets {
-                return Err(anyhow!("{}: Invalid array index: {}", ERROR_QUERY_PARSE, current));
+                bail!("{}: Invalid array index: {}", ERROR_QUERY_PARSE, current);
             }
             path.push(FilterStep::Field(current));
         }
 
         if path.is_empty() {
-            return Err(anyhow!("{}: Empty query", ERROR_QUERY_PARSE));
+            bail!("{}: Empty query", ERROR_QUERY_PARSE);
         }
 
         if in_brackets {
-            return Err(anyhow!("{}: Unclosed bracket", ERROR_QUERY_PARSE));
+            bail!("{}: Unclosed bracket", ERROR_QUERY_PARSE);
         }
 
         Ok(path)
@@ -198,11 +197,11 @@ impl Query {
         Ok(results)
     }
 
-    /// Executes the compiled query and returns a single NotationType result.
+    /// Executes the compiled query against a NotationType value and returns a single result.
     ///
     /// # Arguments
     ///
-    /// * `value` - The value to query against. Must be Clone + Into<NotationType>.
+    /// * `value` - The value to query against.
     ///
     /// # Returns
     ///
@@ -212,14 +211,12 @@ impl Query {
         T: Clone + Into<NotationType>,
     {
         let results = self.execute(value)?;
-
         if results.is_empty() {
-            return Err(anyhow!(
-                "{}: Query produced no results", 
-                ERROR_QUERY_EXECUTION
-            ));
+            return Err(error(format!(
+                "{}: No results found for query '{}'",
+                ERROR_QUERY_EXECUTION, self.filter_str
+            )));
         }
-
         Ok(results[0].clone())
     }
 
@@ -239,10 +236,10 @@ impl Query {
         let results = self.execute(value)?;
 
         if results.is_empty() {
-            return Err(anyhow!(
+            return Err(error(format!(
                 "{}: Query produced no results", 
                 ERROR_QUERY_EXECUTION
-            ));
+            )));
         }
 
         match &results[0] {
