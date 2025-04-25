@@ -168,6 +168,9 @@ pub fn get_named_logger(name: &str) -> Result<Arc<LogFramework>> {
 
 /// Define macros for easy logging
 /// These should be used through macros defined at the crate level
+
+/// Trace level logging for fine-grained information
+/// Used for function entry/exit points and detailed execution flow
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)*) => {{
@@ -186,6 +189,8 @@ macro_rules! trace {
     }};
 }
 
+/// Debug level logging for detailed diagnostic information
+/// Used during development to help diagnose issues
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {{
@@ -204,6 +209,8 @@ macro_rules! debug {
     }};
 }
 
+/// Info level logging for general operational information
+/// Used to track normal application flow
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {{
@@ -222,6 +229,8 @@ macro_rules! info {
     }};
 }
 
+/// Warning level logging for potentially harmful situations
+/// Used to notify users about situations that require attention
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)*) => {{
@@ -240,6 +249,8 @@ macro_rules! warn {
     }};
 }
 
+/// Error level logging for situations that require user action
+/// Used when operations fail and users need to fix, wait, or retry
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)*) => {{
@@ -258,6 +269,8 @@ macro_rules! error {
     }};
 }
 
+/// Fatal level logging for system-level fatal situations
+/// Used for unrecoverable errors, should be followed by a panic
 #[macro_export]
 macro_rules! fatal {
     ($($arg:tt)*) => {{

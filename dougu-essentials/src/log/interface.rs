@@ -7,11 +7,23 @@ use crate::time::ZonedDateTime;
 /// Log level enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LogLevel {
+    /// Trace level logging for fine-grained information
+    /// Used for function entry/exit points and detailed execution flow
     Trace,
+    /// Debug level logging for detailed diagnostic information
+    /// Used during development to help diagnose issues
     Debug,
+    /// Info level logging for general operational information
+    /// Used to track normal application flow
     Info,
+    /// Warning level logging for potentially harmful situations
+    /// Used to notify users about situations that require attention
     Warn,
+    /// Error level logging for situations that require user action
+    /// Used when operations fail and users need to fix, wait, or retry
     Error,
+    /// Fatal level logging for system-level fatal situations
+    /// Used for unrecoverable errors, should be followed by a panic
     Fatal,
 }
 
@@ -147,6 +159,7 @@ pub trait Logger: Send + Sync {
 /// Extended logger functionality
 pub trait LoggerExt: Logger {
     /// Log a trace message
+    /// Used for fine-grained information such as function entry/exit points
     fn trace<M: Into<String>>(&self, module: &str, message: M) -> Result<()> {
         self.log(LogRecord::new(
             LogLevel::Trace,
@@ -158,6 +171,7 @@ pub trait LoggerExt: Logger {
     }
 
     /// Log a debug message
+    /// Used for detailed diagnostic information during development
     fn debug<M: Into<String>>(&self, module: &str, message: M) -> Result<()> {
         self.log(LogRecord::new(
             LogLevel::Debug,
@@ -169,6 +183,7 @@ pub trait LoggerExt: Logger {
     }
 
     /// Log an info message
+    /// Used for general operational information and normal application flow
     fn info<M: Into<String>>(&self, module: &str, message: M) -> Result<()> {
         self.log(LogRecord::new(
             LogLevel::Info,
@@ -180,6 +195,7 @@ pub trait LoggerExt: Logger {
     }
 
     /// Log a warning message
+    /// Used for potentially harmful situations that require user attention
     fn warn<M: Into<String>>(&self, module: &str, message: M) -> Result<()> {
         self.log(LogRecord::new(
             LogLevel::Warn,
@@ -191,6 +207,7 @@ pub trait LoggerExt: Logger {
     }
 
     /// Log an error message
+    /// Used when operations fail and users need to fix, wait, or retry
     fn error<M: Into<String>>(&self, module: &str, message: M) -> Result<()> {
         self.log(LogRecord::new(
             LogLevel::Error,
@@ -202,6 +219,7 @@ pub trait LoggerExt: Logger {
     }
 
     /// Log a fatal message
+    /// Used for system-level fatal situations, should be followed by a panic
     fn fatal<M: Into<String>>(&self, module: &str, message: M) -> Result<()> {
         self.log(LogRecord::new(
             LogLevel::Fatal,
@@ -243,6 +261,7 @@ impl<'a> LogBuilder<'a> {
     }
 
     /// Log a trace message with the accumulated fields
+    /// Used for fine-grained information such as function entry/exit points
     pub fn trace<M: Into<String>>(&self, message: M) -> Result<()> {
         self.logger.log(LogRecord::new(
             LogLevel::Trace,
@@ -254,6 +273,7 @@ impl<'a> LogBuilder<'a> {
     }
 
     /// Log a debug message with the accumulated fields
+    /// Used for detailed diagnostic information during development
     pub fn debug<M: Into<String>>(&self, message: M) -> Result<()> {
         self.logger.log(LogRecord::new(
             LogLevel::Debug,
@@ -265,6 +285,7 @@ impl<'a> LogBuilder<'a> {
     }
 
     /// Log an info message with the accumulated fields
+    /// Used for general operational information and normal application flow
     pub fn info<M: Into<String>>(&self, message: M) -> Result<()> {
         self.logger.log(LogRecord::new(
             LogLevel::Info,
@@ -276,6 +297,7 @@ impl<'a> LogBuilder<'a> {
     }
 
     /// Log a warning message with the accumulated fields
+    /// Used for potentially harmful situations that require user attention
     pub fn warn<M: Into<String>>(&self, message: M) -> Result<()> {
         self.logger.log(LogRecord::new(
             LogLevel::Warn,
@@ -287,6 +309,7 @@ impl<'a> LogBuilder<'a> {
     }
 
     /// Log an error message with the accumulated fields
+    /// Used when operations fail and users need to fix, wait, or retry
     pub fn error<M: Into<String>>(&self, message: M) -> Result<()> {
         self.logger.log(LogRecord::new(
             LogLevel::Error,
@@ -298,6 +321,7 @@ impl<'a> LogBuilder<'a> {
     }
 
     /// Log a fatal message with the accumulated fields
+    /// Used for system-level fatal situations, should be followed by a panic
     pub fn fatal<M: Into<String>>(&self, message: M) -> Result<()> {
         self.logger.log(LogRecord::new(
             LogLevel::Fatal,
