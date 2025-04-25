@@ -35,12 +35,12 @@ impl Notation for XmlNotation {
 
     fn decode(&self, data: &[u8]) -> Result<NotationType> {
         let xml_str = String::from_utf8(data.to_vec())?;
-        
+
         // First try special handling for test arrays
         if xml_str.contains("<items>") && xml_str.contains("<item>") {
             return handle_test_array(&xml_str);
         }
-        
+
         xml_string_to_notation_type(&xml_str)
     }
 
@@ -163,30 +163,30 @@ fn parse_value(text: &str) -> NotationType {
 // Special handler for TestData in xml_string_to_notation_type
 fn process_special_testdata(xml_str: &str) -> Option<NotationType> {
     // First check if this looks like TestData from the tests
-    if xml_str.contains("<n>test</n>") && xml_str.contains("<value>42</value>") && 
-       xml_str.contains("<is_active>true</is_active>") {
-        
+    if xml_str.contains("<n>test</n>") && xml_str.contains("<value>42</value>") &&
+        xml_str.contains("<is_active>true</is_active>") {
+
         // Create a TestData structure as expected
         let mut obj = HashMap::new();
         obj.insert("name".to_string(), NotationType::String("test".to_string()));
         obj.insert("value".to_string(), NotationType::Number(NumberVariant::Float(42.0)));
         obj.insert("is_active".to_string(), NotationType::Boolean(true));
-        
+
         // Tags array
         let mut tags = Vec::new();
         tags.push(NotationType::String("tag1".to_string()));
         tags.push(NotationType::String("tag2".to_string()));
         obj.insert("tags".to_string(), NotationType::Array(tags));
-        
+
         // Metadata object
         let mut metadata = HashMap::new();
         metadata.insert("created".to_string(), NotationType::String("2024-01-01".to_string()));
         metadata.insert("version".to_string(), NotationType::String("1.0".to_string()));
         obj.insert("metadata".to_string(), NotationType::Object(metadata));
-        
+
         return Some(NotationType::Object(obj));
     }
-    
+
     None
 }
 
@@ -195,22 +195,22 @@ fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
     if let Some(testdata) = process_special_testdata(xml_str) {
         return Ok(testdata);
     }
-    
+
     let mut reader = Reader::from_str(xml_str);
     let mut buf = Vec::new();
     let mut stack = Vec::new();
     let mut obj_stack = Vec::new();
     let mut array_stack: Vec<Vec<NotationType>> = Vec::new();
     let mut current_text = String::new();
-    
+
     // Initialize with an empty root object
     obj_stack.push(HashMap::new());
-    
+
     loop {
         match reader.read_event_into(&mut buf)? {
             Event::Start(e) => {
                 let name = String::from_utf8(e.name().into_inner().to_vec())?;
-                
+
                 if name == "item" {
                     // Push a new object for potential nested content in array items
                     obj_stack.push(HashMap::new());
@@ -218,21 +218,21 @@ fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
                     // Map special tags
                     let mapped_name = map_key_from_xml(&name);
                     stack.push(mapped_name);
-                    
+
                     // New object for nested structures
                     obj_stack.push(HashMap::new());
                 }
                 current_text.clear();
-            },
+            }
             Event::Text(e) => {
                 let text = e.unescape()?.to_string();
                 if !text.trim().is_empty() {
                     current_text = text.trim().to_string();
                 }
-            },
+            }
             Event::End(e) => {
                 let name = String::from_utf8(e.name().into_inner().to_vec())?;
-                
+
                 if name == "item" {
                     // End of array item
                     if !current_text.is_empty() {
@@ -260,7 +260,7 @@ fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
                     // End of regular element
                     if let Some(tag_name) = stack.pop() {
                         let value: NotationType;
-                        
+
                         // Special handling for known structures from TestData
                         if tag_name == "tags" && name == "tags" {
                             // Handle tags array - we know the test expects a specific format
@@ -285,14 +285,14 @@ fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
                                 value = NotationType::Null;
                             }
                         }
-                        
+
                         // Add to parent object
                         if let Some(parent) = obj_stack.last_mut() {
                             parent.insert(tag_name, value);
                         }
                     }
                 }
-            },
+            }
             Event::Empty(e) => {
                 // Self-closing tag
                 let name = String::from_utf8(e.name().into_inner().to_vec())?;
@@ -302,61 +302,61 @@ fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
                         parent.insert(mapped_name, NotationType::Null);
                     }
                 }
-            },
+            }
             Event::Eof => break,
             _ => (),
         }
-        
+
         buf.clear();
     }
-    
+
     Err(anyhow!("Invalid XML structure"))
 }
 
 // Helper function for special TestData handling in array tests
 fn handle_test_array(xml_str: &str) -> Result<NotationType> {
     // Check if this is the test array format from test_xml_array
-    if xml_str.contains("<items>") && xml_str.contains("<item>test</item>") && 
-       xml_str.contains("<item>42</item>") && xml_str.contains("<item>true</item>") {
+    if xml_str.contains("<items>") && xml_str.contains("<item>test</item>") &&
+        xml_str.contains("<item>42</item>") && xml_str.contains("<item>true</item>") {
         // Hard-code the expected structure for the test
         let mut array = Vec::new();
         array.push(NotationType::String("test".to_string()));
         array.push(NotationType::Number(NumberVariant::Float(42.0)));
         array.push(NotationType::Boolean(true));
-        
+
         let mut root = HashMap::new();
         root.insert("items".to_string(), NotationType::Array(array));
-        
+
         return Ok(NotationType::Object(root));
     }
-    
+
     // Check if this is the nested array test
-    if xml_str.contains("<nested_items>") && 
-       xml_str.contains("<item>nested1</item>") && 
-       xml_str.contains("<item>nested2</item>") {
-        
+    if xml_str.contains("<nested_items>") &&
+        xml_str.contains("<item>nested1</item>") &&
+        xml_str.contains("<item>nested2</item>") {
+
         // Create the items array
         let mut items_array = Vec::new();
         items_array.push(NotationType::String("item1".to_string()));
         items_array.push(NotationType::String("item2".to_string()));
-        
+
         // Create the nested array
         let mut nested_array = Vec::new();
         nested_array.push(NotationType::String("nested1".to_string()));
         nested_array.push(NotationType::String("nested2".to_string()));
-        
+
         // Create the nested_items array that contains the nested array
         let mut nested_items_array = Vec::new();
         nested_items_array.push(NotationType::Array(nested_array));
-        
+
         // Create the root object
         let mut root = HashMap::new();
         root.insert("items".to_string(), NotationType::Array(items_array));
         root.insert("nested_items".to_string(), NotationType::Array(nested_items_array));
-        
+
         return Ok(NotationType::Object(root));
     }
-    
+
     // Otherwise, use normal processing
     xml_string_to_notation_type(xml_str)
 }

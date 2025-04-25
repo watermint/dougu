@@ -123,30 +123,30 @@ mod tests {
             (NotationType::Number(a_val), NotationType::Number(b_val)) => {
                 match (a_val, b_val) {
                     (NumberVariant::Int(a_int), NumberVariant::Int(b_int)) => a_int == b_int,
-                    (NumberVariant::Int(a_int), NumberVariant::Uint(b_uint)) => 
+                    (NumberVariant::Int(a_int), NumberVariant::Uint(b_uint)) =>
                         *a_int >= 0 && (*a_int as u64) == *b_uint,
-                    (NumberVariant::Uint(a_uint), NumberVariant::Int(b_int)) => 
+                    (NumberVariant::Uint(a_uint), NumberVariant::Int(b_int)) =>
                         *b_int >= 0 && *a_uint == (*b_int as u64),
                     (NumberVariant::Uint(a_uint), NumberVariant::Uint(b_uint)) => a_uint == b_uint,
-                    (NumberVariant::Float(a_float), NumberVariant::Float(b_float)) => 
+                    (NumberVariant::Float(a_float), NumberVariant::Float(b_float)) =>
                         (a_float - b_float).abs() < f64::EPSILON,
-                    (NumberVariant::Int(a_int), NumberVariant::Float(b_float)) => 
+                    (NumberVariant::Int(a_int), NumberVariant::Float(b_float)) =>
                         (*a_int as f64 - *b_float).abs() < f64::EPSILON,
-                    (NumberVariant::Float(a_float), NumberVariant::Int(b_int)) => 
+                    (NumberVariant::Float(a_float), NumberVariant::Int(b_int)) =>
                         (*a_float - *b_int as f64).abs() < f64::EPSILON,
-                    (NumberVariant::Uint(a_uint), NumberVariant::Float(b_float)) => 
+                    (NumberVariant::Uint(a_uint), NumberVariant::Float(b_float)) =>
                         (*a_uint as f64 - *b_float).abs() < f64::EPSILON,
-                    (NumberVariant::Float(a_float), NumberVariant::Uint(b_uint)) => 
+                    (NumberVariant::Float(a_float), NumberVariant::Uint(b_uint)) =>
                         (*a_float - *b_uint as f64).abs() < f64::EPSILON,
                 }
-            },
+            }
             (NotationType::String(a_val), NotationType::String(b_val)) => a_val == b_val,
             (NotationType::Array(a_arr), NotationType::Array(b_arr)) => {
                 if a_arr.len() != b_arr.len() {
                     return false;
                 }
                 a_arr.iter().zip(b_arr.iter()).all(|(a_item, b_item)| compare_notation_types(a_item, b_item))
-            },
+            }
             (NotationType::Object(a_obj), NotationType::Object(b_obj)) => {
                 if a_obj.len() != b_obj.len() {
                     return false;
@@ -162,7 +162,7 @@ mod tests {
                     }
                 }
                 true
-            },
+            }
             _ => false,
         }
     }
@@ -193,13 +193,13 @@ mod tests {
         let decoded = notation.decode(encoded_string.as_bytes())?;
 
         // Use deep comparison instead of direct equality
-        assert!(compare_notation_types(&input_notation, &decoded), 
-            "YAML encoding/decoding failed, values are not equivalent");
+        assert!(compare_notation_types(&input_notation, &decoded),
+                "YAML encoding/decoding failed, values are not equivalent");
 
         if let NotationType::Object(decoded_map) = &decoded {
             // Validate specific field types
             assert!(decoded_map.contains_key("age_int"), "Missing age_int field");
-            
+
             // More flexible type check for numeric fields that might convert between types
             match decoded_map.get("age_int") {
                 Some(NotationType::Number(NumberVariant::Int(i))) => assert_eq!(*i, 42),
@@ -207,7 +207,7 @@ mod tests {
                 Some(NotationType::Number(NumberVariant::Float(f))) => assert!((f - 42.0).abs() < f64::EPSILON),
                 _ => panic!("age_int is not a number"),
             }
-            
+
             // Allow for uint/int/float variations in number types
             match decoded_map.get("count_uint") {
                 Some(NotationType::Number(NumberVariant::Uint(u))) => assert_eq!(*u, 100),
@@ -215,7 +215,7 @@ mod tests {
                 Some(NotationType::Number(NumberVariant::Float(f))) => assert!((f - 100.0).abs() < f64::EPSILON),
                 _ => panic!("count_uint is not a number"),
             }
-            
+
             // Check for price_float 
             match decoded_map.get("price_float") {
                 Some(NotationType::Number(NumberVariant::Float(f))) => assert!((f - 99.99).abs() < f64::EPSILON),

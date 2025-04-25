@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_xml_array() -> Result<()> {
         let notation = XmlNotation;
-        
+
         // Test array with different types
         let obj = NotationType::Object(HashMap::from([
             ("items".to_string(), NotationType::Array(vec![

@@ -29,28 +29,28 @@ jobs:
         shell: bash
         run: |
           cargo build --workspace --release
-      
-      # # Pack artifact
-      # - name: Pack artifact
-      #   id: pack_artifact
-      #   shell: bash
-      #   run: |
-      #     # Create output directory
-      #     mkdir -p target/dist
           
-      #     # Let build pack command verify the executable and create artifact info files
-      #     ./target/release/dougu --ui-skip-appinfo build pack \
-      #       --output-dir target/dist \
-      #       --cargo-output build_output.json \
-      #       --ui-format jsonl
+          # # Pack artifact
+          # - name: Pack artifact
+          #   id: pack_artifact
+          #   shell: bash
+          #   run: |
+          #     # Create output directory
+          #     mkdir -p target/dist
           
-      #     # Read the artifact information from the plain text files
-      #     ARTIFACT_PATH=$(cat target/dist/artifact_path)
-      #     ARTIFACT_NAME=$(cat target/dist/artifact_name)
+          #     # Let build pack command verify the executable and create artifact info files
+          #     ./target/release/dougu --ui-skip-appinfo build pack \
+          #       --output-dir target/dist \
+          #       --cargo-output build_output.json \
+          #       --ui-format jsonl
           
-      #     echo "ARTIFACT_PATH: $ARTIFACT_PATH"
-      #     echo "ARTIFACT_NAME: $ARTIFACT_NAME"
+          #     # Read the artifact information from the plain text files
+          #     ARTIFACT_PATH=$(cat target/dist/artifact_path)
+          #     ARTIFACT_NAME=$(cat target/dist/artifact_name)
           
+          #     echo "ARTIFACT_PATH: $ARTIFACT_PATH"
+          #     echo "ARTIFACT_NAME: $ARTIFACT_NAME"
+
       #     echo "artifact_path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
       #     echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
       
