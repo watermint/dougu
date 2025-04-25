@@ -1,7 +1,13 @@
-//! File System abstraction module
-//! 
-//! This module provides abstraction for various file system operations
-//! including local file systems, cloud file systems, and pseudo file systems
-//! for services like task tracking systems.
+// fs module is an abstraction layer for file system operations.
+// It provides traits and implementations for different types of file systems:
+// - Local file systems
+// - Cloud file systems
+// - Pseudo file systems for services (e.g., task tracking systems)
 
-pub mod path; 
+pub mod path;
+
+// Re-export path types for easier access
+pub use path::{
+    Path, PathComponents, Namespace, LocalPath, LocalPathType,
+    PathProvider, create_local_path, default_path_type,
+}; 
