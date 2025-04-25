@@ -1,5 +1,5 @@
+use crate::core::error::{error, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use bson::{self, Bson, Document};
 use hex;
@@ -23,7 +23,7 @@ impl Default for BsonNotation {
 }
 
 impl Notation for BsonNotation {
-    fn encode<T>(&self, value: &T) -> anyhow::Result<Vec<u8>>
+    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
     where
         T: Into<NotationType> + Clone,
     {
@@ -35,9 +35,9 @@ impl Notation for BsonNotation {
         Ok(buf)
     }
 
-    fn decode(&self, data: &[u8]) -> anyhow::Result<NotationType> {
+    fn decode(&self, data: &[u8]) -> Result<NotationType> {
         let doc = Document::from_reader(&mut &data[..])?;
-        let bson_value = doc.get("value").ok_or_else(|| anyhow!("Missing 'value' key in BSON document"))?;
+        let bson_value = doc.get("value").ok_or_else(|| error("Missing 'value' key in BSON document"))?;
         bson_to_notation_type(bson_value)
     }
 
@@ -73,7 +73,7 @@ fn bson_to_notation_type(value: &Bson) -> Result<NotationType> {
         Bson::Int64(i) => Ok(NotationType::Number(NumberVariant::Int(*i))),
         Bson::Binary(bin) => Ok(NotationType::String(BASE64_STANDARD.encode(&bin.bytes))),
         Bson::Timestamp(ts) => Ok(NotationType::String(ts.to_string())),
-        _ => Err(anyhow!("Unsupported BSON type encountered: {:?}", value)),
+        _ => Err(error(format!("Unsupported BSON type encountered: {:?}", value))),
     }
 }
 
@@ -91,7 +91,7 @@ fn notation_type_to_bson(notation_type: &NotationType) -> Result<Bson> {
                     }
                 }
                 NumberVariant::Uint(u) => {
-                    if let Ok(i_val) = (*u).try_into() as Result<i64, _> {
+                    if let Ok(i_val) = TryInto::<i64>::try_into(*u) {
                         if i_val >= i32::MIN as i64 && i_val <= i32::MAX as i64 {
                             Ok(Bson::Int32(i_val.try_into().unwrap_or(i32::MAX)))
                         } else {
@@ -116,6 +116,6 @@ fn notation_type_to_bson(notation_type: &NotationType) -> Result<Bson> {
                 .collect();
             Ok(Bson::Document(doc?))
         }
-        _ => Err(anyhow!("Unsupported NotationType for BSON conversion: {:?}", notation_type)),
+        _ => Err(error(format!("Unsupported NotationType for BSON conversion: {:?}", notation_type))),
     }
 } 

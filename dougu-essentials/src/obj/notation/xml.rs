@@ -1,5 +1,5 @@
+use crate::core::error::{error, Result};
 use crate::obj::notation::{error_messages, Notation, NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
 use quick_xml::events::{BytesStart, BytesText, Event};
 use quick_xml::writer::Writer;
 use quick_xml::Reader;
@@ -97,7 +97,7 @@ fn write_value(writer: &mut Writer<Cursor<Vec<u8>>>, value: &NotationType) -> Re
                 writer.write_event(Event::End(elem.to_end()))?;
             }
         }
-        _ => return Err(anyhow!("Unsupported type")),
+        _ => return Err(error("Unsupported type")),
     }
     Ok(())
 }
@@ -135,7 +135,7 @@ fn notation_type_to_xml_string(notation_type: &NotationType) -> Result<String> {
                 writer.write_event(Event::End(BytesStart::new(key).to_end()))?;
             }
         }
-        _ => return Err(anyhow!("XML root must be an object")),
+        _ => return Err(error("XML root must be an object")),
     }
 
     writer.write_event(Event::End(BytesStart::new("root").to_end()))?;
@@ -310,7 +310,7 @@ fn xml_string_to_notation_type(xml_str: &str) -> Result<NotationType> {
         buf.clear();
     }
 
-    Err(anyhow!("Invalid XML structure"))
+    Err(error("Invalid XML structure"))
 }
 
 // Helper function for special TestData handling in array tests
@@ -383,7 +383,7 @@ fn xml_event_to_notation_type(reader: &mut quick_xml::Reader<&[u8]>) -> Result<N
             _ => continue,
         }
     }
-    Err(anyhow!(error_messages::XML_PARSING_ERROR))
+    Err(error(error_messages::XML_PARSING_ERROR))
 }
 
 // Helper type for tests - not used in main code

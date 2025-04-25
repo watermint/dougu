@@ -6,6 +6,7 @@ use std::str;
 
 pub mod bson;
 pub mod cbor;
+pub mod cbor_sequence;
 pub mod error_messages;
 pub mod json;
 pub mod jsonl;
@@ -15,6 +16,7 @@ pub mod yaml;
 
 pub use bson::BsonNotation;
 pub use cbor::CborNotation;
+pub use cbor_sequence::CborSequenceNotation;
 pub use json::JsonNotation;
 pub use jsonl::JsonlNotation;
 pub use toml::TomlNotation;
@@ -89,6 +91,7 @@ pub enum NotationType {
     Bson(BsonNotation),
     Cbor(CborNotation),
     Jsonl(JsonlNotation),
+    CborSequence(CborSequenceNotation),
 }
 
 impl NotationType {
@@ -284,6 +287,7 @@ impl Notation for NotationType {
             NotationType::Bson(notation) => notation.decode(input),
             NotationType::Cbor(notation) => notation.decode(input),
             NotationType::Jsonl(notation) => notation.decode(input),
+            NotationType::CborSequence(notation) => notation.decode(input),
             _ => Err(error("Notation type does not support decoding")),
         }
     }
@@ -300,6 +304,7 @@ impl Notation for NotationType {
             NotationType::Bson(notation) => notation.encode(value),
             NotationType::Cbor(notation) => notation.encode(value),
             NotationType::Jsonl(notation) => notation.encode(value),
+            NotationType::CborSequence(notation) => notation.encode(value),
             _ => Err(error("Notation type does not support encoding")),
         }
     }

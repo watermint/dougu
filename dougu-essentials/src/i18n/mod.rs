@@ -18,8 +18,8 @@ pub use cldr::{CalendarType, Message, MessageArgs, MessageValue, NumberSystem, P
 pub use cldr::{CldrDataFactory, LocaleDataProvider};
 pub use cldr::{Collator, DateTimeFormatter, NumberFormatter, PluralRules};
 
+// Renamed to avoid conflict
+pub use msg::format::MessageFormat;
 pub use msg::MessageArgs as MsgArgs;
 // Re-export from msg
 pub use msg::{MessageBundle, MessageFormatter, ResourceManager};
-// Renamed to avoid conflict
-pub use msg::format::MessageFormat;

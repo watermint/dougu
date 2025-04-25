@@ -1,5 +1,5 @@
+use crate::core::error::{error, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -78,7 +78,7 @@ fn notation_type_to_toml_value(notation_type: &NotationType) -> Result<TomlValue
                 .collect();
             TomlValue::Table(table?)
         }
-        _ => return Err(anyhow!("Unsupported notation type for TOML: {:?}", notation_type)),
+        _ => return Err(error(format!("Unsupported notation type for TOML: {:?}", notation_type))),
     })
 }
 

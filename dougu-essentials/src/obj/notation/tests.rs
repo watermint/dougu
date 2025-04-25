@@ -387,6 +387,39 @@ mod tests {
     }
 
     #[test]
+    fn test_cbor_sequence_notation() -> Result<()> {
+        let notation = CborSequenceNotation::default();
+
+        // Test single item encoding/decoding
+        let data = create_test_data();
+        let encoded = notation.encode(&data)?;
+        let decoded_notation: NotationType = notation.decode(&encoded)?;
+        let decoded = TestData::from(decoded_notation);
+        assert_eq!(data, decoded);
+
+        // Test collection encoding
+        let data_vec = vec![
+            create_test_data(),
+            TestData {
+                name: "test2".to_string(),
+                value: 84.0,
+                is_active: false,
+                tags: vec!["tag3".to_string()],
+                metadata: HashMap::new(),
+            }
+        ];
+
+        let encoded_collection = notation.encode_collection(&data_vec)?;
+        let decoded_collection_notation: NotationType = notation.decode(&encoded_collection)?;
+        let decoded_collection = Vec::<TestData>::from(decoded_collection_notation);
+        assert_eq!(data_vec.len(), decoded_collection.len());
+        assert_eq!(data_vec[0], decoded_collection[0]);
+        assert_eq!(data_vec[1], decoded_collection[1]);
+
+        Ok(())
+    }
+
+    #[test]
     fn test_notation_types() -> Result<()> {
         let data = create_test_data();
 
@@ -398,6 +431,7 @@ mod tests {
             NotationType::Xml(XmlNotation),
             NotationType::Bson(BsonNotation),
             NotationType::Cbor(CborNotation),
+            NotationType::CborSequence(CborSequenceNotation::default()),
         ] {
             let encoded = notation_type_instance.encode(&data)?;
             let decoded_notation: NotationType = notation_type_instance.decode(&encoded)?;

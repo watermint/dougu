@@ -1,5 +1,5 @@
+use crate::core::error::{error, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{from_slice, to_string, Number as YamlNumber, Value as YamlValue};
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ fn yaml_value_to_notation_type(value: &YamlValue) -> Result<NotationType> {
             } else if let Some(f) = n.as_f64() {
                 NotationType::Number(NumberVariant::Float(f))
             } else {
-                return Err(anyhow!("Unsupported YAML number"));
+                return Err(error("Unsupported YAML number"));
             }
         }
         YamlValue::String(s) => NotationType::String(s.clone()),
@@ -68,13 +68,13 @@ fn yaml_value_to_notation_type(value: &YamlValue) -> Result<NotationType> {
                 if let YamlValue::String(key_str) = key {
                     obj.insert(key_str.clone(), yaml_value_to_notation_type(val)?);
                 } else {
-                    return Err(anyhow!("YAML object keys must be strings"));
+                    return Err(error("YAML object keys must be strings"));
                 }
             }
             NotationType::Object(obj)
         }
         _ => {
-            return Err(anyhow!("Unsupported YAML value type"));
+            return Err(error("Unsupported YAML value type"));
         }
     })
 }
@@ -106,7 +106,7 @@ fn notation_type_to_yaml_value(notation_type: &NotationType) -> Result<YamlValue
                 .collect();
             YamlValue::Mapping(yaml_map?)
         }
-        _ => return Err(anyhow!("Unsupported notation type for YAML: {:?}", notation_type)),
+        _ => return Err(error(format!("Unsupported notation type for YAML: {:?}", notation_type))),
     })
 }
 

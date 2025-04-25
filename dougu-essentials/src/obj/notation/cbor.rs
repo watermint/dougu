@@ -1,5 +1,5 @@
+use crate::core::error::{error, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
-use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use ciborium::{from_reader, into_writer, value::Value as CborValue};
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ use std::convert::TryInto;
 pub struct CborNotation;
 
 impl Notation for CborNotation {
-    fn encode<T>(&self, value: &T) -> anyhow::Result<Vec<u8>>
+    fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
     where
         T: Into<NotationType> + Clone,
     {
@@ -21,7 +21,7 @@ impl Notation for CborNotation {
         Ok(buf)
     }
 
-    fn decode(&self, data: &[u8]) -> anyhow::Result<NotationType> {
+    fn decode(&self, data: &[u8]) -> Result<NotationType> {
         let cbor_value: CborValue = from_reader(data)?;
         cbor_value_to_notation_type(&cbor_value)
     }
@@ -35,7 +35,7 @@ impl Notation for CborNotation {
     }
 }
 
-fn cbor_value_to_notation_type(value: &CborValue) -> Result<NotationType> {
+pub fn cbor_value_to_notation_type(value: &CborValue) -> Result<NotationType> {
     match value {
         CborValue::Null => Ok(NotationType::Null),
         CborValue::Bool(b) => Ok(NotationType::Boolean(*b)),
@@ -45,7 +45,7 @@ fn cbor_value_to_notation_type(value: &CborValue) -> Result<NotationType> {
             } else if let Ok(uval) = (*i).try_into() {
                 Ok(NotationType::Number(NumberVariant::Uint(uval)))
             } else {
-                Err(anyhow!("CBOR integer {:?} out of range for i64/u64", i))
+                Err(error(format!("CBOR integer {:?} out of range for i64/u64", i)))
             }
         }
         CborValue::Float(f) => Ok(NotationType::Number(NumberVariant::Float(*f))),
@@ -61,7 +61,7 @@ fn cbor_value_to_notation_type(value: &CborValue) -> Result<NotationType> {
                 .map(|(k, v)| {
                     let key_str = match k {
                         CborValue::Text(s) => Ok(s.clone()),
-                        _ => Err(anyhow!("Unsupported CBOR map key type: {:?}", k)),
+                        _ => Err(error(format!("Unsupported CBOR map key type: {:?}", k))),
                     }?;
                     let value_notation = cbor_value_to_notation_type(v)?;
                     Ok((key_str, value_notation))
@@ -69,11 +69,11 @@ fn cbor_value_to_notation_type(value: &CborValue) -> Result<NotationType> {
                 .collect();
             Ok(NotationType::Object(map_values?))
         }
-        _ => Err(anyhow!("Unsupported CBOR value type: {:?}", value)),
+        _ => Err(error(format!("Unsupported CBOR value type: {:?}", value))),
     }
 }
 
-fn notation_type_to_cbor_value(notation_type: &NotationType) -> Result<CborValue> {
+pub fn notation_type_to_cbor_value(notation_type: &NotationType) -> Result<CborValue> {
     match notation_type {
         NotationType::Null => Ok(CborValue::Null),
         NotationType::Boolean(b) => Ok(CborValue::Bool(*b)),
@@ -113,15 +113,13 @@ fn notation_type_to_cbor_value(notation_type: &NotationType) -> Result<CborValue
                 .collect();
             Ok(CborValue::Map(cbor_pairs?))
         }
-        _ => Err(anyhow!("Unsupported notation type for CBOR: {:?}", notation_type)),
+        _ => Err(error(format!("Unsupported notation type for CBOR: {:?}", notation_type))),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Needed for NumberVariant tests
-    use crate::obj::notation::NumberVariant;
     use std::collections::HashMap;
 
     #[test]

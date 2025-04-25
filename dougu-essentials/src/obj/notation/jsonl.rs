@@ -1,5 +1,5 @@
+use crate::core::error::{error, Result};
 use crate::obj::notation::{JsonNotation, Notation, NotationType};
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ impl Notation for JsonlNotation {
         T: Into<NotationType> + Clone,
     {
         let encoded = self.encode(value)?;
-        String::from_utf8(encoded).map_err(|e| anyhow!(e))
+        String::from_utf8(encoded).map_err(|e| error(format!("{}", e)))
     }
 
     fn encode_collection<T>(&self, values: &[T]) -> Result<Vec<u8>>
