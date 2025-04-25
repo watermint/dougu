@@ -1,5 +1,5 @@
-use crate::obj::notation::{Notation, NotationType, NumberVariant};
 use crate::core::error::{error, Result};
+use crate::obj::notation::{Notation, NotationType, NumberVariant};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 use std::collections::HashMap;

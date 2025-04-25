@@ -1,7 +1,7 @@
+use crate::core::error::{error, ErrorTrait, Result};
 use crate::obj::notation::{NotationType, NumberVariant};
-use crate::core::error::{Error, ErrorTrait, Result, error};
-use crate::{bail};
 use crate::obj::resources::errors::*;
+use crate::bail;
 
 /// Query provides a wrapper around query operations on NotationType data.
 /// It adds a layer of abstraction to provide a simple interface for common query operations.
@@ -237,7 +237,7 @@ impl Query {
 
         if results.is_empty() {
             return Err(error(format!(
-                "{}: Query produced no results", 
+                "{}: Query produced no results",
                 ERROR_QUERY_EXECUTION
             )));
         }

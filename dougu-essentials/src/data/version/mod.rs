@@ -132,7 +132,7 @@ impl Version {
             build,
         }
     }
-    
+
     /// Checks if this version is a pre-release.
     ///
     /// # Returns
@@ -140,7 +140,7 @@ impl Version {
     pub fn is_pre_release(&self) -> bool {
         self.pre_release.is_some()
     }
-    
+
     /// Checks if this version has build metadata.
     ///
     /// # Returns
@@ -209,7 +209,7 @@ impl Version {
     }
 
     /// Checks if this version is compatible with another version.
-    /// 
+    ///
     /// A version is compatible with another version if they have the same major version
     /// and the current version is greater than or equal to the specified minimum version.
     ///
@@ -226,15 +226,15 @@ impl Version {
 impl Display for Version {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)?;
-        
+
         if let Some(pre) = &self.pre_release {
             write!(f, "-{}", pre.join("."))?;
         }
-        
+
         if let Some(build) = &self.build {
             write!(f, "+{}", build.join("."))?;
         }
-        
+
         Ok(())
     }
 }
@@ -248,28 +248,28 @@ impl FromStr for Version {
             Some((v, b)) => (v, Some(parse_build_metadata(b)?)),
             None => (s, None),
         };
-        
+
         // Split by - to separate pre-release
         let (version, pre_release) = match version_pre.split_once('-') {
             Some((v, p)) => (v, Some(parse_pre_release(p)?)),
             None => (version_pre, None),
         };
-        
+
         // Parse version numbers
         let parts: Vec<&str> = version.split('.').collect();
         if parts.len() != 3 {
             return Err(VersionError::InvalidFormat(format!("Expected 3 version components (MAJOR.MINOR.PATCH), found {}", parts.len())));
         }
-        
+
         let major = parts[0].parse::<u64>()
             .map_err(|_| VersionError::InvalidNumber(format!("Invalid major version: {}", parts[0])))?;
-        
+
         let minor = parts[1].parse::<u64>()
             .map_err(|_| VersionError::InvalidNumber(format!("Invalid minor version: {}", parts[1])))?;
-        
+
         let patch = parts[2].parse::<u64>()
             .map_err(|_| VersionError::InvalidNumber(format!("Invalid patch version: {}", parts[2])))?;
-        
+
         Ok(Version {
             major,
             minor,
@@ -289,14 +289,14 @@ fn parse_pre_release(s: &str) -> Result<Vec<String>, VersionError> {
     if s.is_empty() {
         return Err(VersionError::InvalidPreRelease("Pre-release cannot be empty".to_string()));
     }
-    
+
     let identifiers: Vec<String> = s.split('.').map(String::from).collect();
-    
+
     for id in &identifiers {
         if id.is_empty() {
             return Err(VersionError::InvalidPreRelease("Pre-release identifiers cannot be empty".to_string()));
         }
-        
+
         // Check if the identifier is purely numeric
         if id.chars().all(|c| c.is_ascii_digit()) {
             // Numeric identifiers must not have leading zeros
@@ -310,7 +310,7 @@ fn parse_pre_release(s: &str) -> Result<Vec<String>, VersionError> {
             }
         }
     }
-    
+
     Ok(identifiers)
 }
 
@@ -322,19 +322,19 @@ fn parse_build_metadata(s: &str) -> Result<Vec<String>, VersionError> {
     if s.is_empty() {
         return Err(VersionError::InvalidBuildMetadata("Build metadata cannot be empty".to_string()));
     }
-    
+
     let identifiers: Vec<String> = s.split('.').map(String::from).collect();
-    
+
     for id in &identifiers {
         if id.is_empty() {
             return Err(VersionError::InvalidBuildMetadata("Build metadata identifiers cannot be empty".to_string()));
         }
-        
+
         if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
             return Err(VersionError::InvalidBuildMetadata(format!("Build metadata identifier contains invalid characters: {}", id)));
         }
     }
-    
+
     Ok(identifiers)
 }
 
@@ -351,17 +351,17 @@ impl Ord for Version {
             Ordering::Equal => {}
             ord => return ord,
         }
-        
+
         match self.minor.cmp(&other.minor) {
             Ordering::Equal => {}
             ord => return ord,
         }
-        
+
         match self.patch.cmp(&other.patch) {
             Ordering::Equal => {}
             ord => return ord,
         }
-        
+
         // A version with pre-release identifiers has lower precedence than
         // one without pre-release identifiers
         match (self.pre_release.is_some(), other.pre_release.is_some()) {
@@ -370,15 +370,15 @@ impl Ord for Version {
             (false, false) => return Ordering::Equal,
             (true, true) => {}
         }
-        
+
         // Compare pre-release identifiers
         let self_pre = self.pre_release.as_ref().unwrap();
         let other_pre = other.pre_release.as_ref().unwrap();
-        
+
         for (a, b) in self_pre.iter().zip(other_pre.iter()) {
             let a_is_numeric = a.chars().all(|c| c.is_ascii_digit());
             let b_is_numeric = b.chars().all(|c| c.is_ascii_digit());
-            
+
             // According to semver.org spec:
             // Numeric identifiers always have lower precedence than non-numeric identifiers
             match (a_is_numeric, b_is_numeric) {
@@ -392,7 +392,7 @@ impl Ord for Version {
                         Ordering::Equal => continue,
                         ord => return ord,
                     }
-                },
+                }
                 (false, false) => {
                     // If both are non-numeric, compare them lexically
                     match a.cmp(b) {
@@ -402,10 +402,10 @@ impl Ord for Version {
                 }
             }
         }
-        
+
         // If one pre-release list is a prefix of the other, the shorter one has lower precedence
         self_pre.len().cmp(&other_pre.len())
-        
+
         // Build metadata does not figure into precedence
     }
 }
@@ -413,29 +413,29 @@ impl Ord for Version {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_valid_versions() {
         assert_eq!(
             "1.2.3".parse::<Version>().unwrap(),
             Version::new(1, 2, 3)
         );
-        
+
         assert_eq!(
             "1.0.0-alpha".parse::<Version>().unwrap(),
             Version::with_pre_release(1, 0, 0, vec!["alpha".to_string()])
         );
-        
+
         assert_eq!(
             "1.0.0-alpha.1".parse::<Version>().unwrap(),
             Version::with_pre_release(1, 0, 0, vec!["alpha".to_string(), "1".to_string()])
         );
-        
+
         assert_eq!(
             "1.0.0+build.1".parse::<Version>().unwrap(),
             Version::with_build(1, 0, 0, None, vec!["build".to_string(), "1".to_string()])
         );
-        
+
         assert_eq!(
             "1.0.0-alpha.1+build.2".parse::<Version>().unwrap(),
             Version::with_all(
@@ -445,7 +445,7 @@ mod tests {
             )
         );
     }
-    
+
     #[test]
     fn test_parse_invalid_versions() {
         assert!("1.2".parse::<Version>().is_err());
@@ -456,26 +456,26 @@ mod tests {
         assert!("1.2.3-01".parse::<Version>().is_err());
         assert!("a.b.c".parse::<Version>().is_err());
     }
-    
+
     #[test]
     fn test_display() {
         let version = Version::new(1, 2, 3);
         assert_eq!(version.to_string(), "1.2.3");
-        
+
         let version = Version::with_pre_release(1, 0, 0, vec!["alpha".to_string(), "1".to_string()]);
         assert_eq!(version.to_string(), "1.0.0-alpha.1");
-        
+
         let version = Version::with_build(1, 0, 0, None, vec!["build".to_string(), "1".to_string()]);
         assert_eq!(version.to_string(), "1.0.0+build.1");
-        
+
         let version = Version::with_all(
             1, 0, 0,
             Some(vec!["alpha".to_string(), "1".to_string()]),
-            Some(vec!["build".to_string(), "2".to_string()])
+            Some(vec!["build".to_string(), "2".to_string()]),
         );
         assert_eq!(version.to_string(), "1.0.0-alpha.1+build.2");
     }
-    
+
     #[test]
     fn test_ordering() {
         // Examples from SemVer spec:
@@ -483,106 +483,106 @@ mod tests {
         assert!("1.0.0".parse::<Version>().unwrap() < "2.0.0".parse::<Version>().unwrap());
         assert!("2.0.0".parse::<Version>().unwrap() < "2.1.0".parse::<Version>().unwrap());
         assert!("2.1.0".parse::<Version>().unwrap() < "2.1.1".parse::<Version>().unwrap());
-        
+
         // Pre-release versions have lower precedence: 1.0.0-alpha < 1.0.0
         assert!("1.0.0-alpha".parse::<Version>().unwrap() < "1.0.0".parse::<Version>().unwrap());
-        
+
         // Pre-release versions ordered alphabetically: 1.0.0-alpha < 1.0.0-beta
         assert!("1.0.0-alpha".parse::<Version>().unwrap() < "1.0.0-beta".parse::<Version>().unwrap());
-        
+
         // Numeric identifiers have lower precedence than non-numeric: 1.0.0-1 < 1.0.0-alpha
         assert!("1.0.0-1".parse::<Version>().unwrap() < "1.0.0-alpha".parse::<Version>().unwrap());
-        
+
         // Numeric identifiers are compared numerically: 1.0.0-alpha.1 < 1.0.0-alpha.2
         assert!("1.0.0-alpha.1".parse::<Version>().unwrap() < "1.0.0-alpha.2".parse::<Version>().unwrap());
-        
+
         // A larger set of pre-release fields has higher precedence: 1.0.0-alpha < 1.0.0-alpha.1
         assert!("1.0.0-alpha".parse::<Version>().unwrap() < "1.0.0-alpha.1".parse::<Version>().unwrap());
-        
+
         // Build metadata is ignored for precedence: 1.0.0+build.1 == 1.0.0
         assert_eq!(
             "1.0.0+build.1".parse::<Version>().unwrap().cmp(&"1.0.0".parse::<Version>().unwrap()),
             Ordering::Equal
         );
     }
-    
+
     #[test]
     fn test_comparison_methods() {
         let v1 = "1.0.0".parse::<Version>().unwrap();
         let v2 = "2.0.0".parse::<Version>().unwrap();
         let v3 = "2.0.0".parse::<Version>().unwrap();
-        
+
         // Test compare
         assert_eq!(v1.compare(&v2), Ordering::Less);
         assert_eq!(v2.compare(&v1), Ordering::Greater);
         assert_eq!(v2.compare(&v3), Ordering::Equal);
-        
+
         // Test is_greater_than
         assert!(!v1.is_greater_than(&v2));
         assert!(v2.is_greater_than(&v1));
         assert!(!v2.is_greater_than(&v3));
-        
+
         // Test is_greater_than_or_equal
         assert!(!v1.is_greater_than_or_equal(&v2));
         assert!(v2.is_greater_than_or_equal(&v1));
         assert!(v2.is_greater_than_or_equal(&v3));
-        
+
         // Test is_less_than
         assert!(v1.is_less_than(&v2));
         assert!(!v2.is_less_than(&v1));
         assert!(!v2.is_less_than(&v3));
-        
+
         // Test is_less_than_or_equal
         assert!(v1.is_less_than_or_equal(&v2));
         assert!(!v2.is_less_than_or_equal(&v1));
         assert!(v2.is_less_than_or_equal(&v3));
     }
-    
+
     #[test]
     fn test_compatibility() {
         // Same major version, equal versions
         let v1 = "1.0.0".parse::<Version>().unwrap();
         let v2 = "1.0.0".parse::<Version>().unwrap();
         assert!(v1.is_compatible_with(&v2));
-        
+
         // Same major version, higher minor or patch
         let v3 = "1.1.0".parse::<Version>().unwrap();
         let v4 = "1.0.1".parse::<Version>().unwrap();
         assert!(v3.is_compatible_with(&v1));
         assert!(v4.is_compatible_with(&v1));
-        
+
         // Same major version, lower minor or patch
         assert!(!v1.is_compatible_with(&v3));
         assert!(!v1.is_compatible_with(&v4));
-        
+
         // Different major versions
         let v5 = "2.0.0".parse::<Version>().unwrap();
         assert!(!v1.is_compatible_with(&v5));
         assert!(!v5.is_compatible_with(&v1));
-        
+
         // Pre-release versions
         let v6 = "1.0.0-alpha".parse::<Version>().unwrap();
         let v7 = "1.0.0".parse::<Version>().unwrap();
         assert!(!v6.is_compatible_with(&v7)); // Pre-release version is considered less than release
         assert!(v7.is_compatible_with(&v6)); // Release version is compatible with pre-release
     }
-    
+
     #[test]
     fn test_numeric_vs_non_numeric_identifiers() {
         // Testing the rule: Numeric identifiers always have lower precedence than non-numeric identifiers
-        
+
         // Comparing numeric identifier with non-numeric in different positions
         assert!("1.0.0-1.alpha".parse::<Version>().unwrap() < "1.0.0-alpha.1".parse::<Version>().unwrap());
         assert!("1.0.0-alpha.1".parse::<Version>().unwrap() > "1.0.0-1.alpha".parse::<Version>().unwrap());
-        
+
         // Comparing at the same position
         assert!("1.0.0-1".parse::<Version>().unwrap() < "1.0.0-alpha".parse::<Version>().unwrap());
         assert!("1.0.0-alpha".parse::<Version>().unwrap() > "1.0.0-1".parse::<Version>().unwrap());
-        
+
         // Multiple identifiers with mix of numeric and non-numeric
         assert!("1.0.0-alpha.1".parse::<Version>().unwrap() < "1.0.0-alpha.beta".parse::<Version>().unwrap());
         assert!("1.0.0-alpha.beta".parse::<Version>().unwrap() > "1.0.0-alpha.1".parse::<Version>().unwrap());
-        
+
         // Zero as numeric identifier (still has lower precedence)
         assert!("1.0.0-0".parse::<Version>().unwrap() < "1.0.0-a".parse::<Version>().unwrap());
     }

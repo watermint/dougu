@@ -1,4 +1,4 @@
-use crate::core::error::{Result, error};
+use crate::core::error::{error, Result};
 use crate::data::encoding::BinaryTextCodec;
 
 /// Hex encoding configurations
@@ -21,12 +21,12 @@ impl Hex {
     pub fn new(engine: HexEngine) -> Self {
         Self { engine }
     }
-    
+
     /// Create a new Hex encoder/decoder with lowercase engine (default)
     pub fn lower() -> Self {
         Self::new(HexEngine::Lower)
     }
-    
+
     /// Create a new Hex encoder/decoder with uppercase engine
     pub fn upper() -> Self {
         Self::new(HexEngine::Upper)
@@ -40,7 +40,7 @@ impl BinaryTextCodec for Hex {
             HexEngine::Upper => Ok(hex::encode_upper(data)),
         }
     }
-    
+
     fn decode(&self, text: &str) -> Result<Vec<u8>> {
         match hex::decode(text) {
             Ok(data) => Ok(data),

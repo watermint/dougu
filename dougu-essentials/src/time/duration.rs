@@ -1,5 +1,5 @@
-use chrono::Duration as ChronoDuration;
 use crate::time::error::TimeError;
+use chrono::Duration as ChronoDuration;
 
 /// Represents a duration of time
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -11,7 +11,7 @@ pub struct Duration {
 impl Duration {
     /// Creates a new Duration from a chrono::Duration
     pub fn of(duration: ChronoDuration) -> Self {
-        Self { 
+        Self {
             inner: duration.num_seconds(),
             nanos: duration.num_nanoseconds().unwrap_or(0) % 1_000_000_000,
         }
@@ -24,7 +24,7 @@ impl Duration {
 
     /// Creates a new Duration from milliseconds
     pub fn of_millis(millis: i64) -> Self {
-        Self { 
+        Self {
             inner: millis / 1000,
             nanos: (millis % 1000) * 1_000_000,
         }
@@ -32,7 +32,7 @@ impl Duration {
 
     /// Creates a new Duration from nanoseconds
     pub fn of_nanos(nanos: i64) -> Self {
-        Self { 
+        Self {
             inner: nanos / 1_000_000_000,
             nanos: nanos % 1_000_000_000,
         }
@@ -95,7 +95,7 @@ impl Duration {
 
     /// Returns the absolute value of this duration
     pub fn abs(&self) -> Self {
-        Self { 
+        Self {
             inner: self.inner.abs(),
             nanos: self.nanos.abs(),
         }
@@ -103,7 +103,7 @@ impl Duration {
 
     /// Returns the negated value of this duration
     pub fn negated(&self) -> Self {
-        Self { 
+        Self {
             inner: -self.inner,
             nanos: -self.nanos,
         }
@@ -113,7 +113,7 @@ impl Duration {
     pub fn plus(&self, other: Duration) -> Self {
         let mut nanos = self.nanos + other.nanos;
         let mut seconds = self.inner + other.inner;
-        
+
         if nanos >= 1_000_000_000 {
             seconds += 1;
             nanos -= 1_000_000_000;
@@ -121,7 +121,7 @@ impl Duration {
             seconds -= 1;
             nanos += 1_000_000_000;
         }
-        
+
         Self { inner: seconds, nanos }
     }
 
@@ -132,7 +132,7 @@ impl Duration {
 
     /// Multiplies this duration by a scalar
     pub fn multiplied_by(&self, scalar: i64) -> Self {
-        Self { 
+        Self {
             inner: self.inner * scalar,
             nanos: self.nanos * scalar,
         }
@@ -143,7 +143,7 @@ impl Duration {
         if scalar == 0 {
             return Err(TimeError::InvalidDuration("Division by zero".to_string()));
         }
-        Ok(Self { 
+        Ok(Self {
             inner: self.inner / scalar,
             nanos: self.nanos / scalar,
         })
@@ -171,7 +171,6 @@ impl Duration {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration as ChronoDuration;
 
     #[test]
     fn test_duration_creation() {

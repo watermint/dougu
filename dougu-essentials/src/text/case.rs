@@ -46,7 +46,7 @@ impl<'a> WordExtractor<'a> {
     /// Extract individual words from the text based on case patterns
     fn extract_words(&self) -> Vec<String> {
         let mut words = Vec::new();
-        
+
         match self.current_case {
             Some(Case::Camel) | Some(Case::Pascal) => {
                 let mut current_word = String::new();
@@ -56,7 +56,7 @@ impl<'a> WordExtractor<'a> {
 
                 for i in 0..chars.len() {
                     let c = chars[i];
-                    
+
                     if i == 0 {
                         current_word.push(c.to_lowercase().next().unwrap_or(c));
                         prev_is_upper = c.is_uppercase();
@@ -70,7 +70,7 @@ impl<'a> WordExtractor<'a> {
                         // Handle acronyms (consecutive uppercase letters)
                         if prev_is_upper {
                             consecutive_uppers += 1;
-                            
+
                             // If this is the last uppercase in a sequence before a lowercase,
                             // it belongs to the next word
                             let next_is_lower = i + 1 < chars.len() && chars[i + 1].is_lowercase();
@@ -101,28 +101,28 @@ impl<'a> WordExtractor<'a> {
                 if !current_word.is_empty() {
                     words.push(current_word);
                 }
-            },
+            }
             Some(Case::Snake) | Some(Case::ScreamingSnake) => {
                 for part in self.text.split('_') {
                     if !part.is_empty() {
                         words.push(part.to_lowercase());
                     }
                 }
-            },
+            }
             Some(Case::Kebab) => {
                 for part in self.text.split('-') {
                     if !part.is_empty() {
                         words.push(part.to_lowercase());
                     }
                 }
-            },
+            }
             Some(Case::Delimited(delimiter)) => {
                 for part in self.text.split(delimiter) {
                     if !part.is_empty() {
                         words.push(part.to_lowercase());
                     }
                 }
-            },
+            }
             None => {
                 // If no specific case detected, just use the text as is
                 if !self.text.is_empty() {
@@ -180,7 +180,7 @@ impl CaseConverter {
     pub fn convert(text: &str, to_case: Case) -> String {
         let extractor = WordExtractor::new(text);
         let words = extractor.extract_words();
-        
+
         if words.is_empty() {
             return String::new();
         }
@@ -195,7 +195,7 @@ impl CaseConverter {
                     }
                 }
                 result
-            },
+            }
             Case::Pascal => {
                 let mut result = String::new();
                 for word in &words {
@@ -205,14 +205,14 @@ impl CaseConverter {
                     }
                 }
                 result
-            },
+            }
             Case::Snake => words.join("_"),
             Case::ScreamingSnake => {
                 words.iter()
                     .map(|w| w.to_uppercase())
                     .collect::<Vec<_>>()
                     .join("_")
-            },
+            }
             Case::Kebab => words.join("-"),
             Case::Delimited(delimiter) => words.join(&delimiter.to_string()),
         }
@@ -228,22 +228,22 @@ impl CaseConverter {
 pub trait CaseExt {
     /// Convert to camel case
     fn to_camel_case(&self) -> String;
-    
+
     /// Convert to pascal case
     fn to_pascal_case(&self) -> String;
-    
+
     /// Convert to snake case
     fn to_snake_case(&self) -> String;
-    
+
     /// Convert to screaming snake case
     fn to_screaming_snake_case(&self) -> String;
-    
+
     /// Convert to kebab case
     fn to_kebab_case(&self) -> String;
-    
+
     /// Convert to delimited case with the provided delimiter
     fn to_delimited_case(&self, delimiter: char) -> String;
-    
+
     /// Detect case of the string
     fn detect_case(&self) -> Option<Case>;
 }
@@ -252,27 +252,27 @@ impl CaseExt for str {
     fn to_camel_case(&self) -> String {
         CaseConverter::convert(self, Case::Camel)
     }
-    
+
     fn to_pascal_case(&self) -> String {
         CaseConverter::convert(self, Case::Pascal)
     }
-    
+
     fn to_snake_case(&self) -> String {
         CaseConverter::convert(self, Case::Snake)
     }
-    
+
     fn to_screaming_snake_case(&self) -> String {
         CaseConverter::convert(self, Case::ScreamingSnake)
     }
-    
+
     fn to_kebab_case(&self) -> String {
         CaseConverter::convert(self, Case::Kebab)
     }
-    
+
     fn to_delimited_case(&self, delimiter: char) -> String {
         CaseConverter::convert(self, Case::Delimited(delimiter))
     }
-    
+
     fn detect_case(&self) -> Option<Case> {
         CaseConverter::detect(self)
     }
@@ -282,27 +282,27 @@ impl CaseExt for String {
     fn to_camel_case(&self) -> String {
         self.as_str().to_camel_case()
     }
-    
+
     fn to_pascal_case(&self) -> String {
         self.as_str().to_pascal_case()
     }
-    
+
     fn to_snake_case(&self) -> String {
         self.as_str().to_snake_case()
     }
-    
+
     fn to_screaming_snake_case(&self) -> String {
         self.as_str().to_screaming_snake_case()
     }
-    
+
     fn to_kebab_case(&self) -> String {
         self.as_str().to_kebab_case()
     }
-    
+
     fn to_delimited_case(&self, delimiter: char) -> String {
         self.as_str().to_delimited_case(delimiter)
     }
-    
+
     fn detect_case(&self) -> Option<Case> {
         self.as_str().detect_case()
     }
@@ -384,13 +384,13 @@ mod tests {
         assert_eq!("".to_pascal_case(), "");
         assert_eq!("".to_snake_case(), "");
         assert_eq!("".to_kebab_case(), "");
-        
+
         // Single word
         assert_eq!("word".to_camel_case(), "word");
         assert_eq!("word".to_pascal_case(), "Word");
         assert_eq!("word".to_snake_case(), "word");
         assert_eq!("word".to_kebab_case(), "word");
-        
+
         // Multi-word with consecutive uppercase letters
         assert_eq!("JSONParser".to_camel_case(), "jsonParser");
         assert_eq!("JSONParser".to_snake_case(), "json_parser");

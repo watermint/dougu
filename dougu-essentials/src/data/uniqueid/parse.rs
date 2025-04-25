@@ -1,5 +1,5 @@
 use crate::data::uniqueid::error::{Error, Result};
-use crate::data::uniqueid::types::{UniqueId, IdVariant, IdVersion, IdType};
+use crate::data::uniqueid::types::{IdType, IdVariant, IdVersion, UniqueId};
 use std::str::FromStr;
 use uuid::Uuid as RawUuid;
 
@@ -9,7 +9,7 @@ pub struct IdParser;
 
 impl IdParser {
     /// Parse a string into the UniqueId type
-    /// 
+    ///
     /// Supports:
     /// - Standard UUID format (with or without hyphens)
     /// - ULID format (26 characters, base32)
@@ -75,7 +75,7 @@ impl IdParser {
                     8 => IdVersion::V8,
                     _ => IdVersion::Unknown,
                 };
-                
+
                 // Determine variant
                 let variant = match raw.get_variant() {
                     uuid::Variant::RFC4122 => IdVariant::RFC4122,
@@ -84,9 +84,9 @@ impl IdParser {
                     uuid::Variant::Future => IdVariant::Future,
                     _ => IdVariant::Unknown,
                 };
-                
+
                 Ok(UniqueId::new(raw.into_bytes(), IdType::Uuid(version, variant)))
-            },
+            }
             Err(e) => Err(Error::UuidParse(e)),
         }
     }
@@ -96,7 +96,7 @@ impl IdParser {
         if s.len() != 26 || !s.chars().all(|c| c.is_ascii_alphanumeric()) {
             return Err(Error::InvalidFormat("Invalid ULID format".to_string()));
         }
-        
+
         // Parse the ULID using the ulid crate
         match ulid::Ulid::from_string(s) {
             Ok(ulid) => {

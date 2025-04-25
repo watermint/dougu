@@ -1,6 +1,6 @@
 use dougu_essentials::time::{
-    ZonedDateTime, LocalDate, LocalTime, Duration, Period, 
-    Instant, Clock, SystemClock, FixedClock, OffsetClock
+    Clock, Duration, FixedClock, Instant,
+    LocalDate, LocalTime, OffsetClock, SystemClock, ZonedDateTime,
 };
 use std::sync::Arc;
 use std::thread;
@@ -54,10 +54,10 @@ fn test_time_components_integration() {
     // Convert between types
     let date_instant_seconds = today.get_epoch_second();
     let time_instant_seconds = current_time.get_epoch_second();
-    
+
     // A date should refer to midnight
     assert_eq!(date_instant_seconds % 86400, 0);
-    
+
     // Current time should be between 0 and 24 hours
     assert!(time_instant_seconds >= 0 && time_instant_seconds < 86400);
 
@@ -75,10 +75,10 @@ fn test_time_components_integration() {
     // Test duration calculations
     let duration1 = Duration::of_hours(5);
     let duration2 = Duration::of_minutes(30);
-    
+
     let combined = duration1.plus(duration2);
     assert_eq!(combined.get_minutes(), 5 * 60 + 30);
-    
+
     let multiplied = duration2.multiplied_by(4);
     assert_eq!(multiplied.get_minutes(), 30 * 4);
 }
@@ -89,7 +89,7 @@ fn test_time_scheduling() {
     // Create a fixed clock at a specific time
     let start_time = ZonedDateTime::now();
     let _clock = Arc::new(FixedClock::new(start_time.clone()));
-    
+
     // Simulate a schedule with different time intervals
     let intervals = vec![
         Duration::of_minutes(15),   // +15 minutes (15 min)
@@ -97,25 +97,25 @@ fn test_time_scheduling() {
         Duration::of_hours(1),      // +60 minutes (105 min / 1h 45min total)
         Duration::of_hours(4),      // +240 minutes (345 min / 5h 45min total)
     ];
-    
+
     let mut expected_time = start_time.clone();
     let mut accumulated_seconds = 0;
-    
+
     // Verify that scheduled events occur at the right times
     for interval in intervals {
         // Calculate the next time
         expected_time = expected_time.plus(interval);
         accumulated_seconds += interval.get_seconds();
-        
+
         // Verify the time calculation is correct
         let time_diff = expected_time.get_epoch_second() - start_time.get_epoch_second();
         assert_eq!(time_diff, accumulated_seconds);
     }
-    
+
     // Test date-based scheduling
     let today = LocalDate::now();
     let one_week_later = today.plus_days(7);
-    
+
     // Verify the date calculation is correct
     assert_eq!(
         one_week_later.get_epoch_second() - today.get_epoch_second(),
@@ -128,21 +128,21 @@ fn test_time_scheduling() {
 fn test_time_zone_handling() {
     // Get current UTC time
     let utc_now = ZonedDateTime::now();
-    
+
     // Convert to local time
     let local_now = utc_now.to_local();
-    
+
     // Test that representation changes but the instant is the same
     assert_eq!(utc_now.get_epoch_second(), ZonedDateTime::of_local(local_now).get_epoch_second());
-    
+
     // Test formatting
     let formatted = utc_now.format();
     assert!(formatted.contains('T'));
     assert!(formatted.contains('Z') || formatted.contains('+'));
-    
+
     // Parse the formatted string back to a ZonedDateTime
     let parsed = ZonedDateTime::parse(&formatted).unwrap();
-    
+
     // Verify that the parsed time is the same as the original
     assert_eq!(parsed.get_epoch_second(), utc_now.get_epoch_second());
     assert_eq!(parsed.get_epoch_nano().1, utc_now.get_epoch_nano().1);

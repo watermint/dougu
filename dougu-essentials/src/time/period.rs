@@ -1,5 +1,4 @@
-use chrono::{NaiveDate, Datelike};
-use crate::time::error::TimeError;
+use chrono::{Datelike, NaiveDate};
 
 /// Represents a period of time between two dates
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

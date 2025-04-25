@@ -4,6 +4,7 @@
 
 pub use thiserror;
 
+
 /// Error type that wraps anyhow::Error
 pub type Error = anyhow::Error;
 
@@ -12,6 +13,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Re-export of thiserror's derive macro for creating custom error types
 pub use thiserror::Error as ErrorTrait;
+
 
 /// Creates a new Error from a message
 pub fn error<M>(msg: M) -> Error
@@ -78,7 +80,7 @@ pub trait ErrorExt<T, E> {
     where
         C: std::fmt::Display + Send + Sync + 'static,
         F: FnOnce() -> C;
-    
+
     fn context<C>(self, context: C) -> Result<T>
     where
         C: std::fmt::Display + Send + Sync + 'static;
@@ -140,9 +142,9 @@ mod tests {
 
     #[test]
     fn test_with_context() {
-        let result: std::result::Result<(), std::io::Error> = 
+        let result: std::result::Result<(), std::io::Error> =
             Err(std::io::Error::new(std::io::ErrorKind::NotFound, "file not found"));
-        
+
         let err = result.with_context(|| "failed to open config");
         assert!(err.is_err());
         assert!(err.unwrap_err().to_string().contains("failed to open config"));
@@ -160,29 +162,29 @@ mod tests {
         let err1 = error("first error");
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
         let chained = err1.chain(io_err);
-        
+
         // Display the error in the console for debugging
         println!("Chained error: {}", chained);
-        
+
         // Test that at least one of the error messages is present in the output
         let err_string = chained.to_string();
         assert!(err_string.contains("file not found") || err_string.contains("first error"),
-            "Error string '{}' does not contain any of the expected messages", err_string);
+                "Error string '{}' does not contain any of the expected messages", err_string);
     }
-    
+
     #[test]
     fn test_custom_error() {
         use super::ErrorTrait;
-        
+
         #[derive(Debug, ErrorTrait)]
         enum CustomError {
             #[error("invalid input: {0}")]
             InvalidInput(String),
-            
+
             #[error("operation failed")]
             OperationFailed,
         }
-        
+
         let custom_err = CustomError::InvalidInput("bad value".to_string());
         let err = into_error(custom_err);
         assert!(err.to_string().contains("invalid input: bad value"));

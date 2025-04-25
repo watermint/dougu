@@ -66,7 +66,7 @@ impl IdType {
             Self::Ulid => true,
         }
     }
-    
+
     /// Returns the identifier version if this is a UUID type
     pub fn uuid_version(&self) -> Option<IdVersion> {
         match self {
@@ -74,7 +74,7 @@ impl IdType {
             Self::Ulid => None,
         }
     }
-    
+
     /// Returns the identifier variant if this is a UUID type
     pub fn uuid_variant(&self) -> Option<IdVariant> {
         match self {
@@ -127,7 +127,7 @@ impl UniqueId {
         let system_time = std::time::SystemTime::UNIX_EPOCH
             .checked_add(std::time::Duration::from_millis(timestamp_ms))
             .unwrap_or_else(|| std::time::SystemTime::now());
-        
+
         let ulid = ulid::Ulid::from_datetime(system_time);
         let bytes = ulid.to_bytes();
         Self {
@@ -145,22 +145,22 @@ impl UniqueId {
     pub fn id_type(&self) -> IdType {
         self.id_type
     }
-    
+
     /// Returns whether this identifier is a UUID
     pub fn is_uuid(&self) -> bool {
         matches!(self.id_type, IdType::Uuid(_, _))
     }
-    
+
     /// Returns whether this identifier is a ULID
     pub fn is_ulid(&self) -> bool {
         matches!(self.id_type, IdType::Ulid)
     }
-    
+
     /// Returns the identifier version if this is a UUID type
     pub fn uuid_version(&self) -> Option<IdVersion> {
         self.id_type.uuid_version()
     }
-    
+
     /// Returns the identifier variant if this is a UUID type
     pub fn uuid_variant(&self) -> Option<IdVariant> {
         self.id_type.uuid_variant()
@@ -177,7 +177,7 @@ impl UniqueId {
             IdType::Uuid(_, _) => {
                 let uuid = RawUuid::from_bytes(self.bytes);
                 uuid.simple().to_string()
-            },
+            }
             IdType::Ulid => {
                 let ulid = ulid::Ulid::from_bytes(self.bytes);
                 ulid.to_string()
@@ -192,7 +192,7 @@ impl UniqueId {
             IdType::Uuid(_, _) => {
                 let uuid = RawUuid::from_bytes(self.bytes);
                 uuid.hyphenated().to_string()
-            },
+            }
             IdType::Ulid => self.to_simple(),
         }
     }
@@ -206,7 +206,7 @@ impl UniqueId {
             None
         }
     }
-    
+
     /// Convert to a UUID string representation if possible
     pub fn to_uuid_string(&self) -> Option<String> {
         if self.is_uuid() {
@@ -224,7 +224,7 @@ impl fmt::Display for UniqueId {
             IdType::Uuid(_, _) => {
                 let uuid = RawUuid::from_bytes(self.bytes);
                 write!(f, "{}", uuid.hyphenated())
-            },
+            }
             IdType::Ulid => {
                 let ulid = ulid::Ulid::from_bytes(self.bytes);
                 write!(f, "{}", ulid)
@@ -250,10 +250,10 @@ impl FromStr for UniqueId {
                 Err(_) => {}  // Fall through to UUID parsing
             }
         }
-        
+
         // Try to parse as UUID
         let raw = RawUuid::parse_str(s)?;
-        
+
         // Determine version
         let version = match raw.get_version_num() {
             1 => IdVersion::V1,
@@ -266,7 +266,7 @@ impl FromStr for UniqueId {
             8 => IdVersion::V8,
             _ => IdVersion::Unknown,
         };
-        
+
         // Determine variant
         let variant = match raw.get_variant() {
             uuid::Variant::RFC4122 => IdVariant::RFC4122,
@@ -275,7 +275,7 @@ impl FromStr for UniqueId {
             uuid::Variant::Future => IdVariant::Future,
             _ => IdVariant::Unknown,
         };
-        
+
         Ok(Self {
             bytes: raw.into_bytes(),
             id_type: IdType::Uuid(version, variant),

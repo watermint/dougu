@@ -11,4 +11,4 @@ pub use error::{Error, Result};
 pub use format::IdFormatter;
 pub use parse::IdParser;
 pub use timestamp::IdTimestamp;
-pub use types::{UniqueId, IdVersion, IdVariant, IdType}; 
+pub use types::{IdType, IdVariant, IdVersion, UniqueId};

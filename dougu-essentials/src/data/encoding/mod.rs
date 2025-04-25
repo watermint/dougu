@@ -16,7 +16,7 @@ use crate::core::error::Result;
 pub trait BinaryTextCodec {
     /// Encode binary data to text
     fn encode(&self, data: &[u8]) -> Result<String>;
-    
+
     /// Decode text data to binary
     fn decode(&self, text: &str) -> Result<Vec<u8>>;
 } 

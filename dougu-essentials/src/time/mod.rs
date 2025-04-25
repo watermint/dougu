@@ -3,12 +3,12 @@ pub mod instant;
 pub mod duration;
 pub mod period;
 
+pub use duration::Duration as TimeDuration;
 pub use error::TimeError;
 pub use instant::Instant as TimeInstant;
-pub use duration::Duration as TimeDuration;
 pub use period::Period;
 
-use chrono::{DateTime, Duration as ChronoDuration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc, Datelike, Timelike};
+use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, NaiveDate, NaiveTime, TimeZone, Timelike, Utc};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -204,15 +204,15 @@ pub trait Instant {
     /// Returns true if this instant is after the specified instant
     fn is_after(&self, other: &impl Instant) -> bool {
         self.get_epoch_second() > other.get_epoch_second() ||
-            (self.get_epoch_second() == other.get_epoch_second() && 
-             self.get_epoch_nano().1 > other.get_epoch_nano().1)
+            (self.get_epoch_second() == other.get_epoch_second() &&
+                self.get_epoch_nano().1 > other.get_epoch_nano().1)
     }
 
     /// Returns true if this instant is before the specified instant
     fn is_before(&self, other: &impl Instant) -> bool {
         self.get_epoch_second() < other.get_epoch_second() ||
-            (self.get_epoch_second() == other.get_epoch_second() && 
-             self.get_epoch_nano().1 < other.get_epoch_nano().1)
+            (self.get_epoch_second() == other.get_epoch_second() &&
+                self.get_epoch_nano().1 < other.get_epoch_nano().1)
     }
 
     /// Returns true if this instant is equal to the specified instant
@@ -537,7 +537,7 @@ impl LocalTime {
             .unwrap()
             .and_hms_opt(self.hour(), self.minute(), self.second())
             .unwrap();
-        
+
         // Convert to seconds since epoch
         date_with_time.and_utc().timestamp()
     }
@@ -737,7 +737,6 @@ impl Clock for OffsetClock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc};
 
     #[test]
     fn test_zoned_date_time() {
@@ -903,7 +902,7 @@ mod tests {
     fn test_fixed_clock() {
         let fixed_time = ZonedDateTime::of_unix(1714003200).unwrap();
         let clock = FixedClock::new(fixed_time.clone());
-        
+
         assert_eq!(clock.instant(), fixed_time);
     }
 
@@ -912,11 +911,11 @@ mod tests {
         let base_clock = Arc::new(SystemClock::new());
         let offset = Duration::of_hours(1);
         let clock = OffsetClock::new(base_clock, offset);
-        
+
         let instant = clock.instant();
         let base_instant = clock.base.instant();
         assert_eq!(instant.get_epoch_second() - base_instant.get_epoch_second(), 3600);
-        
+
         let minus_clock = clock.minus(Duration::of_minutes(30));
         assert_eq!(minus_clock.instant().get_epoch_second() - base_instant.get_epoch_second(), 1800);
     }

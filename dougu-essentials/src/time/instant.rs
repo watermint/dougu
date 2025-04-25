@@ -1,6 +1,6 @@
-use chrono::{DateTime, Duration as ChronoDuration, Local, NaiveDate, NaiveTime, TimeZone, Utc, Datelike, Timelike};
-use crate::time::error::TimeError;
 use crate::time::duration::Duration as TimeDuration;
+use crate::time::error::TimeError;
+use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, NaiveDate, NaiveTime, TimeZone, Timelike, Utc};
 
 /// Represents an instant in time
 pub trait Instant {
@@ -16,15 +16,15 @@ pub trait Instant {
     /// Returns true if this instant is after the specified instant
     fn is_after(&self, other: &impl Instant) -> bool {
         self.get_epoch_second() > other.get_epoch_second() ||
-            (self.get_epoch_second() == other.get_epoch_second() && 
-             self.get_epoch_nano().1 > other.get_epoch_nano().1)
+            (self.get_epoch_second() == other.get_epoch_second() &&
+                self.get_epoch_nano().1 > other.get_epoch_nano().1)
     }
 
     /// Returns true if this instant is before the specified instant
     fn is_before(&self, other: &impl Instant) -> bool {
         self.get_epoch_second() < other.get_epoch_second() ||
-            (self.get_epoch_second() == other.get_epoch_second() && 
-             self.get_epoch_nano().1 < other.get_epoch_nano().1)
+            (self.get_epoch_second() == other.get_epoch_second() &&
+                self.get_epoch_nano().1 < other.get_epoch_nano().1)
     }
 
     /// Returns true if this instant is equal to the specified instant
@@ -315,7 +315,7 @@ impl LocalTime {
             .unwrap()
             .and_hms_opt(self.hour(), self.minute(), self.second())
             .unwrap();
-        
+
         // Convert to seconds since epoch
         date_with_time.and_utc().timestamp()
     }
@@ -352,7 +352,7 @@ impl Instant for LocalTime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{DateTime, Utc, Datelike, Timelike};
+    use chrono::{Datelike, Timelike};
 
     #[test]
     fn test_zoned_date_time() {

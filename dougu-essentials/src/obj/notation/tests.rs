@@ -1,6 +1,6 @@
 use super::*;
-use std::collections::HashMap;
 use crate::core::error::error;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
 struct TestData {
