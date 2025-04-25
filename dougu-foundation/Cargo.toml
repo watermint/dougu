@@ -9,25 +9,5 @@ repository = "https://github.com/watermint/dougu"
 publish = false
 
 [features]
-default = []
 i18n = []
 
-[dependencies]
-# Common dependencies
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-log = { workspace = true }
-once_cell = { workspace = true }
-chrono = { workspace = true }
-
-# UI specific dependencies
-colored = "2.1.0"
-prettytable-rs = "0.10.0"
-textwrap = "0.16.0"
-
-# Local dependencies
-dougu-essentials = { path = "../dougu-essentials" }
-serde = { version = "1.0", features = ["derive"] }
-
-[dev-dependencies]
-tokio = { workspace = true } 

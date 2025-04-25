@@ -8,13 +8,13 @@ This project is organized as a Cargo workspace with multiple crates:
 
 - `dougu`: Main binary crate that integrates all commands
 - `dougu-essentials-*`: Core libraries shared across the project
-  - `dougu-essentials-log`: Logging utilities
-  - `dougu-essentials-i18n`: Internationalization support
+    - `dougu-essentials-log`: Logging utilities
+    - `dougu-essentials-i18n`: Internationalization support
 - `dougu-bridge`: Bridge libraries for external service integrations
-  - `dougu-bridge/dropbox`: Dropbox API client
+    - `dougu-bridge/dropbox`: Dropbox API client
 - `dougu-command-*`: Individual command implementations
-  - `dougu-command-file`: File operations
-  - `dougu-command-dropbox`: Dropbox operations
+    - `dougu-command-file`: File operations
+    - `dougu-command-dropbox`: Dropbox operations
 
 ## Dependencies
 
@@ -23,6 +23,7 @@ This project uses pure Rust libraries for all functionality, with no external sy
 ### JSON Processing
 
 JSON processing and querying is handled by the pure Rust libraries:
+
 - `jaq-parse`: For parsing JQ-like query strings
 - `jaq-interpret`: For interpreting and executing JQ-like queries
 - `jaq-std`: Standard library for JQ operations
@@ -67,7 +68,8 @@ Apache License 2.0
 
 # Resources Directory
 
-A new `resources` directory is used to store resource files such as workflow templates for CI/CD and other reusable configuration. If a resource cannot be found, related processes will abort as per project policy.
+A new `resources` directory is used to store resource files such as workflow templates for CI/CD and other reusable
+configuration. If a resource cannot be found, related processes will abort as per project policy.
 
 - `.github/workflows/` contains active workflow files for GitHub Actions.
 - `resources/` contains workflow templates and other resource files. 

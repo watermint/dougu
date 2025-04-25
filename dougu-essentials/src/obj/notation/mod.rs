@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::str;
 use std::fmt;
+use std::str;
 
 pub mod bson;
 pub mod cbor;
+pub mod error_messages;
 pub mod json;
 pub mod jsonl;
 pub mod toml;
@@ -28,21 +29,22 @@ mod tests;
 pub trait Notation {
     /// Decode bytes into a NotationType value
     fn decode(&self, input: &[u8]) -> Result<NotationType>;
-    
+
     /// Encode a value of type T into bytes
     fn encode<T>(&self, value: &T) -> Result<Vec<u8>>
     where
         T: Into<NotationType> + Clone;
-    
+
     /// Encode a value of type T into a string
     fn encode_to_string<T>(&self, value: &T) -> Result<String>
     where
         T: Into<NotationType> + Clone;
-    
+
     /// Optional method for encoding collections (mainly for JSONL)
     fn encode_collection<T>(&self, values: &[T]) -> Result<Vec<u8>>
     where
-        T: Into<NotationType> + Clone {
+        T: Into<NotationType> + Clone,
+    {
         let vec: Vec<T> = values.to_vec();
         let notation_type = NotationType::Array(vec.into_iter().map(|v| v.into()).collect());
         self.encode(&notation_type)

@@ -1,10 +1,10 @@
-use anyhow::{Result, anyhow};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use toml::Value as TomlValue;
 use std::collections::HashMap;
-use std::str;
 use std::convert::TryInto;
+use std::str;
+use toml::Value as TomlValue;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct TomlNotation;
@@ -59,10 +59,10 @@ fn notation_type_to_toml_value(notation_type: &NotationType) -> Result<TomlValue
                     } else {
                         TomlValue::Float(*u as f64)
                     }
-                },
+                }
                 NumberVariant::Float(f) => TomlValue::Float(*f),
             }
-        },
+        }
         NotationType::String(s) => TomlValue::String(s.clone()),
         NotationType::Array(arr) => {
             let values: Result<Vec<TomlValue>> = arr
@@ -110,8 +110,6 @@ fn toml_value_to_notation_type(value: &TomlValue) -> Result<NotationType> {
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    // Needed for NumberVariant tests
-    use crate::obj::notation::NumberVariant; 
 
     #[test]
     fn test_toml_roundtrip() {
@@ -144,7 +142,7 @@ mod tests {
             // Check how the large unsigned integer was handled (likely became float)
             assert!(decoded_map.get("unsigned").unwrap().as_f64().is_some());
             if let NotationType::Object(owner_map) = decoded_map.get("owner").unwrap() {
-                 assert_eq!(owner_map.get("name").unwrap().as_str(), Some("Tom Preston-Werner"));
+                assert_eq!(owner_map.get("name").unwrap().as_str(), Some("Tom Preston-Werner"));
             } else {
                 panic!("Decoded owner is not an object");
             }

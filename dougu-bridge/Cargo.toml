@@ -10,6 +10,3 @@ publish = false
 
 [dependencies]
 dougu-essentials = { path = "../dougu-essentials" }
-tokio = { workspace = true }
-reqwest = { workspace = true }
-anyhow = { workspace = true } 

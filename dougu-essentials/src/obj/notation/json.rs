@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::{self, Value, Map};
+use serde_json::{self, Value};
 use std::collections::HashMap;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +58,7 @@ pub fn notation_type_to_json_value(notation_type: &NotationType) -> Result<Value
             serde_json::Number::from_f64(f_val)
                 .map(Value::Number)
                 .ok_or_else(|| anyhow!("Invalid number for JSON: {}", f_val))
-        },
+        }
         NotationType::String(s) => Ok(Value::String(s.clone())),
         NotationType::Array(arr) => {
             let values: Result<Vec<Value>> = arr.iter().map(notation_type_to_json_value).collect();
@@ -111,5 +111,5 @@ pub fn json_value_to_notation_type(value: &Value) -> Result<NotationType> {
 
 #[cfg(test)]
 mod tests {
-   // ... tests using serde_json directly ...
+    // ... tests using serde_json directly ...
 } 

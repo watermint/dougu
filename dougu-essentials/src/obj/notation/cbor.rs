@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
+use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use ciborium::{from_reader, into_writer, value::Value as CborValue};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -41,9 +41,9 @@ fn cbor_value_to_notation_type(value: &CborValue) -> Result<NotationType> {
         CborValue::Bool(b) => Ok(NotationType::Boolean(*b)),
         CborValue::Integer(i) => {
             if let Ok(ival) = (*i).try_into() {
-                 Ok(NotationType::Number(NumberVariant::Int(ival)))
+                Ok(NotationType::Number(NumberVariant::Int(ival)))
             } else if let Ok(uval) = (*i).try_into() {
-                 Ok(NotationType::Number(NumberVariant::Uint(uval)))
+                Ok(NotationType::Number(NumberVariant::Uint(uval)))
             } else {
                 Err(anyhow!("CBOR integer {:?} out of range for i64/u64", i))
             }
@@ -87,7 +87,7 @@ fn notation_type_to_cbor_value(notation_type: &NotationType) -> Result<CborValue
                     } else {
                         Ok(CborValue::Float(*f))
                     }
-                },
+                }
             }
         }
         NotationType::String(s) => {
@@ -137,10 +137,10 @@ mod tests {
         map.insert("null".to_string(), NotationType::Null);
         // Explicitly type the inner Vec items as NotationType
         map.insert("array".to_string(), NotationType::Array(vec![
-            NotationType::Number(NumberVariant::Int(1)), 
+            NotationType::Number(NumberVariant::Int(1)),
             NotationType::String("two".to_string())
         ]));
-        
+
         let input: NotationType = map.into();
 
         let encoded = notation.encode(&input)?;

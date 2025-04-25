@@ -16,22 +16,6 @@ dougu-essentials = { path = "../dougu-essentials" }
 dougu-bridge = { path = "../dougu-bridge" }
 dougu-foundation = { path = "../dougu-foundation", features = ["i18n"] }
 dougu-actions = { path = "../dougu-actions" }
-clap = { workspace = true }
-anyhow = { workspace = true }
-log = { workspace = true }
-tokio = { workspace = true }
-async-trait = { workspace = true }
-chrono = { workspace = true }
-ciborium = { workspace = true }
-bson = { workspace = true }
-quick-xml = { workspace = true }
-hex = { workspace = true }
-uuid = { version = "1.4", features = ["v4"] }
-walkdir = "2.3"
-zip = "0.6"
-tempfile = "3.10.0"
-base64 = "0.21.7"
-env_logger = { workspace = true }
 
 [build-dependencies]
-chrono = { workspace = true }
+chrono = "0.4"

@@ -1,4 +1,4 @@
-use crate::obj::notation::{JsonNotation, Notation, NotationType, NumberVariant};
+use crate::obj::notation::{JsonNotation, Notation, NotationType};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
@@ -50,8 +50,12 @@ impl Notation for JsonlNotation {
                 result_items.push(decoded_item);
             }
         }
-        
-        Ok(NotationType::Array(result_items))
+
+        if result_items.len() == 1 {
+            Ok(result_items[0].clone())
+        } else {
+            Ok(NotationType::Array(result_items))
+        }
     }
 
     fn encode_to_string<T>(&self, value: &T) -> Result<String>
@@ -79,8 +83,8 @@ impl Notation for JsonlNotation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use crate::obj::notation::NumberVariant;
+    use std::collections::HashMap;
 
     #[test]
     fn test_jsonl_roundtrip() -> Result<()> {

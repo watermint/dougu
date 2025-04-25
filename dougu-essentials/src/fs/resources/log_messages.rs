@@ -1,9 +1,0 @@
-pub const PROVIDER_REGISTERED: &str = "FileSystem provider registered: {}";
-pub const PROVIDER_ALREADY_REGISTERED: &str = "FileSystem provider already registered: {}";
-pub const LISTING_DIRECTORY: &str = "Listing directory: {}";
-pub const READING_FILE: &str = "Reading file: {}";
-pub const WRITING_FILE: &str = "Writing file: {}";
-pub const DELETING_RESOURCE: &str = "Deleting resource: {}";
-pub const CREATING_DIRECTORY: &str = "Creating directory: {}";
-pub const CHECKING_EXISTS: &str = "Checking if resource exists: {}";
-pub const GETTING_METADATA: &str = "Getting metadata for: {}"; 

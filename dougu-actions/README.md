@@ -1,6 +1,7 @@
 # Dougu Actions
 
-This crate provides a flexible action system for the Dougu project. It allows you to define, register, and execute actions with a clean, type-safe API.
+This crate provides a flexible action system for the Dougu project. It allows you to define, register, and execute
+actions with a clean, type-safe API.
 
 ## Features
 
@@ -18,7 +19,7 @@ use dougu_actions::{Action, ActionError, ActionResult};
 
 // Create a simple action
 let action = Action::new("calculate", "Calculate Value")
-    .with_description("Performs a calculation on the input value");
+.with_description("Performs a calculation on the input value");
 ```
 
 ### Setting up an Action Registry
@@ -43,8 +44,8 @@ use dougu_actions::{ActionExecutor, FunctionExecutor};
 use async_trait::async_trait;
 
 // Create a function executor for simple use cases
-let calc_executor = FunctionExecutor::new(|input: i32| -> ActionResult<i32> {
-    Ok(input * 2)
+let calc_executor = FunctionExecutor::new( | input: i32| -> ActionResult<i32> {
+Ok(input * 2)
 });
 
 // Execute the action

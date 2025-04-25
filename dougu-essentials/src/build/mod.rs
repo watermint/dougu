@@ -28,7 +28,7 @@ impl BuildInfo {
     pub fn version_string(&self) -> String {
         format!("{}.{}", self.build_release, self.build_type)
     }
-    
+
     /// Returns a semantic version string in the format: MAJOR.MINOR.PATCH+BUILD_INFO
     /// Where:
     /// - MAJOR: is the release number
@@ -59,11 +59,11 @@ impl BuildInfo {
                 } else {
                     MINOR_VERSION_GITHUB_DEFAULT // Default for github builds without branch info
                 }
-            },
+            }
             "local" => MINOR_VERSION_LOCAL,  // Development channel
             _ => MINOR_VERSION_OTHER_CHANNELS,        // Other channels
         };
-        
+
         // For CI builds (github), try to use GITHUB_RUN_NUMBER for patch version
         if self.build_type == "github" {
             let patch = if let Ok(run_number) = std::env::var("GITHUB_RUN_NUMBER") {
@@ -73,31 +73,31 @@ impl BuildInfo {
             } else {
                 0 // Default if no run number available
             };
-            
+
             format!("{}.{}.{}", self.build_release, minor, patch)
         } else {
             // For non-CI builds, use days since 2025-01-01 as patch
-            let patch = {   
+            let patch = {
                 const EPOCH_YEAR: i32 = 2025;
                 const EPOCH_MONTH: u32 = 1;
                 const EPOCH_DAY: u32 = 1;
-                
+
                 let epoch_date = NaiveDate::from_ymd_opt(EPOCH_YEAR, EPOCH_MONTH, EPOCH_DAY)
                     .expect("Invalid epoch date components");
                 let current_date = Utc::now().date_naive();
                 current_date.signed_duration_since(epoch_date).num_days() as u32
             };
-            
+
             // Create build metadata from build_type and timestamp for non-CI builds
-            let build_metadata = format!("{}.{}", 
-                self.build_type,
-                self.build_timestamp.replace("T", "").replace(":", "").replace("-", "").replace("Z", "")
+            let build_metadata = format!("{}.{}",
+                                         self.build_type,
+                                         self.build_timestamp.replace("T", "").replace(":", "").replace("-", "").replace("Z", "")
             );
-            
+
             format!("{}.{}.{}+{}", self.build_release, minor, patch, build_metadata)
         }
     }
-    
+
     /// Returns a formatted version string for display purposes
     pub fn display_string(&self) -> String {
         format!(
@@ -133,7 +133,7 @@ impl BuildInfo {
     /// Create a new BuildInfo for CI builds
     fn new_ci(_run_number: &str, build_release: u32) -> Self {
         let (repository_owner, repository_name) = detect_repository();
-        
+
         // Use environment variables for copyright information if available
         let copyright_owner = {
             if let Some(owner) = option_env!("DOUGU_COPYRIGHT_OWNER") {
@@ -144,7 +144,7 @@ impl BuildInfo {
                 "Takayuki Okazaki".to_string()
             }
         };
-        
+
         let copyright_year = {
             if let Some(year) = option_env!("DOUGU_COPYRIGHT_YEAR").and_then(|y| y.parse::<u32>().ok()) {
                 year
@@ -154,7 +154,7 @@ impl BuildInfo {
                 Utc::now().year() as u32
             }
         };
-        
+
         let executable_name = {
             if let Some(name) = option_env!("DOUGU_EXECUTABLE_NAME") {
                 name.to_string()
@@ -164,7 +164,7 @@ impl BuildInfo {
                 "dougu".to_string()
             }
         };
-        
+
         Self {
             build_release,
             build_type: "github".to_string(),
@@ -177,7 +177,7 @@ impl BuildInfo {
             executable_name,
         }
     }
-    
+
     /// Factory function to create a new BuildInfo based on the environment
     pub fn new() -> Self {
         // Check if we're in a CI environment
@@ -203,7 +203,7 @@ impl BuildInfo {
                         .unwrap_or(1)
                 }
             };
-            
+
             // Get the run number from environment
             let run_number = {
                 if let Some(num) = option_env!("GITHUB_RUN_NUMBER") {
@@ -220,7 +220,7 @@ impl BuildInfo {
             Self::new_local()
         }
     }
-    
+
     /// Returns a copyright notice string
     pub fn copyright_notice(&self) -> String {
         let year_range = if self.copyright_start_year < self.copyright_year {
@@ -228,7 +228,7 @@ impl BuildInfo {
         } else {
             self.copyright_year.to_string()
         };
-        
+
         format!("© {} {}", year_range, self.copyright_owner)
     }
 }
@@ -241,23 +241,23 @@ fn detect_repository() -> (String, String) {
             return (owner.to_string(), repo.to_string());
         }
     }
-    
+
     if let Ok(github_repository) = std::env::var("GITHUB_REPOSITORY") {
         if let Some((owner, repo)) = github_repository.split_once('/') {
             return (owner.to_string(), repo.to_string());
         }
     }
-    
+
     // Default values if detection fails
     ("unknown".to_string(), "dougu".to_string())
 }
 
 /// Detect if we're running in a CI environment
 fn is_ci_environment() -> bool {
-    std::env::var("CI").is_ok() || 
-    option_env!("CI").is_some() ||
-    std::env::var("GITHUB_ACTIONS").is_ok() ||
-    option_env!("GITHUB_ACTIONS").is_some()
+    std::env::var("CI").is_ok() ||
+        option_env!("CI").is_some() ||
+        std::env::var("GITHUB_ACTIONS").is_ok() ||
+        option_env!("GITHUB_ACTIONS").is_some()
 }
 
 /// Utility function to get the build info
@@ -272,28 +272,28 @@ mod tests {
     #[test]
     fn test_semantic_version() {
         let mut info = BuildInfo::new_local();
-        
+
         // Test local build version format
         let version = info.semantic_version();
         assert!(version.contains('+'), "Local builds should include build metadata");
         assert!(version.contains("local"), "Local builds should have 'local' in metadata");
-        
+
         // Test GitHub build version format
         info.build_type = "github".to_string();
         let version = info.semantic_version();
         assert!(version.split('.').count() >= 3, "Should have major, minor, and patch components");
     }
-    
+
     #[test]
     fn test_copyright_notice() {
         let mut info = BuildInfo::new();
-        
+
         // Same start and current year
         info.copyright_start_year = 2025;
         info.copyright_year = 2025;
         info.copyright_owner = "Test Owner".to_string();
         assert_eq!(info.copyright_notice(), "© 2025 Test Owner");
-        
+
         // Different start and current year
         info.copyright_start_year = 2020;
         info.copyright_year = 2025;

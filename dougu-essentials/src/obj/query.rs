@@ -1,5 +1,5 @@
+use crate::obj::notation::{NotationType, NumberVariant};
 use anyhow::{anyhow, Result};
-use crate::obj::notation::{Notation, NotationType, NumberVariant};
 use thiserror::Error;
 
 use crate::obj::resources::errors::*;
@@ -55,7 +55,7 @@ impl Query {
     /// * `Result<Self>` - A compiled Query instance or an error
     pub fn compile(query_str: &str) -> Result<Self> {
         let path = Self::parse_path(query_str)?;
-        
+
         Ok(Self {
             filter_str: query_str.to_string(),
             compiled_filter: Filter { path },
@@ -69,13 +69,18 @@ impl Query {
             offset: None,
         })
     }
-    
+
     /// Parses a query string into a path of filter steps
     fn parse_path(query_str: &str) -> Result<Vec<FilterStep>> {
         let mut path = Vec::new();
         let mut current = String::new();
         let mut in_brackets = false;
-        
+
+        // Query must start with a dot
+        if !query_str.starts_with('.') {
+            return Err(anyhow!("{}: Query must start with '.'", ERROR_QUERY_PARSE));
+        }
+
         for c in query_str.chars() {
             match c {
                 '.' if !in_brackets => {
@@ -83,16 +88,18 @@ impl Query {
                         path.push(FilterStep::Field(current));
                         current = String::new();
                     }
-                },
+                }
                 '[' if !in_brackets => {
                     if !current.is_empty() {
                         path.push(FilterStep::Field(current));
                         current = String::new();
                     }
                     in_brackets = true;
-                },
+                }
                 ']' if in_brackets => {
                     if current == "*" {
+                        path.push(FilterStep::Wildcard);
+                    } else if current.is_empty() {
                         path.push(FilterStep::Wildcard);
                     } else if let Ok(index) = current.parse::<usize>() {
                         path.push(FilterStep::Index(index));
@@ -101,22 +108,38 @@ impl Query {
                     }
                     current = String::new();
                     in_brackets = false;
-                },
-                _ => current.push(c),
+                }
+                _ => {
+                    if !c.is_whitespace() {
+                        // Only allow alphanumeric characters and underscores in field names
+                        if !in_brackets && !c.is_alphanumeric() && c != '_' {
+                            return Err(anyhow!("{}: Invalid character in field name: {}", ERROR_QUERY_PARSE, c));
+                        }
+                        current.push(c);
+                    }
+                }
             }
         }
-        
+
         if !current.is_empty() {
+            // Only allow field names outside brackets
+            if in_brackets {
+                return Err(anyhow!("{}: Invalid array index: {}", ERROR_QUERY_PARSE, current));
+            }
             path.push(FilterStep::Field(current));
         }
-        
+
         if path.is_empty() {
             return Err(anyhow!("{}: Empty query", ERROR_QUERY_PARSE));
         }
-        
+
+        if in_brackets {
+            return Err(anyhow!("{}: Unclosed bracket", ERROR_QUERY_PARSE));
+        }
+
         Ok(path)
     }
-    
+
     /// Executes the compiled query against a NotationType value.
     ///
     /// # Arguments
@@ -132,51 +155,49 @@ impl Query {
     {
         let value = value.clone().into();
         let mut results = vec![value];
-        
+
         for step in &self.compiled_filter.path {
             let mut next_results = Vec::new();
-            
+
             for result in results {
                 match step {
                     FilterStep::Field(field) => {
                         if let NotationType::Object(obj) = result {
-                            for (k, v) in obj {
-                                if k == *field {
-                                    next_results.push(v.clone());
-                                }
+                            if let Some(v) = obj.get(field) {
+                                next_results.push(v.clone());
                             }
                         }
-                    },
+                    }
                     FilterStep::Index(index) => {
                         if let NotationType::Array(arr) = result {
                             if *index < arr.len() {
                                 next_results.push(arr[*index].clone());
                             }
                         }
-                    },
+                    }
                     FilterStep::Wildcard => {
                         match result {
                             NotationType::Array(arr) => {
                                 next_results.extend(arr.iter().cloned());
-                            },
+                            }
                             NotationType::Object(obj) => {
-                                next_results.extend(obj.iter().map(|(_, v)| v.clone()));
-                            },
+                                next_results.extend(obj.values().cloned());
+                            }
                             _ => (),
                         }
-                    },
+                    }
                 }
             }
-            
+
             results = next_results;
             if results.is_empty() {
                 break;
             }
         }
-        
+
         Ok(results)
     }
-    
+
     /// Executes the compiled query and returns a single NotationType result.
     ///
     /// # Arguments
@@ -186,22 +207,22 @@ impl Query {
     /// # Returns
     ///
     /// * `Result<NotationType>` - A single NotationType result or an error
-    pub fn execute_to_single<T>(&self, value: &T) -> Result<NotationType> 
+    pub fn execute_to_single<T>(&self, value: &T) -> Result<NotationType>
     where
         T: Clone + Into<NotationType>,
     {
         let results = self.execute(value)?;
-        
+
         if results.is_empty() {
             return Err(anyhow!(
                 "{}: Query produced no results", 
                 ERROR_QUERY_EXECUTION
             ));
         }
-        
+
         Ok(results[0].clone())
     }
-    
+
     /// Executes the compiled query and returns the result as a JSON string.
     ///
     /// # Arguments
@@ -211,22 +232,25 @@ impl Query {
     /// # Returns
     ///
     /// * `Result<String>` - The JSON string result or an error
-    pub fn execute_to_string<T>(&self, value: &T) -> Result<String> 
+    pub fn execute_to_string<T>(&self, value: &T) -> Result<String>
     where
         T: Clone + Into<NotationType>,
     {
         let results = self.execute(value)?;
-        
+
         if results.is_empty() {
             return Err(anyhow!(
                 "{}: Query produced no results", 
                 ERROR_QUERY_EXECUTION
             ));
         }
-        
-        Ok(results[0].to_string())
+
+        match &results[0] {
+            NotationType::String(s) => Ok(s.clone()),
+            _ => Ok(results[0].to_string()),
+        }
     }
-    
+
     /// Returns the original query string used to compile this query.
     pub fn query_string(&self) -> &str {
         &self.filter_str
@@ -234,39 +258,39 @@ impl Query {
 
     fn build_json_value(&self) -> NotationType {
         let mut obj = Vec::new();
-        
+
         if let Some(select) = &self.select {
             obj.push(("select".to_string(), NotationType::String(select.clone())));
         }
-        
+
         if let Some(from) = &self.from {
             obj.push(("from".to_string(), NotationType::String(from.clone())));
         }
-        
+
         if let Some(where_) = &self.where_ {
             obj.push(("where".to_string(), NotationType::String(where_.clone())));
         }
-        
+
         if let Some(group_by) = &self.group_by {
             obj.push(("group_by".to_string(), NotationType::String(group_by.clone())));
         }
-        
+
         if let Some(having) = &self.having {
             obj.push(("having".to_string(), NotationType::String(having.clone())));
         }
-        
+
         if let Some(order_by) = &self.order_by {
             obj.push(("order_by".to_string(), NotationType::String(order_by.clone())));
         }
-        
+
         if let Some(limit) = self.limit {
             obj.push(("limit".to_string(), NotationType::Number(NumberVariant::Float(limit as f64))));
         }
-        
+
         if let Some(offset) = self.offset {
             obj.push(("offset".to_string(), NotationType::Number(NumberVariant::Float(offset as f64))));
         }
-        
+
         obj.into()
     }
 }
@@ -278,7 +302,7 @@ mod tests {
 
     // Helper to create NotationType::Object from Vec<(String, NotationType)>
     fn create_object(data: Vec<(String, NotationType)>) -> NotationType {
-        data.into() 
+        data.into()
     }
 
     // Helper to create NotationType::Array from Vec<NotationType>
@@ -296,32 +320,32 @@ mod tests {
                 ("city".to_string(), "Anytown".into()),
             ])),
         ]);
-        
+
         let query = Query::compile(".name").unwrap();
         let result = query.execute_to_string(&data).unwrap();
         // execute_to_string now uses fmt::Display for NotationType
-        assert_eq!("John Doe", result); 
+        assert_eq!("John Doe", result);
     }
-    
+
     #[test]
     fn test_array_query() {
         let data = create_object(vec![
             ("items".to_string(), create_array(vec![
-                NotationType::Number(NumberVariant::Int(1)), 
-                NotationType::Number(NumberVariant::Int(2)), 
-                NotationType::Number(NumberVariant::Int(3)), 
-                NotationType::Number(NumberVariant::Int(4)), 
+                NotationType::Number(NumberVariant::Int(1)),
+                NotationType::Number(NumberVariant::Int(2)),
+                NotationType::Number(NumberVariant::Int(3)),
+                NotationType::Number(NumberVariant::Int(4)),
                 NotationType::Number(NumberVariant::Int(5))
             ]))
         ]);
-        
+
         let query = Query::compile(".items[]").unwrap();
         let results = query.execute(&data).unwrap();
         assert_eq!(5, results.len());
         assert_eq!(NotationType::Number(NumberVariant::Int(1)), results[0]);
         assert_eq!(NotationType::Number(NumberVariant::Int(5)), results[4]);
     }
-    
+
     #[test]
     fn test_filter_query() {
         let data = create_object(vec![
@@ -331,7 +355,7 @@ mod tests {
                 create_object(vec![("name".to_string(), "Charlie".into()), ("age".to_string(), NotationType::Number(NumberVariant::Int(35)))]),
             ]))
         ]);
-        
+
         // Access the last person in the array directly
         let query = Query::compile(".people[2]").unwrap();
         let results = query.execute(&data).unwrap();
@@ -340,7 +364,7 @@ mod tests {
         assert_eq!(results[0].get("name").unwrap(), &NotationType::String("Charlie".to_string()));
         assert_eq!(results[0].get("age").unwrap(), &NotationType::Number(NumberVariant::Int(35)));
     }
-    
+
     #[test]
     fn test_invalid_query() {
         let result = Query::compile("invalid query syntax");

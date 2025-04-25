@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
 use crate::obj::notation::{Notation, NotationType, NumberVariant};
+use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use bson::{self, Bson, Document};
 use hex;
 use serde::{Deserialize, Serialize};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -85,11 +85,11 @@ fn notation_type_to_bson(notation_type: &NotationType) -> Result<Bson> {
             match n {
                 NumberVariant::Int(i) => {
                     if *i >= i32::MIN as i64 && *i <= i32::MAX as i64 {
-                         Ok(Bson::Int32(*i as i32))
+                        Ok(Bson::Int32(*i as i32))
                     } else {
-                         Ok(Bson::Int64(*i))
+                        Ok(Bson::Int64(*i))
                     }
-                },
+                }
                 NumberVariant::Uint(u) => {
                     if let Ok(i_val) = (*u).try_into() as Result<i64, _> {
                         if i_val >= i32::MIN as i64 && i_val <= i32::MAX as i64 {
@@ -100,7 +100,7 @@ fn notation_type_to_bson(notation_type: &NotationType) -> Result<Bson> {
                     } else {
                         Ok(Bson::Double(*u as f64))
                     }
-                },
+                }
                 NumberVariant::Float(f) => Ok(Bson::Double(*f)),
             }
         }

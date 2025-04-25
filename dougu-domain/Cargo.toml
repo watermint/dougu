@@ -8,21 +8,3 @@ authors = ["Takayuki Okazaki <watermint@users.noreply.github.com>"]
 repository = "https://github.com/watermint/dougu"
 publish = false
 
-[features]
-default = []
-i18n = []
-
-[dependencies]
-# Common dependencies
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-log = { workspace = true }
-once_cell = { workspace = true }
-chrono = { workspace = true }
-
-# Local dependencies
-dougu-essentials = { path = "../dougu-essentials" }
-dougu-foundation = { path = "../dougu-foundation" }
-
-[dev-dependencies]
-tokio = { workspace = true } 
