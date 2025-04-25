@@ -27,6 +27,9 @@ pub use data::version::Version;
 // Text module
 pub use text::case::{Case, CaseConverter, CaseExt};
 
+// Filesystem module
+pub use fs::path::{Path, PathBuf, PathComponents, Namespace};
+
 // Time module
 pub use time::{LocalDate, LocalTime, TimeError, ZonedDateTime};
 
@@ -60,6 +63,7 @@ pub mod prelude {
     pub use crate::data::encoding::BinaryTextCodec;
     pub use crate::data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
     pub use crate::data::version::Version;
+    pub use crate::fs::path::{Namespace, Path, PathBuf, PathComponents};
     pub use crate::i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
     pub use crate::i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, ResourceManager};
     pub use crate::log::interface::LoggerExt;
