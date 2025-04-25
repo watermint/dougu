@@ -31,6 +31,7 @@ pub use time::{LocalDate, LocalTime, TimeError, ZonedDateTime};
 
 // i18n module
 pub use i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
+pub use i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, ResourceManager};
 
 // Math module
 pub use math::FixedDecimal;
@@ -46,6 +47,7 @@ pub mod prelude {
     pub use crate::data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
     pub use crate::data::version::Version;
     pub use crate::i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
+    pub use crate::i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, ResourceManager};
     pub use crate::math::FixedDecimal;
     pub use crate::text::case::{Case, CaseConverter, CaseExt};
     pub use crate::time::{LocalDate, LocalTime, TimeError, ZonedDateTime};

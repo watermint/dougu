@@ -21,4 +21,4 @@ When implementing modules under `dougu-essentials`, please be careful not to exp
 * Use `dougu-essentials::core` instead of anyhow, thiserror
 * Use `dougu-essentials::time` instead of chrono
 * Use `dougu-essentials::obj` instead of serde, serde_json
-
+* Use `dougu-essentials::i18n` for any i18n/l10n related process

@@ -5,19 +5,14 @@ use crate::i18n::LocaleId;
 // Use public re-export
 use std::path::Path;
 
-// Import from math module instead of fixed_decimal crate
 use crate::math::FixedDecimal;
 
 use crate::core::{Error as CoreError, ErrorTrait, Result as CoreResult};
 use icu::locid::Locale;
-// ICU4X imports
 use icu_decimal::{options::FixedDecimalFormatterOptions, options::GroupingStrategy, FixedDecimalFormatter};
 use icu_provider::BufferProvider;
 use icu_provider_fs::FsDataProvider;
 use std::str::FromStr;
-// Remove the problematic imports
-// use icu_decimal::options::CurrencySignDisplay;
-// use icu_decimal::options::CurrencyUsage;
 
 /// Custom error type for currency operations
 #[derive(ErrorTrait, Debug)]
@@ -81,12 +76,12 @@ impl CurrencyFormatterImpl {
         // Create options for number formatting with grouping
         let mut options = FixedDecimalFormatterOptions::default();
         options.grouping_strategy = GroupingStrategy::Auto;
-        
+
         // Create the formatter
         FixedDecimalFormatter::try_new_with_buffer_provider(&*provider, &icu_locale.into(), options)
             .map_err(CoreError::new)
     }
-    
+
     // Helper method to get currency symbol based on currency code and locale
     fn get_currency_symbol(&self, currency: &CurrencyCode, _locale: &LocaleId) -> String {
         // This is a simplification - in a real implementation we would use CLDR data
@@ -111,23 +106,23 @@ impl CurrencyFormatter for CurrencyFormatterImpl {
     fn format_currency(&self, value: f64, currency: &CurrencyCode, locale: &LocaleId) -> String {
         let formatter = self.create_icu_formatter(currency, locale)
             .expect("Failed to create ICU formatter");
-        
+
         // Create FixedDecimal and convert to ICU FixedDecimal
         let fixed = FixedDecimal::try_from(value).expect("Failed to convert to fixed decimal");
         let icu_fixed = fixed.to_icu();
 
         // Format with ICU but add currency symbol based on locale and currency code
         let formatted_number = formatter.format(&icu_fixed).to_string();
-        
+
         // Get the appropriate currency symbol
         let symbol = self.get_currency_symbol(currency, locale);
-        
+
         // Format according to locale conventions (simplified)
         match locale.as_str() {
             // For Japanese locale, symbol goes before the number without space
             loc if loc.starts_with("ja") => format!("{}{}", symbol, formatted_number),
             // For most European locales, symbol goes after the number with space
-            loc if loc.starts_with("fr") || loc.starts_with("it") || loc.starts_with("es") => 
+            loc if loc.starts_with("fr") || loc.starts_with("it") || loc.starts_with("es") =>
                 format!("{} {}", formatted_number, symbol),
             // For most other locales (including en-US), symbol goes before the number
             _ => format!("{}{}", symbol, formatted_number),
@@ -192,7 +187,7 @@ impl CurrencyRepository {
             // For other currencies, return the code as fallback
             _ => code.as_str(),
         };
-        
+
         Ok(symbol.to_string())
     }
 
@@ -215,10 +210,10 @@ impl CurrencyRepository {
     /// Get information about a currency
     pub fn get_currency_info(&self, code: &CurrencyCode) -> CoreResult<CurrencyInfo> {
         let code_str = code.as_str();
-        
+
         // Get symbol
         let symbol = self.get_symbol(code, &LocaleId::from_str("en").unwrap())?;
-        
+
         // Get decimal places
         let metadata = self.get_basic_metadata(code)?;
 
