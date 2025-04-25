@@ -5,6 +5,7 @@ pub mod core;
 pub mod data;
 pub mod text;
 pub mod fs;
+pub mod time;
 
 // Object module
 pub use obj::notation::{Notation, NotationType};
@@ -22,6 +23,9 @@ pub use data::uuid::{Uuid, UuidVersion, UuidVariant, UuidParser, UuidFormatter, 
 // Text module
 pub use text::case::{Case, CaseExt, CaseConverter};
 
+// Time module
+pub use time::{ZonedDateTime, LocalDate, LocalTime, TimeError};
+
 // Archive module
 
 pub mod prelude {
@@ -30,4 +34,5 @@ pub mod prelude {
     pub use crate::data::version::Version;
     pub use crate::data::uuid::{Uuid, UuidVersion, UuidVariant, UuidParser, UuidFormatter, UuidTimestamp};
     pub use crate::text::case::{Case, CaseExt, CaseConverter};
+    pub use crate::time::{ZonedDateTime, LocalDate, LocalTime, TimeError};
 }
