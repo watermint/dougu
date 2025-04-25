@@ -14,10 +14,12 @@ pub use build::{get_build_info, BuildInfo};
 
 // Data module
 pub use data::encoding::BinaryTextCodec;
+pub use data::version::Version;
 
 // Archive module
 
 pub mod prelude {
     pub use crate::core::error::{Error, Result, ErrorExt};
     pub use crate::data::encoding::BinaryTextCodec;
+    pub use crate::data::version::Version;
 }
