@@ -19,6 +19,7 @@ pub use build::{get_build_info, BuildInfo};
 pub use data::encoding::BinaryTextCodec;
 pub use data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
 pub use data::version::Version;
+pub use data::address::{Email, Url, Uri, AddressType};
 
 // Text module
 pub use text::case::{Case, CaseConverter, CaseExt};
@@ -35,6 +36,7 @@ pub mod prelude {
     pub use crate::data::encoding::BinaryTextCodec;
     pub use crate::data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
     pub use crate::data::version::Version;
+    pub use crate::data::address::{Email, Url, Uri, AddressType};
     pub use crate::text::case::{Case, CaseConverter, CaseExt};
     pub use crate::time::{LocalDate, LocalTime, TimeError, ZonedDateTime};
     pub use crate::{bail, ensure};
