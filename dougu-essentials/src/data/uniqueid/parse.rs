@@ -12,7 +12,7 @@ impl UuidParser {
     /// 
     /// Supports:
     /// - Standard UUID format (with or without hyphens)
-    /// - Attempts to detect version and variant automatically
+    /// - ULID format (26 characters, base32)
     pub fn parse(s: &str) -> Result<Uuid> {
         // Handle standard UUID format
         if s.len() == 32 || s.len() == 36 {
@@ -61,19 +61,17 @@ impl UuidParser {
 
     /// Parse a ULID string into a UUID
     fn parse_ulid(s: &str) -> Result<Uuid> {
-        // This is a simplified implementation since we don't have a full ULID library
-        // For a complete implementation, you might want to add a dependency like `ulid`
-        // or implement the full ULID spec
-        
         if s.len() != 26 || !s.chars().all(|c| c.is_ascii_alphanumeric()) {
             return Err(Error::InvalidFormat("Invalid ULID format".to_string()));
         }
         
-        // The below is just a placeholder. In a real implementation, you would:
-        // 1. Decode the base32 ULID properly
-        // 2. Convert the resulting bytes to a UUID
-        // For now, we just return an error indicating it's not fully implemented
-        
-        Err(Error::UnsupportedVersion("ULID parsing not fully implemented".to_string()))
+        // Parse the ULID using the ulid crate
+        match ulid::Ulid::from_string(s) {
+            Ok(ulid) => {
+                let bytes = ulid.to_bytes();
+                Ok(Uuid::new(bytes, UuidVersion::Ulid, UuidVariant::RFC4122))
+            }
+            Err(_) => Err(Error::InvalidFormat(format!("Invalid ULID: {}", s))),
+        }
     }
 } 

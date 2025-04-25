@@ -82,6 +82,33 @@ impl Uuid {
         }
     }
 
+    /// Create a new ULID
+    pub fn new_ulid() -> Self {
+        let ulid = ulid::Ulid::new();
+        let bytes = ulid.to_bytes();
+        Self {
+            bytes,
+            version: UuidVersion::Ulid,
+            variant: UuidVariant::RFC4122,
+        }
+    }
+
+    /// Create a new ULID with a specific timestamp
+    pub fn new_ulid_with_timestamp(timestamp_ms: u64) -> Self {
+        // Create a ULID with a specific timestamp
+        let system_time = std::time::SystemTime::UNIX_EPOCH
+            .checked_add(std::time::Duration::from_millis(timestamp_ms))
+            .unwrap_or_else(|| std::time::SystemTime::now());
+        
+        let ulid = ulid::Ulid::from_datetime(system_time);
+        let bytes = ulid.to_bytes();
+        Self {
+            bytes,
+            version: UuidVersion::Ulid,
+            variant: UuidVariant::RFC4122,
+        }
+    }
+
     /// Returns the raw bytes of the UUID
     pub fn bytes(&self) -> &[u8; 16] {
         &self.bytes
@@ -110,6 +137,16 @@ impl Uuid {
     /// Convert to a hyphenated string representation
     pub fn to_hyphenated(&self) -> String {
         self.to_string()
+    }
+
+    /// Convert to a ULID string representation if possible
+    pub fn to_ulid_string(&self) -> Option<String> {
+        if self.version == UuidVersion::Ulid {
+            let ulid = ulid::Ulid::from_bytes(self.bytes);
+            Some(ulid.to_string())
+        } else {
+            None
+        }
     }
 }
 

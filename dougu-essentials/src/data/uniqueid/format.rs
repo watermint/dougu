@@ -1,5 +1,5 @@
-use crate::data::uniqueid::error::Result;
-use crate::data::uniqueid::types::Uuid;
+use crate::data::uniqueid::error::{Error, Result};
+use crate::data::uniqueid::types::{Uuid, UuidVersion};
 
 /// Formatter for UUID string representations
 #[derive(Debug, Clone, Copy)]
@@ -33,5 +33,24 @@ impl UuidFormatter {
         }
         
         uuid.to_string().replace('-', &separator.to_string())
+    }
+    
+    /// Format UUID as ULID if possible
+    pub fn ulid(uuid: &Uuid) -> Result<String> {
+        if uuid.version() != UuidVersion::Ulid {
+            return Err(Error::InvalidFormat("Cannot format non-ULID UUID as ULID".to_string()));
+        }
+        
+        let ulid_bytes = uuid.bytes();
+        let ulid = ulid::Ulid::from_bytes(*ulid_bytes);
+        
+        Ok(ulid.to_string())
+    }
+    
+    /// Try to format any UUID as ULID
+    /// This will reinterpret the bytes as a ULID even if it wasn't created as one
+    pub fn as_ulid(uuid: &Uuid) -> String {
+        let ulid = ulid::Ulid::from_bytes(*uuid.bytes());
+        ulid.to_string()
     }
 } 

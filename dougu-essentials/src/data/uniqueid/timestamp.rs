@@ -15,6 +15,7 @@ impl UuidTimestamp {
     /// - V2: DCE Security UUID
     /// - V6: Reordered time-based UUID
     /// - V7: Time-ordered UUID with Unix timestamp
+    /// - ULID: Universally Unique Lexicographically Sortable Identifier
     pub fn extract(uuid: &Uuid) -> Result<ZonedDateTime> {
         if !uuid.has_timestamp() {
             return Err(Error::TimestampExtraction(format!(
@@ -27,6 +28,7 @@ impl UuidTimestamp {
             UuidVersion::V1 | UuidVersion::V2 => Self::extract_v1_timestamp(uuid),
             UuidVersion::V6 => Self::extract_v6_timestamp(uuid),
             UuidVersion::V7 => Self::extract_v7_timestamp(uuid),
+            UuidVersion::Ulid => Self::extract_ulid_timestamp(uuid),
             _ => Err(Error::TimestampExtraction(
                 "Timestamp extraction not implemented for this UUID version".to_string(),
             )),
@@ -82,6 +84,24 @@ impl UuidTimestamp {
         // Create ZonedDateTime from timestamp
         ZonedDateTime::of_unix_nanos(secs, nsecs).map_err(|e| {
             Error::TimestampExtraction(format!("Invalid timestamp value in V7 UUID: {}", e))
+        })
+    }
+    
+    /// Extract timestamp from ULID
+    fn extract_ulid_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
+        let bytes = uuid.bytes();
+        let ulid = ulid::Ulid::from_bytes(*bytes);
+        
+        // Get the timestamp in milliseconds
+        let msec = ulid.timestamp_ms();
+        
+        // Convert milliseconds to seconds and nanoseconds
+        let secs = (msec / 1000) as i64;
+        let nsecs = ((msec % 1000) * 1_000_000) as u32;
+        
+        // Create ZonedDateTime from timestamp
+        ZonedDateTime::of_unix_nanos(secs, nsecs).map_err(|e| {
+            Error::TimestampExtraction(format!("Invalid timestamp value in ULID: {}", e))
         })
     }
 } 

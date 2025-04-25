@@ -352,6 +352,11 @@ impl ZonedDateTime {
     pub fn to_unix_millis(&self) -> i64 {
         self.inner.timestamp_millis()
     }
+
+    /// Returns the milliseconds since Unix epoch (1970-01-01T00:00:00Z)
+    pub fn milliseconds_since_epoch(&self) -> u64 {
+        self.to_unix_millis() as u64
+    }
 }
 
 impl Instant for ZonedDateTime {

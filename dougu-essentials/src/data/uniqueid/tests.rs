@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::data::uniqueid::{Uuid, UuidParser, UuidFormatter, UuidVersion, UuidVariant};
+    use crate::data::uniqueid::{Uuid, UuidParser, UuidFormatter, UuidVersion, UuidVariant, UuidTimestamp};
     use std::str::FromStr;
 
     #[test]
@@ -37,5 +37,58 @@ mod tests {
         
         assert_eq!(uuid.to_string(), uuid_str);
         assert_eq!(uuid.version(), UuidVersion::V1);
+    }
+    
+    #[test]
+    fn test_create_ulid() {
+        let uuid = Uuid::new_ulid();
+        assert_eq!(uuid.version(), UuidVersion::Ulid);
+        assert_eq!(uuid.variant(), UuidVariant::RFC4122);
+    }
+    
+    #[test]
+    fn test_create_ulid_with_timestamp() {
+        let timestamp = 1656058000000; // Example timestamp: 2022-06-24T12:00:00Z
+        let uuid = Uuid::new_ulid_with_timestamp(timestamp);
+        assert_eq!(uuid.version(), UuidVersion::Ulid);
+        assert_eq!(uuid.variant(), UuidVariant::RFC4122);
+        
+        // Extract and verify timestamp
+        let dt = UuidTimestamp::extract(&uuid).unwrap();
+        assert_eq!(dt.milliseconds_since_epoch(), timestamp);
+    }
+    
+    #[test]
+    fn test_parse_ulid() {
+        // Example ULID: 01G5APCJEVQECTPW9SX5G4V6Q9
+        let ulid_str = "01G5APCJEVQECTPW9SX5G4V6Q9";
+        let uuid = UuidParser::parse(ulid_str).unwrap();
+        
+        assert_eq!(uuid.version(), UuidVersion::Ulid);
+        assert_eq!(uuid.variant(), UuidVariant::RFC4122);
+        
+        // Should format back to the same string when using ulid formatter
+        assert_eq!(UuidFormatter::ulid(&uuid).unwrap(), ulid_str);
+    }
+    
+    #[test]
+    fn test_ulid_format() {
+        let uuid = Uuid::new_ulid();
+        
+        // Get ULID string representation
+        let ulid_str = UuidFormatter::ulid(&uuid).unwrap();
+        
+        // Should be 26 characters
+        assert_eq!(ulid_str.len(), 26);
+        
+        // Should only contain base32 characters (uppercase alphanumeric excluding I, L, O, U)
+        assert!(ulid_str.chars().all(|c| match c {
+            '0'..='9' | 'A'..='H' | 'J'..='K' | 'M'..='N' | 'P'..='T' | 'V'..='Z' => true,
+            _ => false,
+        }));
+        
+        // Parse back to UUID
+        let parsed_uuid = UuidParser::parse(&ulid_str).unwrap();
+        assert_eq!(parsed_uuid.bytes(), uuid.bytes());
     }
 } 
