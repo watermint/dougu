@@ -1,14 +1,18 @@
 use crate::core::error::ErrorTrait;
 
-/// Error types for UUID operations
+/// Error types for UniqueId operations
 #[derive(ErrorTrait, Debug)]
 pub enum Error {
     /// Error parsing a UUID from string
     #[error("Failed to parse UUID: {0}")]
-    Parse(#[from] uuid::Error),
+    UuidParse(#[from] uuid::Error),
 
-    /// Invalid UUID format
-    #[error("Invalid UUID format: {0}")]
+    /// Error parsing a ULID from string
+    #[error("Failed to parse ULID: {0}")]
+    UlidParse(String),
+
+    /// Invalid identifier format
+    #[error("Invalid identifier format: {0}")]
     InvalidFormat(String),
 
     /// Unsupported UUID version
@@ -19,10 +23,14 @@ pub enum Error {
     #[error("Unable to extract timestamp: {0}")]
     TimestampExtraction(String),
 
+    /// Operation not supported for this identifier type
+    #[error("Operation not supported for this identifier type: {0}")]
+    UnsupportedOperation(String),
+
     /// General error
-    #[error("UUID error: {0}")]
+    #[error("UniqueId error: {0}")]
     Other(String),
 }
 
-/// Result type for UUID operations
+/// Result type for UniqueId operations
 pub type Result<T> = std::result::Result<T, Error>; 

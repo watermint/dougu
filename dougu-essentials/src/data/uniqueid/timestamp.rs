@@ -1,43 +1,47 @@
 use crate::data::uniqueid::error::{Error, Result};
-use crate::data::uniqueid::types::{Uuid, UuidVersion};
+use crate::data::uniqueid::types::{UniqueId, IdVersion, IdType};
 use crate::time::{ZonedDateTime, TimeError};
 use uuid::Uuid as RawUuid;
 
-/// Helper for extracting timestamps from UUIDs
+/// Helper for extracting timestamps from unique identifiers
 #[derive(Debug, Clone, Copy)]
-pub struct UuidTimestamp;
+pub struct IdTimestamp;
 
-impl UuidTimestamp {
-    /// Extract timestamp from a UUID if available
+impl IdTimestamp {
+    /// Extract timestamp from a unique identifier if available
     /// 
-    /// Only works with UUID versions that contain timestamp information:
-    /// - V1: Time-based UUID
-    /// - V2: DCE Security UUID
-    /// - V6: Reordered time-based UUID
-    /// - V7: Time-ordered UUID with Unix timestamp
+    /// Only works with identifier types that contain timestamp information:
+    /// - UUID V1: Time-based UUID
+    /// - UUID V2: DCE Security UUID
+    /// - UUID V6: Reordered time-based UUID
+    /// - UUID V7: Time-ordered UUID with Unix timestamp
     /// - ULID: Universally Unique Lexicographically Sortable Identifier
-    pub fn extract(uuid: &Uuid) -> Result<ZonedDateTime> {
-        if !uuid.has_timestamp() {
+    pub fn extract(id: &UniqueId) -> Result<ZonedDateTime> {
+        if !id.has_timestamp() {
             return Err(Error::TimestampExtraction(format!(
-                "UUID version {:?} does not contain timestamp information",
-                uuid.version()
+                "Identifier type {:?} does not contain timestamp information",
+                id.id_type()
             )));
         }
 
-        match uuid.version() {
-            UuidVersion::V1 | UuidVersion::V2 => Self::extract_v1_timestamp(uuid),
-            UuidVersion::V6 => Self::extract_v6_timestamp(uuid),
-            UuidVersion::V7 => Self::extract_v7_timestamp(uuid),
-            UuidVersion::Ulid => Self::extract_ulid_timestamp(uuid),
-            _ => Err(Error::TimestampExtraction(
-                "Timestamp extraction not implemented for this UUID version".to_string(),
-            )),
+        match id.id_type() {
+            IdType::Uuid(version, _) => {
+                match version {
+                    IdVersion::V1 | IdVersion::V2 => Self::extract_v1_timestamp(id),
+                    IdVersion::V6 => Self::extract_v6_timestamp(id),
+                    IdVersion::V7 => Self::extract_v7_timestamp(id),
+                    _ => Err(Error::TimestampExtraction(
+                        "Timestamp extraction not implemented for this UUID version".to_string(),
+                    )),
+                }
+            },
+            IdType::Ulid => Self::extract_ulid_timestamp(id),
         }
     }
 
     /// Extract timestamp from V1 UUID
-    fn extract_v1_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
-        let raw_uuid = RawUuid::from_bytes(*uuid.bytes());
+    fn extract_v1_timestamp(id: &UniqueId) -> Result<ZonedDateTime> {
+        let raw_uuid = RawUuid::from_bytes(*id.bytes());
         
         // The uuid crate doesn't expose timestamp extraction directly,
         // so we would need to implement the extraction logic manually
@@ -57,7 +61,7 @@ impl UuidTimestamp {
     }
 
     /// Extract timestamp from V6 UUID
-    fn extract_v6_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
+    fn extract_v6_timestamp(id: &UniqueId) -> Result<ZonedDateTime> {
         // V6 is similar to V1 but with the timestamp fields reordered for better sorting
         Err(Error::TimestampExtraction(
             "V6 timestamp extraction not fully implemented".to_string(),
@@ -65,9 +69,9 @@ impl UuidTimestamp {
     }
 
     /// Extract timestamp from V7 UUID
-    fn extract_v7_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
+    fn extract_v7_timestamp(id: &UniqueId) -> Result<ZonedDateTime> {
         // V7 contains a Unix timestamp in milliseconds in the first 48 bits
-        let bytes = uuid.bytes();
+        let bytes = id.bytes();
         
         // Extract the first 48 bits (6 bytes) which contain the Unix timestamp in milliseconds
         let msec = ((bytes[0] as u64) << 40)
@@ -88,8 +92,8 @@ impl UuidTimestamp {
     }
     
     /// Extract timestamp from ULID
-    fn extract_ulid_timestamp(uuid: &Uuid) -> Result<ZonedDateTime> {
-        let bytes = uuid.bytes();
+    fn extract_ulid_timestamp(id: &UniqueId) -> Result<ZonedDateTime> {
+        let bytes = id.bytes();
         let ulid = ulid::Ulid::from_bytes(*bytes);
         
         // Get the timestamp in milliseconds
