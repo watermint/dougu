@@ -1,6 +1,10 @@
 use crate::core::error::Result;
 use std::fmt::Debug;
 
+//
+// Core Traits
+//
+
 /// PathComponents represents the parts of a path separated by delimiters.
 /// This abstraction allows for path normalization across different systems.
 pub trait PathComponents: Debug + Clone {
@@ -223,17 +227,61 @@ pub trait Path: Debug + Clone {
     }
 }
 
+//
+// Local File System Path Types
+//
+
 /// LocalPathType represents the specific implementation of a local path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LocalPathType {
-    /// POSIX style paths (/usr/bin)
-    Posix,
+    /// POSIX path format (/usr/bin)
+    /// 
+    /// Defined in IEEE Std 1003.1 (POSIX.1-2017) under "Pathname Resolution".
+    /// Hierarchical naming system with forward slash (/) as directory separator.
+    /// Absolute paths begin with a slash, relative paths do not.
+    /// Special entries include "." (current directory) and ".." (parent directory).
+    PosixPath,
     
-    /// Windows style paths (C:\Windows)
-    Windows,
+    /// Network File System (NFS) path format (//server/share)
+    /// 
+    /// Defined in RFC 7530 (NFSv4) and RFC 1813 (NFSv3).
+    /// Uses the format //server/path to identify remote resources.
+    /// Typically mounted locally and then accessed through the local file system.
+    NFSPath,
     
-    /// Windows UNC paths (\\server\share)
-    WindowsUNC,
+    /// Windows local path format (C:\Windows)
+    /// 
+    /// Defined in Microsoft Windows API documentation.
+    /// Uses backslash (\) as directory separator and drive letters (e.g., C:) for storage volumes.
+    /// Supports both absolute paths (C:\path) and relative paths (path\to\file).
+    /// Maximum path length is typically 260 characters (MAX_PATH) but can be extended.
+    WindowsPath,
+    
+    /// Universal Naming Convention (UNC) path format (\\server\share)
+    /// 
+    /// Defined in Microsoft SMB Protocol and CIFS Documentation.
+    /// Format: \\server\share\path\to\resource
+    /// Used for accessing network resources in Windows environments.
+    /// Can include administrative shares (e.g., \\server\C$) and named shares.
+    UNCPath,
+    
+    /// Server Message Block (SMB) URL format (smb://user:pass@server/path)
+    /// 
+    /// Defined in SNIA Technical Position: Common Internet File System (CIFS).
+    /// URI scheme format for SMB/CIFS protocol access (smb://server/share/path).
+    /// May include authentication credentials (smb://user:pass@server/share).
+    /// Common in cross-platform environments, especially on Unix-like systems accessing Windows shares.
+    SMBUrl,
+}
+
+/// Credentials for authenticated network paths
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PathCredentials {
+    /// Username for authentication
+    pub username: String,
+    
+    /// Password for authentication
+    pub password: Option<String>,
 }
 
 /// LocalPath is a specialized path implementation for local file systems.
@@ -253,6 +301,81 @@ pub trait LocalPath: Path + Debug {
     
     /// Validate if this is a valid path according to the operating system rules
     fn validate(&self) -> Result<()>;
+    
+    /// Get server information if this is a server path (PosixServer, WindowsUNC, or SMB)
+    /// Returns a tuple of (server_name, share_name, credentials) if available
+    /// Returns None if this is not a server path
+    fn server_info(&self) -> Option<(String, Option<String>, Option<PathCredentials>)> {
+        match self.path_type() {
+            LocalPathType::NFSPath | LocalPathType::UNCPath => {
+                let components = self.components();
+                
+                // Server paths should have at least one component (the server name)
+                if components.is_empty() {
+                    return None;
+                }
+                
+                let server_name = components.get(0)
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+                
+                let share_name = if components.len() > 1 {
+                    components.get(1).map(|s| s.to_string())
+                } else {
+                    None
+                };
+                
+                Some((server_name, share_name, None))
+            },
+            LocalPathType::SMBUrl => {
+                // For SMB URLs, the server info is stored in the namespace
+                // in the format "smb://user:pass@server"
+                let namespace = self.namespace().as_str();
+                
+                // Extract the server from the namespace
+                if !namespace.starts_with("smb://") {
+                    return None;
+                }
+                
+                let without_protocol = &namespace[6..];
+                
+                // Parse credentials if they exist
+                let (server, credentials) = if without_protocol.contains('@') {
+                    let parts: Vec<&str> = without_protocol.splitn(2, '@').collect();
+                    let cred_part = parts[0];
+                    let server_part = parts[1];
+                    
+                    // Parse username and password
+                    let creds = if cred_part.contains(':') {
+                        let cred_parts: Vec<&str> = cred_part.splitn(2, ':').collect();
+                        Some(PathCredentials {
+                            username: cred_parts[0].to_string(),
+                            password: Some(cred_parts[1].to_string()),
+                        })
+                    } else {
+                        Some(PathCredentials {
+                            username: cred_part.to_string(),
+                            password: None,
+                        })
+                    };
+                    
+                    (server_part.to_string(), creds)
+                } else {
+                    (without_protocol.to_string(), None)
+                };
+                
+                // Get share name from first component if available
+                let share_name = if !self.components().is_empty() {
+                    self.components().get(0).map(|s| s.to_string())
+                } else {
+                    None
+                };
+                
+                Some((server, share_name, credentials))
+            },
+            _ => None
+        }
+    }
 }
 
 /// PathProvider is a factory trait for creating Path instances.
@@ -265,6 +388,121 @@ pub trait PathProvider {
     /// Get a unique identifier for this path provider (e.g., "local", "dropbox", "jira")
     fn provider_id(&self) -> &str;
 }
+
+//
+// Default Implementations
+//
+
+/// Default implementation of PathComponents that uses a vector of strings
+#[derive(Debug, Clone)]
+pub struct DefaultPathComponents {
+    components: Vec<String>,
+    delimiter: char,
+}
+
+impl DefaultPathComponents {
+    /// Create a new DefaultPathComponents with the specified delimiter
+    pub fn with_delimiter(delimiter: char) -> Self {
+        DefaultPathComponents {
+            components: Vec::new(),
+            delimiter,
+        }
+    }
+}
+
+impl PathComponents for DefaultPathComponents {
+    fn new() -> Self {
+        // Default to '/' as the delimiter
+        DefaultPathComponents {
+            components: Vec::new(),
+            delimiter: '/',
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.components.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.components.is_empty()
+    }
+
+    fn get(&self, index: usize) -> Option<&str> {
+        self.components.get(index).map(|s| s.as_str())
+    }
+
+    fn push(&mut self, component: &str) {
+        self.components.push(component.to_string());
+    }
+
+    fn pop(&mut self) -> Option<String> {
+        self.components.pop()
+    }
+
+    fn join(&self) -> String {
+        self.components.join(&self.delimiter.to_string())
+    }
+
+    fn normalize(&mut self) {
+        let mut normalized = Vec::new();
+        
+        for component in &self.components {
+            match component.as_str() {
+                "." => continue, // Skip "." components
+                ".." => {
+                    if !normalized.is_empty() && normalized.last().unwrap() != ".." {
+                        normalized.pop(); // Go up one level
+                    } else {
+                        normalized.push(component.clone()); // Keep ".." if we're at the top
+                    }
+                }
+                _ => normalized.push(component.clone()),
+            }
+        }
+        
+        self.components = normalized;
+    }
+
+    fn from_string(path: &str) -> Self {
+        let delimiter = if path.contains('\\') { '\\' } else { '/' };
+        
+        let components = path.split(delimiter)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+            
+        DefaultPathComponents {
+            components,
+            delimiter,
+        }
+    }
+}
+
+/// Default implementation of Namespace
+#[derive(Debug, Clone)]
+pub struct DefaultNamespace {
+    value: String,
+}
+
+impl Namespace for DefaultNamespace {
+    fn as_str(&self) -> &str {
+        &self.value
+    }
+
+    fn is_empty(&self) -> bool {
+        self.value.is_empty()
+    }
+
+    fn from_string(s: &str) -> Self {
+        DefaultNamespace {
+            value: s.to_string(),
+        }
+    }
+}
+
+//
+// Utility Functions
+//
 
 /// Factory function for creating a local path with the OS-specific implementation
 pub fn create_local_path<P: LocalPath + 'static>(path: &str) -> Result<Box<dyn LocalPath>> {
@@ -285,16 +523,19 @@ pub fn create_local_path<P: LocalPath + 'static>(path: &str) -> Result<Box<dyn L
 
 /// Get the default local path type for the current OS
 pub fn default_path_type() -> LocalPathType {
-    #[cfg(target_family = "unix")]
-    {
-        LocalPathType::Posix
-    }
-    
-    #[cfg(target_family = "windows")]
-    {
-        LocalPathType::Windows
+    if cfg!(target_family = "unix") {
+        LocalPathType::PosixPath
+    } else if cfg!(target_family = "windows") {
+        LocalPathType::WindowsPath
+    } else {
+        // Default to POSIX paths as a fallback
+        LocalPathType::PosixPath
     }
 }
+
+//
+// Tests
+//
 
 #[cfg(test)]
 mod tests {
@@ -597,5 +838,42 @@ mod tests {
         let path13 = create_path("a/b/c", true, "test");
         let path14 = create_path("a/b/c", false, "test");
         assert!(path13.relativize(&path14).is_none());
+    }
+
+    #[test]
+    fn test_default_path_components() {
+        let mut components = DefaultPathComponents::new();
+        
+        // Test basic operations
+        assert!(components.is_empty());
+        components.push("a");
+        components.push("b");
+        components.push("c");
+        
+        assert_eq!(components.len(), 3);
+        assert_eq!(components.get(0), Some("a"));
+        assert_eq!(components.get(1), Some("b"));
+        assert_eq!(components.get(2), Some("c"));
+        
+        // Test join
+        assert_eq!(components.join(), "a/b/c");
+        
+        // Test with different delimiter
+        let mut win_components = DefaultPathComponents::with_delimiter('\\');
+        win_components.push("C:");
+        win_components.push("Windows");
+        win_components.push("System32");
+        
+        assert_eq!(win_components.join(), "C:\\Windows\\System32");
+        
+        // Test normalization
+        let mut path = DefaultPathComponents::from_string("a/./b/../c/./d");
+        path.normalize();
+        assert_eq!(path.join(), "a/c/d");
+        
+        // Test with trailing/leading dots
+        let mut path2 = DefaultPathComponents::from_string("../../a/b/c/../../d");
+        path2.normalize();
+        assert_eq!(path2.join(), "../../a/d");
     }
 } 
