@@ -1,30 +1,50 @@
-use crate::core::error::Result;
-use super::local::{LocalPath, LocalPathType};
+use crate::core::error;
+use crate::fs::path::local::{LocalPath, LocalPathType};
+use crate::fs::path::local::posix::PosixLocalPath;
+use super::resolver::PathEnum;
+
+/// Create a path in the current OS format
+pub fn create_os_path(path: &str) -> error::Result<PathEnum> {
+    match std::env::consts::OS {
+        "windows" => {
+            let path = PosixLocalPath::create_os_path(path)?;
+            Ok(PathEnum::Posix(path))
+        },
+        _ => {
+            let path = PosixLocalPath::create_os_path(path)?;
+            Ok(PathEnum::Posix(path))
+        }
+    }
+}
 
 /// Factory function for creating a local path with the OS-specific implementation
-pub fn create_local_path<P: LocalPath + 'static>(path: &str) -> Result<Box<dyn LocalPath>> {
-    // This function will be implemented to return the appropriate
-    // OS-specific LocalPath implementation
-    #[cfg(target_family = "unix")]
-    {
-        // Return POSIX implementation when actually implemented
-        unimplemented!("POSIX path implementation not provided yet")
-    }
-    
-    #[cfg(target_family = "windows")]
-    {
-        // Return Windows implementation when actually implemented
-        unimplemented!("Windows path implementation not provided yet")
+pub fn create_local_path(path: &str) -> error::Result<PathEnum> {
+    match std::env::consts::OS {
+        "windows" => {
+            let path = PosixLocalPath::create_os_path(path)?;
+            Ok(PathEnum::Posix(path))
+        },
+        _ => {
+            let path = PosixLocalPath::create_os_path(path)?;
+            Ok(PathEnum::Posix(path))
+        }
     }
 }
 
 /// Get the default local path type for the current OS
 pub fn default_path_type() -> LocalPathType {
-    if cfg!(target_family = "unix") {
+    #[cfg(target_family = "unix")]
+    {
         LocalPathType::PosixPath
-    } else if cfg!(target_family = "windows") {
+    }
+    
+    #[cfg(target_family = "windows")]
+    {
         LocalPathType::WindowsPath
-    } else {
+    }
+    
+    #[cfg(not(any(target_family = "unix", target_family = "windows")))]
+    {
         // Default to POSIX paths as a fallback
         LocalPathType::PosixPath
     }

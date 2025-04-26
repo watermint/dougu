@@ -1,6 +1,23 @@
+use std::any::Any;
 use std::fmt::Debug;
 
-use super::core::Path;
+use crate::core::error;
+use crate::fs::path::core::{Path, PathComponents, Namespace};
+use crate::fs::path::default::{DefaultNamespace, DefaultPathComponents};
+
+// Export child modules
+pub mod posix;
+pub mod windows;
+pub mod unc;
+pub mod nfs;
+pub mod smb;
+
+// Re-export types
+pub use posix::PosixLocalPath;
+pub use windows::WindowsLocalPath;
+pub use unc::UNCLocalPath;
+pub use nfs::NFSLocalPath;
+pub use smb::{SMBLocalPath, SMBServerInfo};
 
 /// ServerInfo provides access to server-related information for network paths
 pub trait ServerInfo: Debug + Send + Sync {
@@ -134,7 +151,7 @@ pub struct PathCredentials {
 
 /// LocalPath is a specialized path implementation for local file systems.
 /// It supports different local path types (POSIX, Windows, Windows UNC).
-pub trait LocalPath: Path + Debug {
+pub trait LocalPath: Path {
     /// Get the path type of this local path
     fn path_type(&self) -> LocalPathType;
     
@@ -142,13 +159,13 @@ pub trait LocalPath: Path + Debug {
     fn to_path_string(&self, target_type: LocalPathType) -> String;
     
     /// Create a path in the current OS format
-    fn create_os_path(path: &str) -> crate::core::error::Result<Self> where Self: Sized;
+    fn create_os_path(path: &str) -> error::Result<Self> where Self: Sized;
     
     /// Get the current OS path type
-    fn os_path_type() -> LocalPathType;
+    fn os_path_type() -> LocalPathType where Self: Sized;
     
     /// Validate if this is a valid path according to the operating system rules
-    fn validate(&self) -> crate::core::error::Result<()>;
+    fn validate(&self) -> error::Result<()>;
     
     /// Get server information if this is a server path (PosixServer, WindowsUNC, or SMB)
     /// Returns server information if available

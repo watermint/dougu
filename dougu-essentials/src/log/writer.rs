@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::Result;
-use crate::fs::ensure_dir;
+use crate::fs::ensure_folder;
 use crate::log::formatter::Formatter;
 use crate::log::interface::LogRecord;
 use crate::time::ZonedDateTime;
@@ -103,7 +103,7 @@ impl FileWriter {
 
         // Ensure parent directory exists
         if let Some(parent) = path_buf.parent() {
-            ensure_dir(parent)?;
+            ensure_folder(parent)?;
         }
 
         let file = OpenOptions::new()

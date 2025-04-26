@@ -1,45 +1,45 @@
 // Essential Path implementation
 use std::any::Any;
-use crate::core::error::{Error, Result};
-use super::core::Path;
-use super::default::{DefaultNamespace, DefaultPathComponents};
-use super::local::LocalPath;
+use std::fmt::{Debug, Display};
 
-/// EssentialPath is the central path abstraction that can be converted to and from other path types.
-/// It serves as the common format for path representation across different backends.
+use crate::core::error;
+use crate::fs::path::core::{Path, PathComponents, Namespace};
+use crate::fs::path::default::{DefaultNamespace, DefaultPathComponents};
+use crate::fs::path::local::LocalPath;
+
+/// Generic trait for converting between EssentialPath and specific path implementations
+pub trait PathConverter<T: Path> {
+    /// Convert an EssentialPath to a specific path type
+    fn from_essential_path(&self, path: &EssentialPath) -> error::Result<T>;
+    
+    /// Convert a specific path type to an EssentialPath
+    fn to_essential_path(&self, path: &T) -> error::Result<EssentialPath>;
+}
+
+/// EssentialPath represents a generic path that can be used across different file systems.
+/// It contains a namespace and components, which are common to all path types.
 #[derive(Debug, Clone)]
 pub struct EssentialPath {
     namespace: DefaultNamespace,
     components: DefaultPathComponents,
-    is_absolute: bool,
-}
-
-/// PathConverter provides conversion between EssentialPath and specific path types
-pub trait PathConverter<T: Path> {
-    /// Convert an EssentialPath to a specific path type
-    fn from_essential_path(&self, path: &EssentialPath) -> Result<T>;
-    
-    /// Convert a specific path type to an EssentialPath
-    fn to_essential_path(&self, path: &T) -> Result<EssentialPath>;
 }
 
 impl EssentialPath {
-    /// Create a new empty EssentialPath
+    /// Create a new EssentialPath with empty namespace and components
     pub fn new() -> Self {
         EssentialPath {
             namespace: DefaultNamespace::from_string(""),
             components: DefaultPathComponents::new(),
-            is_absolute: false,
         }
     }
     
-    /// Create an EssentialPath from a string representation
-    pub fn from_string(path_str: &str) -> Result<Self> {
+    /// Parse a string into an EssentialPath
+    pub fn from_string(path_str: &str) -> error::Result<Self> {
         Self::parse(path_str)
     }
     
-    /// Convert this EssentialPath to a specific path type using a resolver
-    pub fn to_specific_path<T: Path>(&self, converter: &dyn PathConverter<T>) -> Result<T> {
+    /// Convert this path to a specific path type using the provided converter
+    pub fn to_specific_path<T: Path>(&self, converter: &dyn PathConverter<T>) -> error::Result<T> {
         converter.from_essential_path(self)
     }
 }
@@ -49,7 +49,10 @@ impl Path for EssentialPath {
     type NamespaceType = DefaultNamespace;
     
     fn new() -> Self {
-        EssentialPath::new()
+        EssentialPath {
+            namespace: DefaultNamespace::from_string(""),
+            components: DefaultPathComponents::new(),
+        }
     }
     
     fn namespace(&self) -> &Self::NamespaceType {
@@ -68,42 +71,40 @@ impl Path for EssentialPath {
         &mut self.components
     }
     
-    fn parse(path_str: &str) -> Result<Self> {
-        // Handle empty paths
+    fn parse(path_str: &str) -> error::Result<Self> {
+        // Handle special case for empty path
         if path_str.is_empty() {
             return Ok(Self::new());
         }
         
-        let is_absolute = path_str.starts_with('/') || path_str.starts_with('\\');
+        // Special case for absolute paths without namespace
+        if path_str.starts_with('/') {
+            let path_without_slash = &path_str[1..];
+            let mut components = DefaultPathComponents::from_string(path_without_slash);
+            components.set_absolute(true);
+            let mut path = Self::new();
+            path.components = components;
+            return Ok(path);
+        }
         
-        // Parse namespace and path components
+        // Normal case: handle namespace and path parts
         let (namespace_str, path_part) = if path_str.contains(':') {
             let parts: Vec<&str> = path_str.splitn(2, ':').collect();
-            (parts[0], parts.get(1).unwrap_or(&""))
+            (parts[0], parts[1])
         } else {
             ("", path_str)
         };
         
-        // Create the path components
-        let mut components = if is_absolute {
-            // Remove leading slash for absolute paths when parsing components
-            let path_without_slash = if path_part.starts_with('/') || path_part.starts_with('\\') {
-                &path_part[1..]
-            } else {
-                path_part
-            };
-            DefaultPathComponents::from_string(path_without_slash)
-        } else {
-            DefaultPathComponents::from_string(path_part)
-        };
+        let mut components = DefaultPathComponents::from_string(path_part);
         
-        // Normalize the components
-        components.normalize();
+        // If the path part starts with a slash, it's absolute
+        if path_part.starts_with('/') {
+            components.set_absolute(true);
+        }
         
         Ok(EssentialPath {
             namespace: DefaultNamespace::from_string(namespace_str),
             components,
-            is_absolute,
         })
     }
     
@@ -116,44 +117,49 @@ impl Path for EssentialPath {
         
         let path = self.components.join();
         
-        if self.is_absolute {
-            if path.is_empty() {
-                format!("{}/", ns)
-            } else {
-                format!("{}/{}", ns, path)
-            }
-        } else {
+        if path.is_empty() {
+            ns
+        } else if path.starts_with('/') {
             format!("{}{}", ns, path)
+        } else if ns.is_empty() {
+            path
+        } else {
+            format!("{}:{}", ns, path)
         }
     }
     
-    fn join(&self, relative: &str) -> Result<Self> {
-        // Cannot join an absolute path to another path
-        if relative.starts_with('/') || relative.starts_with('\\') {
-            return Err(Error::InvalidArgument(
-                "Cannot join an absolute path".to_string()
+    fn join(&self, relative: &str) -> error::Result<Self> {
+        // Check if the relative path starts with a namespace (contains :)
+        if relative.contains(':') {
+            return Err(error::Error::msg(
+                format!("Cannot join a path with a namespace")
             ));
         }
         
-        let rel_path = Self::parse(relative)?;
+        // Special case for absolute path
+        if relative.starts_with('/') {
+            return Err(error::Error::msg(
+                format!("Cannot join an absolute path")
+            ));
+        }
         
-        // If rel_path has a namespace, it's a different path type
+        // Create a new path with the same namespace
+        let mut rel_path = EssentialPath::parse(relative)?;
         if !rel_path.namespace().is_empty() {
-            return Err(Error::InvalidArgument(
-                "Cannot join paths with different namespaces".to_string()
+            return Err(error::Error::msg(
+                format!("Cannot join a path with a namespace")
             ));
         }
         
         let mut result = self.clone();
         
-        // Add components from the relative path
+        // Add each component from the relative path
         for i in 0..rel_path.components().len() {
             if let Some(component) = rel_path.components().get(i) {
                 result.components_mut().push(component);
             }
         }
         
-        // Normalize the result
         result.normalize();
         
         Ok(result)
@@ -182,12 +188,10 @@ impl Path for EssentialPath {
     }
     
     fn is_absolute(&self) -> bool {
-        self.is_absolute
+        self.components.is_absolute()
     }
     
-    fn to_local_path(&self) -> Option<Box<dyn LocalPath>> {
-        // This would be implemented using the resolver repository
-        // For now, return None as we haven't implemented local paths yet
+    fn to_local_path(&self) -> Option<Box<dyn LocalPath<ComponentsType = DefaultPathComponents, NamespaceType = DefaultNamespace>>> {
         None
     }
     

@@ -8,11 +8,11 @@ fn test_default_path_type() {
     
     #[cfg(target_family = "unix")]
     {
-        assert_eq!(path_type, LocalPathType::Posix);
+        assert_eq!(path_type, LocalPathType::PosixPath);
     }
     
     #[cfg(target_family = "windows")]
     {
-        assert_eq!(path_type, LocalPathType::Windows);
+        assert_eq!(path_type, LocalPathType::WindowsPath);
     }
 } 

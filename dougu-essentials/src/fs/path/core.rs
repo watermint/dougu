@@ -54,12 +54,12 @@ pub trait Namespace: Debug + Clone {
 
 /// Path is an abstract representation of a path across different file systems.
 /// It contains a namespace and components, allowing for consistent path manipulation.
-pub trait Path: Debug + Clone {
+pub trait Path: Debug {
     type ComponentsType: PathComponents;
     type NamespaceType: Namespace;
     
     /// Create a new empty path
-    fn new() -> Self;
+    fn new() -> Self where Self: Sized;
     
     /// Get a reference to the namespace part of this path
     fn namespace(&self) -> &Self::NamespaceType;
@@ -101,14 +101,14 @@ pub trait Path: Debug + Clone {
     
     /// Convert this path to the local OS format if possible
     /// Returns None if the path cannot be represented as a local path
-    fn to_local_path(&self) -> Option<Box<dyn LocalPath>>;
+    fn to_local_path(&self) -> Option<Box<dyn LocalPath<ComponentsType = Self::ComponentsType, NamespaceType = Self::NamespaceType>>>;
     
     /// Convert this object to Any for downcasting
     fn as_any(&self) -> &dyn Any where Self: 'static;
     
     /// Check if this path starts with the specified path
     /// Returns true if this path starts with the given path (considering all components)
-    fn starts_with(&self, other: &Self) -> bool {
+    fn starts_with(&self, other: &Self) -> bool where Self: Sized {
         if self.namespace().as_str() != other.namespace().as_str() {
             return false;
         }
@@ -131,7 +131,7 @@ pub trait Path: Debug + Clone {
     
     /// Check if this path ends with the specified path
     /// Returns true if this path ends with the given path (considering components)
-    fn ends_with(&self, other: &Self) -> bool {
+    fn ends_with(&self, other: &Self) -> bool where Self: Sized {
         let self_components = self.components();
         let other_components = other.components();
         

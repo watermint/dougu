@@ -5,6 +5,7 @@ use super::core::{Namespace, PathComponents};
 pub struct DefaultPathComponents {
     components: Vec<String>,
     delimiter: char,
+    is_absolute: bool,
 }
 
 impl DefaultPathComponents {
@@ -13,7 +14,28 @@ impl DefaultPathComponents {
         DefaultPathComponents {
             components: Vec::new(),
             delimiter,
+            is_absolute: false,
         }
+    }
+    
+    /// Join all components with the specified delimiter
+    pub fn join_with_separator(&self, separator: &str) -> String {
+        self.components.join(separator)
+    }
+    
+    /// Set if this path is absolute
+    pub fn set_absolute(&mut self, is_absolute: bool) {
+        self.is_absolute = is_absolute;
+    }
+    
+    /// Check if this path is absolute
+    pub fn is_absolute(&self) -> bool {
+        self.is_absolute
+    }
+
+    /// Get an iterator over all components
+    pub fn all(&self) -> impl Iterator<Item = &str> {
+        self.components.iter().map(|s| s.as_str())
     }
 }
 
@@ -23,6 +45,7 @@ impl PathComponents for DefaultPathComponents {
         DefaultPathComponents {
             components: Vec::new(),
             delimiter: '/',
+            is_absolute: false,
         }
     }
 
@@ -81,6 +104,7 @@ impl PathComponents for DefaultPathComponents {
         DefaultPathComponents {
             components,
             delimiter,
+            is_absolute: false,
         }
     }
 }
@@ -89,6 +113,18 @@ impl PathComponents for DefaultPathComponents {
 #[derive(Debug, Clone)]
 pub struct DefaultNamespace {
     value: String,
+}
+
+impl DefaultNamespace {
+    /// Create a new DefaultNamespace with the specified value
+    pub fn new(value: String) -> Self {
+        DefaultNamespace { value }
+    }
+    
+    /// Set the namespace value
+    pub fn set(&mut self, value: &str) {
+        self.value = value.to_string();
+    }
 }
 
 impl Namespace for DefaultNamespace {

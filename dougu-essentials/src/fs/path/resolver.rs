@@ -1,7 +1,37 @@
 use std::sync::Arc;
-use crate::core::error::{Error, Result};
-use super::core::Path;
+use crate::core::error;
+use super::core::{Path, Namespace};
 use super::essential::EssentialPath;
+use super::local::posix::PosixLocalPath;
+use super::local::windows::WindowsLocalPath;
+use super::local::unc::UNCLocalPath;
+use super::local::nfs::NFSLocalPath;
+use super::local::smb::SMBLocalPath;
+use std::fmt::Debug;
+
+/// Enum of all possible Path implementations
+#[derive(Debug)]
+pub enum PathEnum {
+    Essential(EssentialPath),
+    Posix(PosixLocalPath),
+    Windows(WindowsLocalPath),
+    UNC(UNCLocalPath),
+    NFS(NFSLocalPath),
+    SMB(SMBLocalPath),
+}
+
+impl PathEnum {
+    pub fn to_string(&self) -> String {
+        match self {
+            PathEnum::Essential(p) => p.to_string(),
+            PathEnum::Posix(p) => p.to_string(),
+            PathEnum::Windows(p) => p.to_string(),
+            PathEnum::UNC(p) => p.to_string(),
+            PathEnum::NFS(p) => p.to_string(),
+            PathEnum::SMB(p) => p.to_string(),
+        }
+    }
+}
 
 /// PathResolver is responsible for resolving and converting paths for a specific service or system
 pub trait PathResolver: Send + Sync {
@@ -12,10 +42,10 @@ pub trait PathResolver: Send + Sync {
     fn can_resolve(&self, namespace: &str) -> bool;
     
     /// Convert an EssentialPath to a specific implementation
-    fn resolve(&self, path: &EssentialPath) -> Result<Box<dyn Path>>;
+    fn resolve(&self, path: &EssentialPath) -> error::Result<PathEnum>;
     
     /// Convert a specific path implementation back to an EssentialPath
-    fn to_essential_path(&self, path: &dyn Path) -> Result<EssentialPath>;
+    fn to_essential_path(&self, path: &PathEnum) -> error::Result<EssentialPath>;
 }
 
 /// PathResolverRepository manages a collection of path resolvers and provides path resolution services
@@ -44,7 +74,7 @@ impl PathResolverRepository {
     }
     
     /// Resolve an EssentialPath to a specific path implementation
-    pub fn resolve(&self, path: &EssentialPath) -> Result<Box<dyn Path>> {
+    pub fn resolve(&self, path: &EssentialPath) -> error::Result<PathEnum> {
         let namespace = path.namespace().as_str();
         
         // If namespace is empty or resolvers list is empty, use local resolver if available
@@ -52,8 +82,8 @@ impl PathResolverRepository {
             if let Some(local_resolver) = &self.local_resolver {
                 return local_resolver.resolve(path);
             } else {
-                return Err(Error::NotFound(
-                    "No local resolver registered".to_string()
+                return Err(error::Error::msg(
+                    format!("No local resolver registered")
                 ));
             }
         }
@@ -70,13 +100,13 @@ impl PathResolverRepository {
             return local_resolver.resolve(path);
         }
         
-        Err(Error::NotFound(
+        Err(error::Error::msg(
             format!("No resolver found for namespace: {}", namespace)
         ))
     }
     
     /// Convert a specific path implementation back to an EssentialPath
-    pub fn to_essential_path(&self, path: &dyn Path) -> Result<EssentialPath> {
+    pub fn to_essential_path(&self, path: &PathEnum) -> error::Result<EssentialPath> {
         // Try to find a resolver that can handle this path type
         for resolver in &self.resolvers {
             if let Ok(essential_path) = resolver.to_essential_path(path) {
@@ -89,8 +119,8 @@ impl PathResolverRepository {
             return local_resolver.to_essential_path(path);
         }
         
-        Err(Error::InvalidArgument(
-            "No resolver can convert this path".to_string()
+        Err(error::Error::msg(
+            format!("No resolver can convert this path")
         ))
     }
     
