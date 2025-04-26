@@ -104,6 +104,9 @@ pub trait Path: Debug + Clone {
     /// Returns None if the path cannot be represented as a local path
     fn to_local_path(&self) -> Option<Box<dyn LocalPath>>;
     
+    /// Convert this object to Any for downcasting
+    fn as_any(&self) -> &dyn std::any::Any where Self: 'static;
+    
     /// Check if this path starts with the specified path
     /// Returns true if this path starts with the given path (considering all components)
     fn starts_with(&self, other: &Self) -> bool {
@@ -875,5 +878,526 @@ mod tests {
         let mut path2 = DefaultPathComponents::from_string("../../a/b/c/../../d");
         path2.normalize();
         assert_eq!(path2.join(), "../../a/d");
+    }
+}
+
+//
+// EssentialPath Implementation
+//
+
+/// EssentialPath is the central path abstraction that can be converted to and from other path types.
+/// It serves as the common format for path representation across different backends.
+#[derive(Debug, Clone)]
+pub struct EssentialPath {
+    namespace: DefaultNamespace,
+    components: DefaultPathComponents,
+    is_absolute: bool,
+}
+
+impl EssentialPath {
+    /// Create a new empty EssentialPath
+    pub fn new() -> Self {
+        EssentialPath {
+            namespace: DefaultNamespace::from_string(""),
+            components: DefaultPathComponents::new(),
+            is_absolute: false,
+        }
+    }
+    
+    /// Create an EssentialPath from a string representation
+    pub fn from_string(path_str: &str) -> Result<Self> {
+        Self::parse(path_str)
+    }
+    
+    /// Convert this EssentialPath to a specific path type using a resolver
+    pub fn to_specific_path<T: Path>(&self, converter: &dyn PathConverter<T>) -> Result<T> {
+        converter.from_essential_path(self)
+    }
+}
+
+impl Path for EssentialPath {
+    type ComponentsType = DefaultPathComponents;
+    type NamespaceType = DefaultNamespace;
+    
+    fn new() -> Self {
+        EssentialPath::new()
+    }
+    
+    fn namespace(&self) -> &Self::NamespaceType {
+        &self.namespace
+    }
+    
+    fn namespace_mut(&mut self) -> &mut Self::NamespaceType {
+        &mut self.namespace
+    }
+    
+    fn components(&self) -> &Self::ComponentsType {
+        &self.components
+    }
+    
+    fn components_mut(&mut self) -> &mut Self::ComponentsType {
+        &mut self.components
+    }
+    
+    fn parse(path_str: &str) -> Result<Self> {
+        // Handle empty paths
+        if path_str.is_empty() {
+            return Ok(Self::new());
+        }
+        
+        let is_absolute = path_str.starts_with('/') || path_str.starts_with('\\');
+        
+        // Parse namespace and path components
+        let (namespace_str, path_part) = if path_str.contains(':') {
+            let parts: Vec<&str> = path_str.splitn(2, ':').collect();
+            (parts[0], parts.get(1).unwrap_or(&""))
+        } else {
+            ("", path_str)
+        };
+        
+        // Create the path components
+        let mut components = if is_absolute {
+            // Remove leading slash for absolute paths when parsing components
+            let path_without_slash = if path_part.starts_with('/') || path_part.starts_with('\\') {
+                &path_part[1..]
+            } else {
+                path_part
+            };
+            DefaultPathComponents::from_string(path_without_slash)
+        } else {
+            DefaultPathComponents::from_string(path_part)
+        };
+        
+        // Normalize the components
+        components.normalize();
+        
+        Ok(EssentialPath {
+            namespace: DefaultNamespace::from_string(namespace_str),
+            components,
+            is_absolute,
+        })
+    }
+    
+    fn to_string(&self) -> String {
+        let ns = if self.namespace.is_empty() {
+            String::new()
+        } else {
+            format!("{}:", self.namespace.as_str())
+        };
+        
+        let path = self.components.join();
+        
+        if self.is_absolute {
+            if path.is_empty() {
+                format!("{}/", ns)
+            } else {
+                format!("{}/{}", ns, path)
+            }
+        } else {
+            format!("{}{}", ns, path)
+        }
+    }
+    
+    fn join(&self, relative: &str) -> Result<Self> {
+        // Cannot join an absolute path to another path
+        if relative.starts_with('/') || relative.starts_with('\\') {
+            return Err(crate::core::error::Error::InvalidArgument(
+                "Cannot join an absolute path".to_string()
+            ));
+        }
+        
+        let rel_path = Self::parse(relative)?;
+        
+        // If rel_path has a namespace, it's a different path type
+        if !rel_path.namespace().is_empty() {
+            return Err(crate::core::error::Error::InvalidArgument(
+                "Cannot join paths with different namespaces".to_string()
+            ));
+        }
+        
+        let mut result = self.clone();
+        
+        // Add components from the relative path
+        for i in 0..rel_path.components().len() {
+            if let Some(component) = rel_path.components().get(i) {
+                result.components_mut().push(component);
+            }
+        }
+        
+        // Normalize the result
+        result.normalize();
+        
+        Ok(result)
+    }
+    
+    fn parent(&self) -> Option<Self> {
+        if self.components().is_empty() {
+            return None;
+        }
+        
+        let mut parent = self.clone();
+        parent.components_mut().pop();
+        Some(parent)
+    }
+    
+    fn file_name(&self) -> Option<String> {
+        if self.components().is_empty() {
+            None
+        } else {
+            self.components().get(self.components().len() - 1).map(|s| s.to_string())
+        }
+    }
+    
+    fn normalize(&mut self) {
+        self.components_mut().normalize();
+    }
+    
+    fn is_absolute(&self) -> bool {
+        self.is_absolute
+    }
+    
+    fn to_local_path(&self) -> Option<Box<dyn LocalPath>> {
+        // This would be implemented using the resolver repository
+        // For now, return None as we haven't implemented local paths yet
+        None
+    }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+//
+// Path Converter Trait
+//
+
+/// PathConverter provides conversion between EssentialPath and specific path types
+pub trait PathConverter<T: Path> {
+    /// Convert an EssentialPath to a specific path type
+    fn from_essential_path(&self, path: &EssentialPath) -> Result<T>;
+    
+    /// Convert a specific path type to an EssentialPath
+    fn to_essential_path(&self, path: &T) -> Result<EssentialPath>;
+}
+
+//
+// Path Resolver Repository
+//
+
+/// PathResolver is responsible for resolving and converting paths for a specific service or system
+pub trait PathResolver: Send + Sync {
+    /// Get the unique ID for this resolver
+    fn id(&self) -> &str;
+    
+    /// Check if this resolver can handle the given namespace
+    fn can_resolve(&self, namespace: &str) -> bool;
+    
+    /// Convert an EssentialPath to a specific implementation
+    fn resolve(&self, path: &EssentialPath) -> Result<Box<dyn Path>>;
+    
+    /// Convert a specific path implementation back to an EssentialPath
+    fn to_essential_path(&self, path: &dyn Path) -> Result<EssentialPath>;
+}
+
+/// PathResolverRepository manages a collection of path resolvers and provides path resolution services
+pub struct PathResolverRepository {
+    resolvers: Vec<Box<dyn PathResolver>>,
+    local_resolver: Option<Box<dyn PathResolver>>,
+}
+
+impl PathResolverRepository {
+    /// Create a new empty repository
+    pub fn new() -> Self {
+        PathResolverRepository {
+            resolvers: Vec::new(),
+            local_resolver: None,
+        }
+    }
+    
+    /// Register a new path resolver
+    pub fn register_resolver(&mut self, resolver: Box<dyn PathResolver>) {
+        self.resolvers.push(resolver);
+    }
+    
+    /// Set the local path resolver
+    pub fn set_local_resolver(&mut self, resolver: Box<dyn PathResolver>) {
+        self.local_resolver = Some(resolver);
+    }
+    
+    /// Resolve an EssentialPath to a specific path implementation
+    pub fn resolve(&self, path: &EssentialPath) -> Result<Box<dyn Path>> {
+        let namespace = path.namespace().as_str();
+        
+        // If namespace is empty or resolvers list is empty, use local resolver if available
+        if namespace.is_empty() || self.resolvers.is_empty() {
+            if let Some(local_resolver) = &self.local_resolver {
+                return local_resolver.resolve(path);
+            } else {
+                return Err(crate::core::error::Error::NotFound(
+                    "No local resolver registered".to_string()
+                ));
+            }
+        }
+        
+        // Find a resolver that can handle this namespace
+        for resolver in &self.resolvers {
+            if resolver.can_resolve(namespace) {
+                return resolver.resolve(path);
+            }
+        }
+        
+        // If no resolver found, try the local resolver as fallback
+        if let Some(local_resolver) = &self.local_resolver {
+            return local_resolver.resolve(path);
+        }
+        
+        Err(crate::core::error::Error::NotFound(
+            format!("No resolver found for namespace: {}", namespace)
+        ))
+    }
+    
+    /// Convert a specific path implementation back to an EssentialPath
+    pub fn to_essential_path(&self, path: &dyn Path) -> Result<EssentialPath> {
+        // Try to find a resolver that can handle this path type
+        for resolver in &self.resolvers {
+            if let Ok(essential_path) = resolver.to_essential_path(path) {
+                return Ok(essential_path);
+            }
+        }
+        
+        // Try local resolver as fallback
+        if let Some(local_resolver) = &self.local_resolver {
+            return local_resolver.to_essential_path(path);
+        }
+        
+        Err(crate::core::error::Error::InvalidArgument(
+            "No resolver can convert this path".to_string()
+        ))
+    }
+    
+    /// Get a resolver by ID
+    pub fn get_resolver(&self, id: &str) -> Option<&dyn PathResolver> {
+        for resolver in &self.resolvers {
+            if resolver.id() == id {
+                return Some(resolver.as_ref());
+            }
+        }
+        None
+    }
+}
+
+//
+// Tests for EssentialPath and PathResolverRepository
+//
+
+#[cfg(test)]
+mod essential_path_tests {
+    use super::*;
+    use std::any::Any;
+    
+    // Mock path type for testing
+    #[derive(Debug, Clone)]
+    struct MockServicePath {
+        account: String,
+        path: String,
+    }
+    
+    impl MockServicePath {
+        fn new(account: &str, path: &str) -> Self {
+            MockServicePath {
+                account: account.to_string(),
+                path: path.to_string(),
+            }
+        }
+    }
+    
+    impl Path for MockServicePath {
+        type ComponentsType = DefaultPathComponents;
+        type NamespaceType = DefaultNamespace;
+        
+        fn new() -> Self {
+            MockServicePath {
+                account: String::new(),
+                path: String::new(),
+            }
+        }
+        
+        fn namespace(&self) -> &Self::NamespaceType {
+            // This is a dummy implementation since we don't use these methods
+            unimplemented!("Not needed for test")
+        }
+        
+        fn namespace_mut(&mut self) -> &mut Self::NamespaceType {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn components(&self) -> &Self::ComponentsType {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn components_mut(&mut self) -> &mut Self::ComponentsType {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn parse(path_str: &str) -> Result<Self> {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn to_string(&self) -> String {
+            format!("{}:{}", self.account, self.path)
+        }
+        
+        fn join(&self, _relative: &str) -> Result<Self> {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn parent(&self) -> Option<Self> {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn file_name(&self) -> Option<String> {
+            unimplemented!("Not needed for test")
+        }
+        
+        fn normalize(&mut self) {
+            // No-op for test
+        }
+        
+        fn is_absolute(&self) -> bool {
+            self.path.starts_with('/')
+        }
+        
+        fn to_local_path(&self) -> Option<Box<dyn LocalPath>> {
+            None
+        }
+        
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+    }
+    
+    // Mock resolver for testing
+    struct MockServiceResolver {
+        service_id: String,
+        accounts: Vec<String>,
+    }
+    
+    impl MockServiceResolver {
+        fn new(service_id: &str, accounts: Vec<String>) -> Self {
+            MockServiceResolver {
+                service_id: service_id.to_string(),
+                accounts,
+            }
+        }
+    }
+    
+    impl PathResolver for MockServiceResolver {
+        fn id(&self) -> &str {
+            &self.service_id
+        }
+        
+        fn can_resolve(&self, namespace: &str) -> bool {
+            self.accounts.contains(&namespace.to_string())
+        }
+        
+        fn resolve(&self, path: &EssentialPath) -> Result<Box<dyn Path>> {
+            let namespace = path.namespace().as_str();
+            
+            if !self.can_resolve(namespace) {
+                return Err(crate::core::error::Error::InvalidArgument(
+                    format!("Account {} not supported by service {}", namespace, self.service_id)
+                ));
+            }
+            
+            let components_str = path.components().join();
+            let path_str = if path.is_absolute() {
+                format!("/{}", components_str)
+            } else {
+                components_str
+            };
+            
+            let service_path = MockServicePath::new(namespace, &path_str);
+            
+            // Box the service path as a Box<dyn Path>
+            Ok(Box::new(service_path))
+        }
+        
+        fn to_essential_path(&self, path: &dyn Path) -> Result<EssentialPath> {
+            // Try to downcast to MockServicePath
+            if let Some(service_path) = path.as_any().downcast_ref::<MockServicePath>() {
+                let path_str = if service_path.path.starts_with('/') {
+                    format!("{}:{}", service_path.account, service_path.path)
+                } else {
+                    format!("{}:{}", service_path.account, service_path.path)
+                };
+                
+                EssentialPath::parse(&path_str)
+            } else {
+                Err(crate::core::error::Error::InvalidArgument(
+                    "Path is not a MockServicePath".to_string()
+                ))
+            }
+        }
+    }
+    
+    #[test]
+    fn test_essential_path_parsing() {
+        // Test absolute path with namespace
+        let path1 = EssentialPath::parse("account1:/sales/report").unwrap();
+        assert_eq!(path1.namespace().as_str(), "account1");
+        assert_eq!(path1.components().get(0), Some("sales"));
+        assert_eq!(path1.components().get(1), Some("report"));
+        assert!(path1.is_absolute());
+        
+        // Test relative path with namespace
+        let path2 = EssentialPath::parse("account2:sales/forecast").unwrap();
+        assert_eq!(path2.namespace().as_str(), "account2");
+        assert_eq!(path2.components().get(0), Some("sales"));
+        assert_eq!(path2.components().get(1), Some("forecast"));
+        assert!(!path2.is_absolute());
+        
+        // Test absolute path without namespace
+        let path3 = EssentialPath::parse("/sales/invoice").unwrap();
+        assert_eq!(path3.namespace().as_str(), "");
+        assert_eq!(path3.components().get(0), Some("sales"));
+        assert_eq!(path3.components().get(1), Some("invoice"));
+        assert!(path3.is_absolute());
+        
+        // Test to_string
+        assert_eq!(path1.to_string(), "account1:/sales/report");
+        assert_eq!(path2.to_string(), "account2:sales/forecast");
+        assert_eq!(path3.to_string(), "/sales/invoice");
+    }
+    
+    #[test]
+    fn test_resolver_repository() {
+        // Create mock resolvers
+        let dropbox_resolver = MockServiceResolver::new(
+            "dropbox", 
+            vec!["account1".to_string(), "dropbox-user".to_string()]
+        );
+        
+        let onedrive_resolver = MockServiceResolver::new(
+            "onedrive",
+            vec!["account2".to_string(), "onedrive-user".to_string()]
+        );
+        
+        // Create repository and register resolvers
+        let mut repo = PathResolverRepository::new();
+        repo.register_resolver(Box::new(dropbox_resolver));
+        repo.register_resolver(Box::new(onedrive_resolver));
+        
+        // Test resolution
+        let path1 = EssentialPath::parse("account1:/sales/report").unwrap();
+        let resolved1 = repo.resolve(&path1).unwrap();
+        assert_eq!(resolved1.to_string(), "account1:/sales/report");
+        
+        let path2 = EssentialPath::parse("account2:/sales/forecast").unwrap();
+        let resolved2 = repo.resolve(&path2).unwrap();
+        assert_eq!(resolved2.to_string(), "account2:/sales/forecast");
+        
+        // Test unresolvable path
+        let path3 = EssentialPath::parse("unknown:/sales/document").unwrap();
+        assert!(repo.resolve(&path3).is_err());
     }
 } 
