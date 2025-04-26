@@ -29,8 +29,8 @@ pub use text::case::{Case, CaseConverter, CaseExt};
 
 // FS module
 pub use fs::{
-    Path, PathComponents, Namespace, LocalPath, LocalPathType,
-    PathProvider, create_local_path, default_path_type,
+    create_local_path, default_path_type, LocalPath, LocalPathType, Namespace,
+    Path, PathComponents, PathProvider,
 };
 
 // Time module
@@ -67,8 +67,8 @@ pub mod prelude {
     pub use crate::data::uniqueid::{IdFormatter, IdParser, IdTimestamp, IdVariant, IdVersion, UniqueId};
     pub use crate::data::version::Version;
     pub use crate::fs::{
-        Path, PathComponents, Namespace, LocalPath, LocalPathType,
-        PathProvider, create_local_path, default_path_type,
+        create_local_path, default_path_type, LocalPath, LocalPathType, Namespace,
+        Path, PathComponents, PathProvider,
     };
     pub use crate::i18n::{CldrDataFactory, LanguageId, LocaleDataProvider, LocaleId, RegionId};
     pub use crate::i18n::{MessageBundle, MessageFormat, MessageFormatter, MsgArgs, ResourceManager};

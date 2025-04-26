@@ -1,9 +1,9 @@
+use crate::core::error::Result;
 use std::fs;
 use std::path::Path;
-use crate::core::error::Result;
 
 /// Ensures that the specified folder exists, creating it and any parent folders if necessary.
-/// 
+///
 /// # Arguments
 ///
 /// * `folder` - The folder path to ensure exists

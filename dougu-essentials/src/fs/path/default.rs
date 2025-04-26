@@ -17,24 +17,24 @@ impl DefaultPathComponents {
             is_absolute: false,
         }
     }
-    
+
     /// Join all components with the specified delimiter
     pub fn join_with_separator(&self, separator: &str) -> String {
         self.components.join(separator)
     }
-    
+
     /// Set if this path is absolute
     pub fn set_absolute(&mut self, is_absolute: bool) {
         self.is_absolute = is_absolute;
     }
-    
+
     /// Check if this path is absolute
     pub fn is_absolute(&self) -> bool {
         self.is_absolute
     }
 
     /// Get an iterator over all components
-    pub fn all(&self) -> impl Iterator<Item = &str> {
+    pub fn all(&self) -> impl Iterator<Item=&str> {
         self.components.iter().map(|s| s.as_str())
     }
 }
@@ -75,7 +75,7 @@ impl PathComponents for DefaultPathComponents {
 
     fn normalize(&mut self) {
         let mut normalized = Vec::new();
-        
+
         for component in &self.components {
             match component.as_str() {
                 "." => continue, // Skip "." components
@@ -89,18 +89,18 @@ impl PathComponents for DefaultPathComponents {
                 _ => normalized.push(component.clone()),
             }
         }
-        
+
         self.components = normalized;
     }
 
     fn from_string(path: &str) -> Self {
         let delimiter = if path.contains('\\') { '\\' } else { '/' };
-        
+
         let components = path.split(delimiter)
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
             .collect();
-            
+
         DefaultPathComponents {
             components,
             delimiter,
@@ -120,7 +120,7 @@ impl DefaultNamespace {
     pub fn new(value: String) -> Self {
         DefaultNamespace { value }
     }
-    
+
     /// Set the namespace value
     pub fn set(&mut self, value: &str) {
         self.value = value.to_string();

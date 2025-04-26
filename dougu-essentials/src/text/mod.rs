@@ -5,3 +5,4 @@ pub mod encoding;
 pub use case::Case;
 pub use encoding::{Encoding, EncodingConverter, EncodingExt};
 
+
