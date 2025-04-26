@@ -150,7 +150,7 @@ pub struct PathCredentials {
 
 /// LocalPath is a specialized path implementation for local file systems.
 /// It supports different local path types (POSIX, Windows, Windows UNC).
-pub trait LocalPath: Path {
+pub trait LocalPath: Path + Send + Sync {
     /// Get the path type of this local path
     fn path_type(&self) -> LocalPathType;
 

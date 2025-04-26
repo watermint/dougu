@@ -1,7 +1,10 @@
-mod core;
-mod default;
+// This module is responsible for handling file paths in a way that's
+// compatible with different file systems, both local and remote.
+
+pub mod core;
+pub mod local;
 mod essential;
-mod local;
+pub mod default;
 mod resolver;
 mod utils;
 

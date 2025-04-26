@@ -6,7 +6,7 @@ use super::local::LocalPath;
 
 /// PathComponents represents the parts of a path separated by delimiters.
 /// This abstraction allows for path normalization across different systems.
-pub trait PathComponents: Debug + Clone {
+pub trait PathComponents: Debug + Clone + Send + Sync {
     /// Create a new empty set of components
     fn new() -> Self;
 
@@ -41,7 +41,7 @@ pub trait PathComponents: Debug + Clone {
 /// - Server name for network paths (\\server)
 /// - Connection name or namespace ID for cloud storage
 /// - Service identifiers for pseudo file systems
-pub trait Namespace: Debug + Clone {
+pub trait Namespace: Debug + Clone + Send + Sync {
     /// Get the string representation of this namespace
     fn as_str(&self) -> &str;
 
@@ -54,7 +54,7 @@ pub trait Namespace: Debug + Clone {
 
 /// Path is an abstract representation of a path across different file systems.
 /// It contains a namespace and components, allowing for consistent path manipulation.
-pub trait Path: Debug {
+pub trait Path: Debug + Send + Sync {
     type ComponentsType: PathComponents;
     type NamespaceType: Namespace;
 
@@ -257,4 +257,132 @@ pub trait PathProvider {
 
     /// Get a unique identifier for this path provider (e.g., "local", "dropbox", "jira")
     fn provider_id(&self) -> &str;
+}
+
+/// Implementation of Path for boxed Path objects
+/// This allows Box<dyn Path> to be used in places that require Path trait
+impl<C: PathComponents + 'static, N: Namespace + 'static> Path for Box<dyn Path<ComponentsType=C, NamespaceType=N> + 'static> {
+    type ComponentsType = C;
+    type NamespaceType = N;
+
+    fn new() -> Self {
+        panic!("Cannot directly construct a Box<dyn Path>")
+    }
+
+    fn namespace(&self) -> &Self::NamespaceType {
+        (**self).namespace()
+    }
+
+    fn namespace_mut(&mut self) -> &mut Self::NamespaceType {
+        (**self).namespace_mut()
+    }
+
+    fn components(&self) -> &Self::ComponentsType {
+        (**self).components()
+    }
+
+    fn components_mut(&mut self) -> &mut Self::ComponentsType {
+        (**self).components_mut()
+    }
+
+    fn parse(_path_str: &str) -> Result<Self> {
+        panic!("Cannot directly parse to a Box<dyn Path>")
+    }
+
+    fn to_string(&self) -> String {
+        (**self).to_string()
+    }
+
+    fn join(&self, relative: &str) -> Result<Self> {
+        // We can't directly implement join for Box<dyn Path> because we'd need to
+        // know the concrete type to construct a new one
+        Err(crate::core::error::Error::msg("Cannot directly join paths for Box<dyn Path>"))
+    }
+
+    fn parent(&self) -> Option<Self> {
+        // Similarly, we can't implement parent for Box<dyn Path>
+        None
+    }
+
+    fn file_name(&self) -> Option<String> {
+        (**self).file_name()
+    }
+
+    fn normalize(&mut self) {
+        (**self).normalize()
+    }
+
+    fn is_absolute(&self) -> bool {
+        (**self).is_absolute()
+    }
+
+    fn to_local_path(&self) -> Option<Box<dyn LocalPath<ComponentsType=Self::ComponentsType, NamespaceType=Self::NamespaceType>>> {
+        (**self).to_local_path()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+// Add implementation of Path for Box<dyn LocalPath>
+impl<C: PathComponents + 'static, N: Namespace + 'static> Path for Box<dyn super::local::LocalPath<ComponentsType=C, NamespaceType=N> + 'static> {
+    type ComponentsType = C;
+    type NamespaceType = N;
+
+    fn new() -> Self {
+        panic!("Cannot create a new Box<dyn LocalPath> directly. Use a concrete implementation.")
+    }
+
+    fn namespace(&self) -> &Self::NamespaceType {
+        (**self).namespace()
+    }
+
+    fn namespace_mut(&mut self) -> &mut Self::NamespaceType {
+        (**self).namespace_mut()
+    }
+
+    fn components(&self) -> &Self::ComponentsType {
+        (**self).components()
+    }
+
+    fn components_mut(&mut self) -> &mut Self::ComponentsType {
+        (**self).components_mut()
+    }
+
+    fn parse(_path_str: &str) -> Result<Self> {
+        Err(crate::core::error::Error::msg("Cannot parse directly to Box<dyn LocalPath>. Use a concrete implementation."))
+    }
+
+    fn to_string(&self) -> String {
+        (**self).to_string()
+    }
+
+    fn join(&self, relative: &str) -> Result<Self> {
+        Err(crate::core::error::Error::msg("Cannot join paths with Box<dyn LocalPath>. Use a concrete implementation."))
+    }
+
+    fn parent(&self) -> Option<Self> {
+        None // Cannot create a new Box<dyn LocalPath> this way
+    }
+
+    fn file_name(&self) -> Option<String> {
+        (**self).file_name()
+    }
+
+    fn normalize(&mut self) {
+        (**self).normalize()
+    }
+
+    fn is_absolute(&self) -> bool {
+        (**self).is_absolute()
+    }
+
+    fn to_local_path(&self) -> Option<Box<dyn super::local::LocalPath<ComponentsType=Self::ComponentsType, NamespaceType=Self::NamespaceType>>> {
+        Some(self.clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
+    }
 } 

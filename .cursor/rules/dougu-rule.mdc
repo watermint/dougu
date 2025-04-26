@@ -23,3 +23,4 @@ When implementing modules under `dougu-essentials`, please be careful not to exp
 * Use `dougu-essentials::obj` instead of serde, serde_json
 * Use `dougu-essentials::i18n` for any i18n/l10n related process
 * Use `dougu-essentials::log` for logging
+* `dougu-essentials::fs` contains local file system, publicly defined protocols such as (S)FTP, CIFS/SMB, NFS, and WebDAV. This module must not have concrete implementations for cloud services such as Dropbox or S3. But have documentations for each file system knowledge which used to define interfaces.

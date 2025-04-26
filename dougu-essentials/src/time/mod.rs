@@ -12,6 +12,11 @@ use chrono::{DateTime, Datelike, Duration as ChronoDuration, Local, NaiveDate, N
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Converts a SystemTime to a ZonedDateTime
+pub fn system_time_to_zoned_date_time(time: SystemTime) -> ZonedDateTime {
+    ZonedDateTime::from_system_time(time)
+}
+
 // NOTE: This module uses chrono internally for date/time handling,
 // but all public interfaces should use our own wrapper types.
 // No chrono types should be exposed in the public API.
@@ -351,6 +356,35 @@ impl ZonedDateTime {
             .single()
             .map(|dt| Self { inner: dt })
             .ok_or_else(|| TimeError::InvalidUnixTimestamp(format!("Invalid Unix timestamp: {}.{}", seconds, nanos)))
+    }
+
+    /// Creates a new ZonedDateTime from a Unix timestamp in milliseconds
+    pub fn of_unix_millis(millis: i64) -> Result<Self, TimeError> {
+        let seconds = millis / 1000;
+        let nanos = ((millis % 1000) * 1_000_000) as u32;
+        Self::of_unix_nanos(seconds, nanos)
+    }
+
+    /// Creates a new ZonedDateTime from a std::time::SystemTime
+    pub fn from_system_time(time: std::time::SystemTime) -> Self {
+        match time.duration_since(std::time::UNIX_EPOCH) {
+            Ok(duration) => {
+                let seconds = duration.as_secs() as i64;
+                let nanos = duration.subsec_nanos();
+                Self::of_unix_nanos(seconds, nanos).unwrap_or_else(|_| Self::now())
+            },
+            Err(_) => {
+                // Handle times before the epoch
+                match std::time::UNIX_EPOCH.duration_since(time) {
+                    Ok(duration) => {
+                        let seconds = -(duration.as_secs() as i64);
+                        let nanos = duration.subsec_nanos();
+                        Self::of_unix_nanos(seconds, nanos).unwrap_or_else(|_| Self::now())
+                    },
+                    Err(_) => Self::now(),
+                }
+            }
+        }
     }
 
     /// Returns the Unix timestamp (seconds since epoch)
