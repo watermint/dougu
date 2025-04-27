@@ -1,0 +1,62 @@
+[package]
+name = "dougu-essentials"
+version = "1.0.0"
+edition = "2024"
+description = "dougu-essential is a collection of basic libraries and wrapper of dependent libraries. Minimize impact of changes in supply chain"
+license = "Apache-2.0"
+authors = ["Takayuki Okazaki <watermint@users.noreply.github.com>"]
+repository = "https://github.com/watermint/dougu"
+publish = false
+
+[dependencies]
+anyhow = "1.0.98"
+async-trait = "0.1.88"
+base64 = "0.22.1"
+chrono = "0.4"
+clap = "4.5"
+encoding_rs = "0.8.33"
+env_logger = "0.10"
+hex = "0.4"
+log = "0.4.27"
+md5 = "0.7.0"
+once_cell = "1.21"
+quick-xml = { version = "0.35.0", features = ["serialize"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_bytes = "0.11.17"
+serde_json = "1.0.140"
+serde_yaml = "0.9.34"
+sha2 = "0.10.8"
+tokio = { version = "1.44.2", features = ["full"] }
+toml = "0.8.20"
+uuid = { version = "1.16", features = ["serde"] }
+walkdir = "2.5"
+ulid = "1.2.1"
+
+ciborium = "0.2.2"
+bson = "2.14.0"
+thiserror = "1.0"
+num-bigint = "0.4"
+bigdecimal = { version = "0.4", features = ["serde"] }
+num-traits = "0.2"
+
+# ICU4X dependencies
+icu = { version = "1.5.0", features = ["std", "serde"] }
+icu_calendar = "1.5.2"
+icu_collator = "1.5.0"
+icu_datetime = "1.5.1"
+icu_locid = "1.5.0"
+icu_plurals = "1.5.0"
+icu_provider = "1.5.0"
+icu_provider_fs = "1.5.0"
+icu_decimal = "1.5.0"
+icu_provider_adapters = "1.5.0"
+fixed_decimal = "0.5.6"
+
+# Fluent i18n dependencies
+fluent = "0.15.0"
+fluent-bundle = "0.15.2"
+unic-langid = "0.9.1"
+
+[dev-dependencies]
+serial_test = "3.2.0"
+tempfile = "3.19"

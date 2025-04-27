@@ -1,20 +1,11 @@
 [workspace]
 members = [
-    "dougu",
-    "dougu-essentials-logger",
-    "dougu-essentials-i18n",
-    "dougu-domain-dropbox",
-    "dougu-command-file",
-    "dougu-command-dropbox",
+    "dougu-app",
+    "dougu-essentials",
+    "dougu-foundation",
+    "dougu-bridge",
+    "dougu-actions",
+    "dougu-domain"
 ]
-resolver = "3"
+resolver = "2"
 
-[workspace.dependencies]
-clap = { version = "4.4", features = ["derive"] }
-env_logger = "0.10"
-log = "0.4"
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.33", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] } 

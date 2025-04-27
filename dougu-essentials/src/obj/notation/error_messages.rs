@@ -1,0 +1,1 @@
+pub const XML_PARSING_ERROR: &str = "Failed to parse XML document"; 

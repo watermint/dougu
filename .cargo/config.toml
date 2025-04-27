@@ -1,0 +1,3 @@
+# Environment variables for the build
+[env]
+# All environment variables have been moved to appropriate crates 

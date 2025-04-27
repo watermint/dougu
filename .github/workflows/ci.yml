@@ -2,10 +2,61 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ current ]
   pull_request:
-    branches: [main]
+    branches: [ current ]
 
 jobs:
   build-test:
-    uses: ./resources/ci-build-test-template.yml 
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test --workspace --all-targets
+
+      - name: Build
+        id: build
+        shell: bash
+        run: |
+          cargo build --workspace --release
+          
+          # # Pack artifact
+          # - name: Pack artifact
+          #   id: pack_artifact
+          #   shell: bash
+          #   run: |
+          #     # Create output directory
+          #     mkdir -p target/dist
+          
+          #     # Let build pack command verify the executable and create artifact info files
+          #     ./target/release/dougu --ui-skip-appinfo build pack \
+          #       --output-dir target/dist \
+          #       --cargo-output build_output.json \
+          #       --ui-format jsonl
+          
+          #     # Read the artifact information from the plain text files
+          #     ARTIFACT_PATH=$(cat target/dist/artifact_path)
+          #     ARTIFACT_NAME=$(cat target/dist/artifact_name)
+          
+          #     echo "ARTIFACT_PATH: $ARTIFACT_PATH"
+          #     echo "ARTIFACT_NAME: $ARTIFACT_NAME"
+
+      #     echo "artifact_path=$ARTIFACT_PATH" >> $GITHUB_OUTPUT
+      #     echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+      
+      # # Upload artifact
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ steps.pack_artifact.outputs.artifact_name }}
+      #     path: target/dist/${{ steps.pack_artifact.outputs.artifact_path }} 
