@@ -17,7 +17,6 @@ pub mod entry;
 pub mod provider;
 pub mod capability;
 pub mod local;
-pub mod versioning;
 pub mod cloud;
 
 // Re-export path types for easier access
@@ -35,20 +34,13 @@ pub use capability::{Capability, CapabilitySet};
 
 // Re-export entry types
 pub use entry::{
-    Entry, EntryMetadata, EntryType, FileEntry, FileStatus, FolderEntry,
+    Entry, EntryMetadata, EntryType, FileEntry, FolderEntry,
     ReadWriteFile, ReadableFile, WritableFile,
 };
 
 // Re-export provider types
 pub use provider::{
     FileSystemProvider, FileSystemProviderRepository,
-};
-
-// Re-export versioning types
-pub use versioning::{
-    ContentHashProvider, VersionProvider, VersionInfo,
-    HashAlgorithm, HashSource,
-    LocalContentHashProvider, LocalVersionProvider,
 };
 
 // Re-export local file system implementations

@@ -1,11 +1,10 @@
 use crate::core::error::{Error, Result};
-use crate::fs::capability::{Capability, CapabilitySet, ContentHashCapability};
-use crate::fs::entry::{Entry, EntryMetadata, EntryType, FileEntry, FileStatus, FolderEntry, ReadWriteFile, ReadableFile, WritableFile};
+use crate::fs::capability::{Capability, CapabilitySet};
+use crate::fs::entry::{Entry, EntryMetadata, EntryType, FileEntry, FolderEntry, ReadWriteFile, ReadableFile, WritableFile};
 use crate::fs::path::core::{Namespace, Path, PathComponents};
 use crate::fs::path::default::{DefaultNamespace, DefaultPathComponents};
 use crate::fs::path::local::{LocalPath, LocalPathType};
 use crate::fs::provider::FileSystemProvider;
-use crate::fs::versioning::{ContentHashProvider, LocalContentHashProvider, HashAlgorithm, HashSource};
 use crate::time::ZonedDateTime;
 use std::fmt::Debug;
 use std::fs::{self, File, OpenOptions};
@@ -97,31 +96,6 @@ impl EntryMetadata for LocalEntryMetadata {
                 .map(|name| name.starts_with('.'))
                 .unwrap_or(false)
         }
-    }
-
-    fn content_hash(&self) -> Option<String> {
-        // Use a hash provider to compute the hash
-        let provider = LocalContentHashProvider::new();
-        match provider.compute_hash(&self.path, HashAlgorithm::SHA256, HashSource::WholeFile) {
-            Ok(hash) => Some(hash),
-            Err(_) => None,
-        }
-    }
-
-    fn version_id(&self) -> Option<String> {
-        // Local file system doesn't have version IDs
-        None
-    }
-
-    // Implement new FileStatus-related methods
-    fn status(&self) -> FileStatus {
-        // Local file system only has active files; if deleted they're gone
-        FileStatus::Active
-    }
-    
-    fn deleted_time(&self) -> Option<ZonedDateTime> {
-        // Local file system doesn't track deletion time
-        None
     }
 }
 
@@ -267,33 +241,14 @@ impl crate::fs::entry::Entry for LocalEntry {
     fn path(&self) -> &Self::PathType {
         &self.path
     }
-
+    
     fn metadata(&self) -> Result<Self::MetadataType> {
-        Ok(LocalEntryMetadata::new(self.std_path(), std::fs::metadata(self.std_path())?))
+        let metadata = std::fs::metadata(self.std_path())?;
+        Ok(LocalEntryMetadata::new(self.std_path(), metadata))
     }
-
+    
     fn exists(&self) -> Result<bool> {
         Ok(self.std_path().exists())
-    }
-
-    fn status(&self) -> FileStatus {
-        // Local file system only has active files; if deleted they're gone
-        FileStatus::Active
-    }
-
-    fn permanently_delete(&self) -> Result<()> {
-        // Just perform a regular delete, as the local file system doesn't have a trash concept
-        if self.std_path().is_dir() {
-            std::fs::remove_dir(self.std_path())?;
-        } else {
-            std::fs::remove_file(self.std_path())?;
-        }
-        Ok(())
-    }
-
-    fn restore(&self) -> Result<()> {
-        // Local file system doesn't have a trash bin concept, so restoration is not possible
-        Err(crate::core::error::Error::msg("Cannot restore files on local file system"))
     }
 }
 
@@ -319,25 +274,13 @@ impl crate::fs::entry::Entry for LocalFileEntry {
     fn path(&self) -> &Self::PathType {
         self.entry.path()
     }
-
+    
     fn metadata(&self) -> Result<Self::MetadataType> {
         self.entry.metadata()
     }
-
+    
     fn exists(&self) -> Result<bool> {
         self.entry.exists()
-    }
-
-    fn status(&self) -> FileStatus {
-        self.entry.status()
-    }
-
-    fn permanently_delete(&self) -> Result<()> {
-        self.entry.permanently_delete()
-    }
-
-    fn restore(&self) -> Result<()> {
-        self.entry.restore()
     }
 }
 
@@ -390,13 +333,10 @@ impl FileEntry for LocalFileEntry {
     fn parent_folder(&self) -> Option<Box<dyn FolderEntry<PathType=Self::PathType, MetadataType=Self::MetadataType>>> {
         let std_path = self.entry.std_path();
         std_path.parent().map(|parent| {
-            let local_path = crate::fs::create_local_path(parent.to_string_lossy().as_ref()).unwrap();
-            Box::new(LocalFolderEntry::new(local_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>
+            let path_enum = crate::fs::create_local_path(parent.to_string_lossy().as_ref()).unwrap();
+            let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+            Box::new(LocalFolderEntry::new(boxed_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>
         })
-    }
-    
-    fn create_shared_link(&self) -> Result<Option<String>> {
-        Ok(None)
     }
 
     fn copy_to(&self, destination: &dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>) -> Result<()> {
@@ -434,160 +374,116 @@ impl crate::fs::entry::Entry for LocalFolderEntry {
     fn path(&self) -> &Self::PathType {
         self.entry.path()
     }
-
+    
     fn metadata(&self) -> Result<Self::MetadataType> {
         self.entry.metadata()
     }
-
+    
     fn exists(&self) -> Result<bool> {
         self.entry.exists()
-    }
-
-    fn status(&self) -> FileStatus {
-        self.entry.status()
-    }
-
-    fn permanently_delete(&self) -> Result<()> {
-        self.entry.permanently_delete()
-    }
-
-    fn restore(&self) -> Result<()> {
-        self.entry.restore()
     }
 }
 
 impl FolderEntry for LocalFolderEntry {
     fn list_entries(&self) -> Result<Vec<Box<dyn crate::fs::entry::Entry<PathType = Self::PathType, MetadataType = Self::MetadataType>>>> {
         let mut entries = Vec::new();
-        let dir_path = self.entry.std_path();
-
-        for entry in fs::read_dir(dir_path)? {
+        for entry in std::fs::read_dir(self.entry.std_path())? {
             let entry = entry?;
             let path = entry.path();
-            let local_path = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
-            
-            entries.push(Box::new(LocalEntry::new(local_path)) as Box<dyn crate::fs::entry::Entry<PathType = Self::PathType, MetadataType = Self::MetadataType>>);
+            let path_enum = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
+            let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+            entries.push(Box::new(LocalEntry::new(boxed_path)) as Box<dyn crate::fs::entry::Entry<PathType = Self::PathType, MetadataType = Self::MetadataType>>);
         }
-
         Ok(entries)
     }
-
+    
     fn list_files(&self) -> Result<Vec<Box<dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>>> {
         let mut files = Vec::new();
-        let dir_path = self.entry.std_path();
-
-        for entry in fs::read_dir(dir_path)? {
+        for entry in std::fs::read_dir(self.entry.std_path())? {
             let entry = entry?;
             let path = entry.path();
-            
             if path.is_file() {
-                let local_path = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
-                files.push(Box::new(LocalFileEntry::new(local_path)) as Box<dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>);
+                let path_enum = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
+                let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+                files.push(Box::new(LocalFileEntry::new(boxed_path)) as Box<dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>);
             }
         }
-
         Ok(files)
     }
-
+    
     fn list_folders(&self) -> Result<Vec<Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>>> {
         let mut folders = Vec::new();
-        let dir_path = self.entry.std_path();
-
-        for entry in fs::read_dir(dir_path)? {
+        for entry in std::fs::read_dir(self.entry.std_path())? {
             let entry = entry?;
             let path = entry.path();
-            
             if path.is_dir() {
-                let local_path = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
-                folders.push(Box::new(LocalFolderEntry::new(local_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>);
+                let path_enum = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
+                let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+                folders.push(Box::new(LocalFolderEntry::new(boxed_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>);
             }
         }
-
         Ok(folders)
     }
-
+    
     fn create(&self) -> Result<()> {
-        fs::create_dir(self.entry.std_path())?;
+        std::fs::create_dir(self.entry.std_path())?;
         Ok(())
     }
-
+    
     fn create_recursive(&self) -> Result<()> {
-        fs::create_dir_all(self.entry.std_path())?;
+        std::fs::create_dir_all(self.entry.std_path())?;
         Ok(())
     }
-
+    
     fn delete(&self) -> Result<()> {
-        fs::remove_dir(self.entry.std_path())?;
+        std::fs::remove_dir(self.entry.std_path())?;
         Ok(())
     }
-
+    
     fn delete_recursive(&self) -> Result<()> {
-        fs::remove_dir_all(self.entry.std_path())?;
+        std::fs::remove_dir_all(self.entry.std_path())?;
         Ok(())
     }
-
+    
     fn parent(&self) -> Option<Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>> {
         let std_path = self.entry.std_path();
         std_path.parent().map(|parent| {
-            let local_path = crate::fs::create_local_path(parent.to_string_lossy().as_ref()).unwrap();
-            Box::new(LocalFolderEntry::new(local_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>
+            let path_enum = crate::fs::create_local_path(parent.to_string_lossy().as_ref()).unwrap();
+            let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+            Box::new(LocalFolderEntry::new(boxed_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>
         })
     }
-
+    
     fn get_file(&self, name: &str) -> Result<Box<dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>> {
-        let file_path = self.entry.std_path().join(name);
-        if !file_path.exists() {
-            return Err(Error::msg(format!("File does not exist: {}", file_path.display())));
+        let mut path = self.entry.std_path();
+        path.push(name);
+        
+        if !path.exists() {
+            return Err(Error::msg(format!("File {} does not exist", path.display())));
         }
-        if !file_path.is_file() {
-            return Err(Error::msg(format!("Path is not a file: {}", file_path.display())));
+        if !path.is_file() {
+            return Err(Error::msg(format!("{} is not a file", path.display())));
         }
         
-        let local_path = crate::fs::create_local_path(file_path.to_string_lossy().as_ref())?;
-        Ok(Box::new(LocalFileEntry::new(local_path)) as Box<dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>)
+        let path_enum = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(Box::new(LocalFileEntry::new(boxed_path)) as Box<dyn FileEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>)
     }
-
+    
     fn get_folder(&self, name: &str) -> Result<Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>> {
-        let folder_path = self.entry.std_path().join(name);
-        if !folder_path.exists() {
-            return Err(Error::msg(format!("Folder does not exist: {}", folder_path.display())));
+        let mut path = self.entry.std_path();
+        path.push(name);
+        
+        if !path.exists() {
+            return Err(Error::msg(format!("Folder {} does not exist", path.display())));
         }
-        if !folder_path.is_dir() {
-            return Err(Error::msg(format!("Path is not a folder: {}", folder_path.display())));
+        if !path.is_dir() {
+            return Err(Error::msg(format!("{} is not a folder", path.display())));
         }
         
-        let local_path = crate::fs::create_local_path(folder_path.to_string_lossy().as_ref())?;
-        Ok(Box::new(LocalFolderEntry::new(local_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>)
-    }
-
-    fn create_shared_link(&self) -> Result<Option<String>> {
-        Ok(None)
-    }
-
-    // Implement new methods for deleted files
-    fn list_deleted_entries(&self) -> Result<Vec<Box<dyn crate::fs::entry::Entry<PathType = Self::PathType, MetadataType = Self::MetadataType>>>> {
-        // Local file system doesn't have a trash or recycle bin concept at API level
-        Err(Error::msg("Local file system doesn't support listing deleted entries"))
-    }
-    
-    fn permanently_delete(&self) -> Result<()> {
-        // For local folders, regular delete is already permanent
-        self.delete()
-    }
-    
-    fn permanently_delete_recursive(&self) -> Result<()> {
-        // For local folders, regular delete_recursive is already permanent
-        self.delete_recursive()
-    }
-    
-    fn restore(&self) -> Result<()> {
-        // Local filesystem doesn't support restoring deleted folders
-        Err(Error::msg("Restore not supported on local file system"))
-    }
-    
-    fn empty_trash(&self) -> Result<()> {
-        // Local filesystem doesn't have a trash concept at API level
-        Err(Error::msg("Empty trash not supported on local file system"))
+        let path_enum = crate::fs::create_local_path(path.to_string_lossy().as_ref())?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(Box::new(LocalFolderEntry::new(boxed_path)) as Box<dyn FolderEntry<PathType = Self::PathType, MetadataType = Self::MetadataType>>)
     }
 }
 
@@ -611,16 +507,6 @@ impl LocalFileSystemProvider {
         capabilities.add(Capability::List);
         capabilities.add(Capability::Metadata);
         capabilities.add(Capability::Stream);
-        capabilities.add(Capability::ContentHash);
-        
-        // Add content hash capabilities
-        capabilities.add_content_hash_capability(ContentHashCapability::SHA256Whole);
-        capabilities.add_content_hash_capability(ContentHashCapability::SHA256Blocks {
-            provider: "local",
-            block_size: Some(4 * 1024 * 1024), // 4MB blocks
-        });
-        capabilities.add_content_hash_capability(ContentHashCapability::MD5Whole);
-        capabilities.add_content_hash_capability(ContentHashCapability::Verification);
         
         Self { capabilities }
     }
@@ -652,27 +538,41 @@ impl FileSystemProvider for LocalFileSystemProvider {
     }
 
     fn create_file_entry(&self, path: &Self::PathType) -> Result<Self::FileEntryType> {
-        Ok(LocalFileEntry::new(path.clone()))
+        // Since we can't clone Box<dyn LocalPath>, we'll create a new path from the string representation
+        let path_str = path.to_string();
+        let path_enum = crate::fs::create_local_path(&path_str)?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(LocalFileEntry::new(boxed_path))
     }
 
     fn create_folder_entry(&self, path: &Self::PathType) -> Result<Self::FolderEntryType> {
-        Ok(LocalFolderEntry::new(path.clone()))
+        // Since we can't clone Box<dyn LocalPath>, we'll create a new path from the string representation
+        let path_str = path.to_string();
+        let path_enum = crate::fs::create_local_path(&path_str)?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(LocalFolderEntry::new(boxed_path))
     }
 
     fn get_entry(&self, path: &Self::PathType) -> Result<Self::EntryType> {
-        Ok(LocalEntry::new(path.clone()))
+        // Since we can't clone Box<dyn LocalPath>, we'll create a new path from the string representation
+        let path_str = path.to_string();
+        let path_enum = crate::fs::create_local_path(&path_str)?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(LocalEntry::new(boxed_path))
     }
 
     fn get_root_folder(&self) -> Result<Self::FolderEntryType> {
         // For local file system, we use the current directory as the root
         let current_dir = std::env::current_dir()?;
-        let local_path = crate::fs::create_local_path(current_dir.to_string_lossy().as_ref())?;
-        Ok(LocalFolderEntry::new(local_path))
+        let path_enum = crate::fs::create_local_path(current_dir.to_string_lossy().as_ref())?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(LocalFolderEntry::new(boxed_path))
     }
 
     fn from_local_path(&self, local_path: &str) -> Result<Option<Self::PathType>> {
-        let path = crate::fs::create_local_path(local_path)?;
-        Ok(Some(path))
+        let path_enum = crate::fs::create_local_path(local_path)?;
+        let boxed_path = crate::fs::path::path_enum_to_boxed_local_path(path_enum);
+        Ok(Some(boxed_path))
     }
 
     fn copy(
@@ -707,29 +607,22 @@ impl FileSystemProvider for LocalFileSystemProvider {
     }
 
     fn delete(&self, path: &Self::PathType, recursive: bool) -> Result<()> {
-        let std_path = path.to_std_path();
-        
-        if std_path.is_file() {
-            fs::remove_file(std_path)?;
-        } else if std_path.is_dir() {
+        let std_path = path.to_string();
+        if std::path::Path::new(&std_path).is_dir() {
             if recursive {
-                fs::remove_dir_all(std_path)?;
+                std::fs::remove_dir_all(std_path)?;
             } else {
-                fs::remove_dir(std_path)?;
+                std::fs::remove_dir(std_path)?;
             }
+        } else {
+            std::fs::remove_file(std_path)?;
         }
-        
         Ok(())
     }
 
-    fn create_shared_link(&self, _path: &Self::PathType) -> Result<Option<String>> {
-        // Local file systems don't support share links by default
-        Ok(None)
-    }
-
     fn get_metadata(&self, path: &Self::PathType) -> Result<Self::MetadataType> {
-        let std_path = path.to_std_path();
-        let metadata = fs::metadata(&std_path)?;
+        let std_path = std::path::PathBuf::from(path.to_string());
+        let metadata = std::fs::metadata(&std_path)?;
         Ok(LocalEntryMetadata::new(std_path, metadata))
     }
 }

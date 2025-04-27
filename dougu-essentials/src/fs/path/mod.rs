@@ -6,7 +6,7 @@ pub mod local;
 mod essential;
 pub mod default;
 mod resolver;
-mod utils;
+pub mod utils;
 
 #[cfg(test)]
 mod tests;

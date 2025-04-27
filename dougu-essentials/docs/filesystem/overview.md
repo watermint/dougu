@@ -17,9 +17,6 @@ The abstraction is built around the concept of "entries" which can be either fil
 File entries can exist in different states across providers:
 
 - `Active`: Normal, accessible files
-- `Deleted`: Files in trash/recycle bin that can be restored
-- `PendingDeletion`: Files marked for deletion but not yet processed
-- `PermanentlyDeleted`: Files that have been permanently removed
 
 ### Protocol Types
 
@@ -45,7 +42,7 @@ The abstraction uses a structured provider identification system through the `Pr
 
 - **Categorization**
   - `category`: Provider category (e.g., "cloud_storage_service", "local_file_system")
-  - `tags`: Collection of feature tags (e.g., "sharing", "versioning", "enterprise")
+  - `tags`: Collection of feature tags (e.g., "enterprise")
 
 - **Documentation**
   - `website_url`: Link to the provider's website or documentation
@@ -60,26 +57,10 @@ This flexible identification system allows specific provider implementations to 
 The abstraction uses a capability-based approach to describe what features are supported by each file system:
 
 - `Capability`: Basic file system operations (read, write, delete, etc.)
-- `SharedFolderCapability`: Features specific to shared folders
-- `ShareLinkCapability`: Features for sharing links/URLs
-- `VersioningCapability`: Features for file versioning systems
 - `ContentHashCapability`: Features for content integrity verification
 - `WebDAVCapability`: Features specific to WebDAV protocol
 - `FTPSFTPCapability`: Features specific to FTP/SFTP protocols
 - `CloudStorageCapability`: Features specific to cloud object storage services
-
-#### Trash Management Capabilities
-
-The file system abstraction provides specialized capabilities for trash/recycle bin operations:
-
-- `TrashManagement`: Basic trash functionality
-- `PermanentDeletion`: Support for bypassing or removing from trash
-- `FileRestoration`: Support for restoring files from trash
-- `EmptyTrash`: Support for emptying the entire trash
-- `ListTrash`: Support for listing deleted items
-- `TrashMetadata`: Support for metadata about deleted items
-
-These capabilities allow applications to programmatically handle the entire lifecycle of files, including proper trash management according to each provider's implementation. See the provider-specific documentation for detailed implementation information.
 
 #### Protocol-Specific Capabilities
 
@@ -112,9 +93,9 @@ In addition to general capabilities, the abstraction provides protocol-specific 
 
 This abstraction supports multiple file system providers, each with their own implementation details:
 
-- [Dropbox](./dropbox.md): Block-based storage with strong sharing features
-- [Google Drive](./google-drive.md): Document-focused with collaborative editing
-- [OneDrive](./onedrive.md): Microsoft ecosystem integration with SharePoint features
+- [Dropbox](./dropbox.md): Block-based storage
+- [Google Drive](./google-drive.md): Document-focused
+- [OneDrive](./onedrive.md): Microsoft ecosystem integration
 - [Box](./box.md): Enterprise-focused with strong security and compliance
 - [Local File System](./local.md): Access to native operating system file operations
 
@@ -133,10 +114,8 @@ In addition to traditional file systems, the abstraction supports cloud object s
 
 Each provider's documentation includes detailed information about how it implements the various capabilities, including:
 
-- Trash management and retention policies
 - File addressing mechanisms
 - Content hashing approaches
-- Sharing features and controls
 
 Refer to the provider-specific documentation to understand how each capability is implemented by that provider.
 
@@ -147,8 +126,6 @@ The abstraction provides unified methods for common operations:
 - File reading/writing
 - Directory listing
 - Metadata access
-- Share link creation
-- Trash management (delete, restore, permanent deletion)
 - Protocol-specific operations (WebDAV, FTP/SFTP)
 - Cloud storage operations (object manipulation, lifecycle management)
 
@@ -169,7 +146,7 @@ let provider_info = ProviderInfo::new(
     "Dropbox".to_string()
 )
 .with_category("cloud_storage_service".to_string())
-.with_tags(vec!["block_based".to_string(), "sharing".to_string()])
+.with_tags(vec!["block_based".to_string()])
 .with_website_url("https://www.dropbox.com".to_string());
 
 capabilities.set_provider_info(provider_info);

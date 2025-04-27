@@ -2,6 +2,7 @@ use super::resolver::PathEnum;
 use crate::core::error;
 use crate::fs::path::local::posix::PosixLocalPath;
 use crate::fs::path::local::{LocalPath, LocalPathType};
+use crate::fs::path::default::{DefaultNamespace, DefaultPathComponents};
 
 /// Create a path in the current OS format
 pub fn create_os_path(path: &str) -> error::Result<PathEnum> {
@@ -27,6 +28,31 @@ pub fn create_local_path(path: &str) -> error::Result<PathEnum> {
         _ => {
             let path = PosixLocalPath::create_os_path(path)?;
             Ok(PathEnum::Posix(path))
+        }
+    }
+}
+
+/// Convert a PathEnum to a boxed LocalPath
+pub fn path_enum_to_boxed_local_path(path_enum: PathEnum) -> Box<dyn LocalPath<ComponentsType=DefaultPathComponents, NamespaceType=DefaultNamespace> + 'static> {
+    match path_enum {
+        PathEnum::Posix(path) => Box::new(path),
+        PathEnum::Windows(path) => Box::new(path),
+        PathEnum::UNC(path) => Box::new(path),
+        PathEnum::NFS(path) => Box::new(path),
+        PathEnum::SMB(path) => Box::new(path),
+        PathEnum::Essential(path) => {
+            // Use the Path trait method to_string instead of calling directly
+            let path_str = super::core::Path::to_string(&path);
+            match std::env::consts::OS {
+                "windows" => {
+                    let path = PosixLocalPath::create_os_path(&path_str).unwrap();
+                    Box::new(path) 
+                },
+                _ => {
+                    let path = PosixLocalPath::create_os_path(&path_str).unwrap();
+                    Box::new(path)
+                }
+            }
         }
     }
 }

@@ -379,7 +379,8 @@ impl<C: PathComponents + 'static, N: Namespace + 'static> Path for Box<dyn super
     }
 
     fn to_local_path(&self) -> Option<Box<dyn super::local::LocalPath<ComponentsType=Self::ComponentsType, NamespaceType=Self::NamespaceType>>> {
-        Some(self.clone())
+        // Cannot directly clone a Box<dyn LocalPath>
+        None
     }
 
     fn as_any(&self) -> &dyn Any {

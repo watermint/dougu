@@ -60,56 +60,6 @@ pub trait FileSystemProvider: Debug {
     /// Deletes an entry at the specified path
     fn delete(&self, path: &Self::PathType, recursive: bool) -> Result<()>;
     
-    /// Creates a shared link to the specified entry
-    /// Requires the ShareLink capability
-    fn create_shared_link(&self, path: &Self::PathType) -> Result<Option<String>>;
-    
-    /// Creates a shared link with custom options (expiration, password, permissions)
-    /// Requires the SharingOptions capability
-    fn create_custom_shared_link(&self, 
-        path: &Self::PathType, 
-        expiration: Option<crate::time::ZonedDateTime>,
-        password: Option<String>,
-        allow_edit: bool
-    ) -> Result<Option<String>> {
-        // Default implementation falls back to regular shared link if not supported
-        if self.supports(crate::fs::capability::Capability::SharingOptions) {
-            // Implementors should override this with actual implementation
-            Err(crate::core::error::Error::msg("Custom sharing options not implemented"))
-        } else {
-            self.create_shared_link(path)
-        }
-    }
-    
-    /// Shares a folder with specific users
-    /// Requires the SharedFolder capability
-    fn share_folder_with_users(&self, 
-        folder_path: &Self::PathType, 
-        user_ids: &[String],
-        can_edit: bool
-    ) -> Result<()> {
-        if !self.supports(crate::fs::capability::Capability::SharedFolder) {
-            Err(crate::core::error::Error::msg("Folder sharing not supported"))
-        } else {
-            // Implementors should override this with actual implementation
-            Err(crate::core::error::Error::msg("Folder sharing not implemented"))
-        }
-    }
-    
-    /// Creates a team folder (business/enterprise feature)
-    /// Requires the TeamFolder capability
-    fn create_team_folder(&self, 
-        name: &str, 
-        parent_path: Option<&Self::PathType>
-    ) -> Result<Self::FolderEntryType> {
-        if !self.supports(crate::fs::capability::Capability::TeamFolder) {
-            Err(crate::core::error::Error::msg("Team folders not supported"))
-        } else {
-            // Implementors should override this with actual implementation
-            Err(crate::core::error::Error::msg("Team folders not implemented"))
-        }
-    }
-    
     /// Gets the entry metadata at the specified path
     fn get_metadata(&self, path: &Self::PathType) -> Result<Self::MetadataType>;
 }
